@@ -17,11 +17,15 @@ const KNOWN_TYPES: PackedStringArray = [
 	"day_at_least",
 	"rank_at_least",
 	"episode_at_least",
+	"skill_at_least",
 ]
 
 ## Где в GameState лежат ранг и эпизод: обычные числовые переменные состояния.
 const VAR_RANK: String = "progress.rank"
 const VAR_EPISODE: String = "progress.episode"
+
+## Навыки: skill.hacking и далее (docs/gameplay/skills.md).
+const VAR_SKILL_PREFIX: String = "skill."
 
 
 ## Проверить одно условие.
@@ -71,6 +75,13 @@ static func _check_one(type: String, value: Variant) -> bool:
 			return int(GameState.get_var_or(VAR_RANK, 0)) >= int(value)
 		"episode_at_least":
 			return int(GameState.get_var_or(VAR_EPISODE, 0)) >= int(value)
+		"skill_at_least":
+			# Формат: {"skill_at_least": ["hacking", 4]}
+			var pair: Array = value as Array
+			if pair == null or pair.size() != 2:
+				push_error("Conditions: skill_at_least ожидает [навык, значение], получено: %s" % [value])
+				return false
+			return int(GameState.get_var_or(VAR_SKILL_PREFIX + str(pair[0]), 0)) >= int(pair[1])
 		_:
 			push_error("Conditions: неизвестный тип условия '%s'" % type)
 			return false

@@ -1,14 +1,15 @@
 {
-  "_note": "Взлом 2 из 3: обычный. Один слой защиты (матрица) + нужно повышение прав, трейс идёт. Узел из второстепенного квеста «Неверный муж» (docs/story/side-quests/cheating-husband.md) — на M1 проверяем на нём только взлом, квест подключается в M2.",
+  "_note": "Взлом 2 из 3: обычный. Один слой защиты (матрица), трейс идёт, и узел в сети только вечером — так игрок впервые сталкивается с прайм-таймом. Узел из квеста «Неверный муж» (docs/story/side-quests/cheating-husband.md); на M1 проверяем только взлом.",
   "id": "node_husband_pc",
   "title": "Домашний ПК",
   "address": "92.44.18.3",
   "difficulty": 2,
-  "trace_minutes": 30,
+  "trace_minutes": 45,
   "required_services": 1,
-  "root_required": true,
-  "logs_path": "/sys/log",
+  "root_required": false,
+  "logs_path": "/log",
   "known_from_start": false,
+  "online": { "from": "18:00", "to": "23:30" },
 
   "services": [
     {
@@ -39,18 +40,18 @@
     "/home/work/otchet_kvartal.doc": {
       "size_kb": 340
     },
-    "/root/zametki.txt": {
+    "/home/work/zametki.txt": {
       "text": "Надо успеть перевести деньги до того, как она поймёт.",
       "tag": "clue",
-      "_note": "В /root — виден только после rootstep. Награда за повышение прав."
+      "_note": "Лежит в /home, а не за правами администратора: rootstep появляется только с вступлением в группу, а этот квест — ранний."
     },
     "/sys/x-server.sys": {
       "system": true
     },
-    "/sys/log/access.log": {
+    "/log/access.log": {
       "log": true
     },
-    "/sys/log/auth.log": {
+    "/log/auth.log": {
       "log": true
     }
   },

@@ -49,6 +49,14 @@ func test_rank_and_episode_read_state_vars() -> void:
 	assert_false(Conditions.check({"episode_at_least": 2}))
 
 
+func test_skill_at_least() -> void:
+	# Навык взлома 0-10, docs/gameplay/skills.md.
+	GameState.set_var(Conditions.VAR_SKILL_PREFIX + "hacking", 3)
+	assert_true(Conditions.check({"skill_at_least": ["hacking", 3]}))
+	assert_false(Conditions.check({"skill_at_least": ["hacking", 4]}))
+	assert_false(Conditions.check({"skill_at_least": ["fitness", 1]}), "другой навык ещё 0")
+
+
 func test_time_of_day_condition() -> void:
 	Clock.set_time(1, 9 * 60)
 	assert_true(Conditions.check({"time_of_day": "morning"}))

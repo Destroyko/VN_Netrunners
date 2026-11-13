@@ -12,17 +12,25 @@ const PUZZLE_TYPES: PackedStringArray = ["password", "matrix"]
 const MIN_DIFFICULTY: int = 1
 const MAX_DIFFICULTY: int = 4
 
+## Корневые каталоги узла, docs/tech/terminal-spec.md. Других не бывает:
+## /home и /log доступны гостю, /sys и /prog — только администратору.
+const FILE_ROOTS: PackedStringArray = ["/home/", "/log/", "/sys/", "/prog/"]
+
 var errors: PackedStringArray = []
 var warnings: PackedStringArray = []
 
 # Адреса узлов должны быть уникальны: иначе connect приведёт не туда.
 var _addresses: Dictionary = {}
 
+# Все узлы: нужны, чтобы проверить связи links на существующие id.
+var _nodes: Dictionary = {}
+
 
 func validate_all(nodes: Dictionary) -> void:
 	errors.clear()
 	warnings.clear()
 	_addresses.clear()
+	_nodes = nodes
 	for id: String in nodes.keys():
 		_validate_node(id, nodes[id] as Dictionary)
 
@@ -58,7 +66,64 @@ func _validate_node(id: String, node: Dictionary) -> void:
 	var files: Dictionary = node.get("files", {}) as Dictionary
 	_validate_files(where, files)
 	_validate_logs_path(where, node, files)
+	_validate_links(id, where, node)
+	_validate_online(where, node)
 	_validate_effects(where + ", on_hacked", node.get("on_hacked", []) as Array)
+
+
+## Связи между узлами: их показывает scan (docs/gameplay/network.md).
+## Связь обязана быть двусторонней, иначе scan с одной стороны видит узел, а с другой нет.
+func _validate_links(node_id: String, where: String, node: Dictionary) -> void:
+	var links: Array = node.get("links", []) as Array
+	if links == null:
+		return
+	var seen: Dictionary = {}
+	for link_variant: Variant in links:
+		var other: String = str(link_variant)
+		if other == node_id:
+			errors.append("%s: узел связан сам с собой" % where)
+			continue
+		if seen.has(other):
+			errors.append("%s: связь с '%s' указана дважды" % [where, other])
+			continue
+		seen[other] = true
+		if not _nodes.has(other):
+			errors.append("%s: связь с несуществующим узлом '%s'" % [where, other])
+			continue
+		var back: Array = (_nodes[other] as Dictionary).get("links", []) as Array
+		if back == null or not back.has(node_id):
+			errors.append(
+				"%s: связь с '%s' односторонняя — добавь '%s' в его links"
+				% [where, other, node_id]
+			)
+
+
+## Окно доступности («прайм-тайм»): время в формате чч:мм.
+func _validate_online(where: String, node: Dictionary) -> void:
+	if not node.has("online"):
+		return
+	var online: Dictionary = node["online"] as Dictionary
+	if online == null:
+		errors.append("%s: online должен быть объектом {from, to}" % where)
+		return
+	for key: String in ["from", "to"]:
+		if not online.has(key):
+			errors.append("%s: в online нет '%s'" % [where, key])
+			continue
+		if _parse_time(str(online[key])) < 0:
+			errors.append("%s: online.%s должно быть чч:мм, получено '%s'" % [where, key, online[key]])
+
+
+## Минуты от начала суток или -1, если формат неверный.
+func _parse_time(value: String) -> int:
+	var parts: PackedStringArray = value.split(":")
+	if parts.size() != 2 or not parts[0].is_valid_int() or not parts[1].is_valid_int():
+		return -1
+	var hours: int = int(parts[0])
+	var minutes: int = int(parts[1])
+	if hours < 0 or hours > 23 or minutes < 0 or minutes > 59:
+		return -1
+	return hours * 60 + minutes
 
 
 func _validate_services(where: String, services: Array) -> void:
@@ -87,8 +152,11 @@ func _validate_services(where: String, services: Array) -> void:
 
 func _validate_files(where: String, files: Dictionary) -> void:
 	for path: String in files.keys():
-		if not path.begins_with("/"):
-			errors.append("%s: путь файла должен начинаться со слеша: '%s'" % [where, path])
+		if not _has_known_root(path):
+			errors.append(
+				"%s: путь '%s' вне корневых каталогов (%s)"
+				% [where, path, ", ".join(FILE_ROOTS)]
+			)
 		var file: Dictionary = files[path] as Dictionary
 		if file == null:
 			errors.append("%s: файл '%s' должен быть объектом" % [where, path])
@@ -114,6 +182,13 @@ func _validate_logs_path(where: String, node: Dictionary, files: Dictionary) -> 
 		"%s: logs_path = '%s', но ни одного файла в этом каталоге нет — чистить логи будет нечего"
 		% [where, logs_path]
 	)
+
+
+func _has_known_root(path: String) -> bool:
+	for root: String in FILE_ROOTS:
+		if path.begins_with(root):
+			return true
+	return false
 
 
 func _check_difficulty(where: String, data: Dictionary) -> void:

@@ -1,0 +1,26 @@
+{
+  "_note": "Домашний роутер. Защиты нет, взламывать нечего — он нужен, чтобы игрок на первом же шаге понял механику сети: scan показывает соседей, подключаешься к соседу, сканируешь снова (docs/gameplay/network.md).",
+  "id": "node_home_router",
+  "title": "Роутер (дом)",
+  "address": "10.0.0.1",
+  "difficulty": 1,
+  "trace_minutes": 0,
+  "required_services": 0,
+  "root_required": false,
+  "logs_path": "/log",
+  "known_from_start": false,
+  "links": ["node_home_pc", "node_training_pc"],
+
+  "services": [],
+
+  "files": {
+    "/home/devices.txt": {
+      "text": "Список устройств в сети: 10.0.0.2 (мой ПК), 10.0.0.7 (кв. 14). Пароль администратора роутера сменён 8 лет назад."
+    },
+    "/log/access.log": {
+      "log": true
+    }
+  },
+
+  "on_hacked": []
+}

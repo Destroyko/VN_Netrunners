@@ -7,8 +7,9 @@
   "trace_minutes": 0,
   "required_services": 0,
   "root_required": false,
-  "logs_path": "/sys/log",
+  "logs_path": "/log",
   "known_from_start": true,
+  "links": ["node_home_router"],
 
   "services": [],
 
@@ -21,6 +22,13 @@
     },
     "/home/mail/archive.txt": {
       "text": "Архив писем до аварии. Открывать больно, но иногда полезно."
+    },
+    "/home/mail/sosedka.txt": {
+      "text": "Дала тебе адрес для тренировки: 10.0.0.7, это машина в нашей же сети. Трейса там нет, сиди и разбирайся спокойно. Начни со scan, потом probe, потом passhound."
+    },
+    "/home/mail/zakaz_server.txt": {
+      "text": "Заказ: сервер фирмы, 77.61.204.12. Два слоя защиты, трейс короткий, и он в сети только в рабочие часы. Без deepscan не лезь.",
+      "_note": "Так игрок узнаёт адрес третьего узла и про прайм-тайм."
     },
     "/home/notes/paroli.txt": {
       "text": "Записывать пароли в файл — плохая идея. Но память после комы так себе."
@@ -36,7 +44,7 @@
       "system": true,
       "_note": "Скопируешь чужой — сменится оформление. Безобидная игрушка для любопытных."
     },
-    "/sys/log/access.log": {
+    "/log/access.log": {
       "log": true
     }
   },

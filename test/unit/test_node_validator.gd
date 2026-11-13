@@ -18,7 +18,7 @@ func _good_node() -> Dictionary:
 		"trace_minutes": 0,
 		"required_services": 1,
 		"root_required": false,
-		"logs_path": "/sys/log",
+		"logs_path": "/log",
 		"services": [
 			{
 				"id": "svc_login",
@@ -30,7 +30,7 @@ func _good_node() -> Dictionary:
 		],
 		"files": {
 			"/home/zametka.txt": {"text": "кличка кота"},
-			"/sys/log/access.log": {"log": true},
+			"/log/access.log": {"log": true},
 		},
 		"on_hacked": [{"set_flag": "node.test.hacked"}],
 	}
@@ -124,10 +124,80 @@ func test_negative_trace_is_error() -> void:
 	assert_false(_check(node))
 
 
-func test_file_path_must_be_absolute() -> void:
+func test_file_path_outside_known_roots_is_error() -> void:
+	# Корней ровно четыре: /home, /log, /sys, /prog (docs/tech/terminal-spec.md).
 	var node: Dictionary = _good_node()
-	node["files"] = {"home/zametka.txt": {"text": "..."}, "/sys/log/access.log": {"log": true}}
+	node["files"] = {"home/zametka.txt": {"text": "..."}, "/log/access.log": {"log": true}}
 	assert_false(_check(node))
+
+	validator = NodeValidator.new()
+	var stray: Dictionary = _good_node()
+	stray["files"] = {"/root/zametki.txt": {"text": "..."}, "/log/access.log": {"log": true}}
+	assert_false(_check(stray), "старый /root больше не корень")
+
+	validator = NodeValidator.new()
+	var ok: Dictionary = _good_node()
+	ok["files"] = {"/prog/nightly.sh": {"text": "..."}, "/log/access.log": {"log": true}}
+	assert_true(_check(ok), _text())
+
+
+## Связи и прайм-тайм — docs/gameplay/network.md.
+func _linked_pair(first_links: Array, second_links: Array) -> Dictionary:
+	var first: Dictionary = _good_node()
+	first["links"] = first_links
+	var second: Dictionary = _good_node()
+	second["id"] = "node_second"
+	second["address"] = "10.0.0.8"
+	second["links"] = second_links
+	return {"node_test": first, "node_second": second}
+
+
+func test_two_way_link_passes() -> void:
+	validator.validate_all(_linked_pair(["node_second"], ["node_test"]))
+	assert_eq(validator.errors.size(), 0, "\n".join(validator.errors))
+
+
+func test_one_way_link_is_error() -> void:
+	# Иначе scan с одной стороны видит узел, а с другой нет.
+	validator.validate_all(_linked_pair(["node_second"], []))
+	assert_false(validator.errors.is_empty())
+	assert_string_contains("\n".join(validator.errors), "односторонняя")
+
+
+func test_link_to_missing_node_is_error() -> void:
+	var node: Dictionary = _good_node()
+	node["links"] = ["node_net_takogo"]
+	assert_false(_check(node))
+
+
+func test_self_link_is_error() -> void:
+	var node: Dictionary = _good_node()
+	node["links"] = ["node_test"]
+	assert_false(_check(node))
+
+
+func test_online_window_passes() -> void:
+	var node: Dictionary = _good_node()
+	node["online"] = {"from": "08:00", "to": "18:00"}
+	assert_true(_check(node), _text())
+
+
+func test_online_without_field_is_error() -> void:
+	var node: Dictionary = _good_node()
+	node["online"] = {"from": "08:00"}
+	assert_false(_check(node))
+
+
+func test_online_with_bad_time_is_error() -> void:
+	for bad: String in ["8-00", "25:00", "08:70", "утро"]:
+		validator = NodeValidator.new()
+		var node: Dictionary = _good_node()
+		node["online"] = {"from": bad, "to": "18:00"}
+		assert_false(_check(node), "время должно быть чч:мм: " + bad)
+
+
+func test_no_online_means_always_available() -> void:
+	assert_true(_check(_good_node()), "нет поля online — узел в сети круглосуточно")
 
 
 func test_empty_file_description_is_warning_not_error() -> void:

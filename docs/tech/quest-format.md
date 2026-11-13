@@ -44,7 +44,7 @@ data/
 
 Цели (`objective.type`): `hack_node`, `read_file`, `copy_file`, `delete_file`, `wipe_logs` (почистить логи узла), `talk`, `visit_location`, `wait_until`, `deliver` (отправить файл / сообщение).
 
-Условия (`requires`): `flag`, `not_flag`, `rank_at_least`, `episode_at_least`, `time_of_day`, `money_at_least`.
+Условия (`requires`): `flag`, `not_flag`, `rank_at_least`, `episode_at_least`, `skill_at_least` (`["hacking", 4]`), `time_of_day`, `money_at_least`, `heat_at_most`, `day_at_least`.
 
 Эффекты (`effects`): `money`, `rep` (персонаж / фракция), `heat`, `set_flag`, `unlock_quest`, `add_file`, `schedule_news`.
 

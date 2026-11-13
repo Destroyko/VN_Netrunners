@@ -13,14 +13,23 @@
   },
 
   "action_minutes": {
-    "_note": "Стоимость действий во времени. Пока заглушки, уточняем в M1-M2.",
-    "hack_step": 15,
+    "_note": "Стоимость действий во времени. Снижено 13.11.2026: при 15 минутах за программу взлом не укладывался в трейс. Крутим на плейтесте.",
+    "hack_step": 8,
+    "probe": 3,
+    "deepscan": 12,
+    "logwipe": 3,
     "terminal_command": 1,
     "travel_short": 20,
     "travel_long": 45,
     "eat": 15,
     "sleep_full": 480,
     "legal_job_shift": 240
+  },
+
+  "channel": {
+    "_note": "Скорость скачивания файлов. Большие файлы под трейсом — отдельная задача на планирование (docs/gameplay/hacking-loop.md).",
+    "kb_per_minute": 500,
+    "_note_example": "klienty.db на 8200 КБ = 17 минут. В трейс сервера (60) влезает только при подготовке."
   },
 
   "economy": {
@@ -54,6 +63,14 @@
     "threshold_hint": 60,
     "threshold_search": 70,
     "threshold_critical": 80
+  },
+
+  "skills": {
+    "_note": "Навыки (docs/gameplay/skills.md). На вертикальном срезе фиксированы, в MVP качаются с нуля.",
+    "max": 10,
+    "hacking_start": 3,
+    "hacking_speed_per_point": 0.1,
+    "_note_speed": "скорость = 1 + навык * 0.1; время = базовое / скорость. Навык 5 → программа на 15 минут займёт 10."
   },
 
   "puzzles": {
