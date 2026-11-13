@@ -9,10 +9,14 @@
   "root_required": true,
   "logs_path": "/log",
   "known_from_start": false,
-  "online": { "from": "08:00", "to": "18:00" },
-  "links": ["node_office_backup"],
+  "online": {
+    "from": "08:00",
+    "to": "18:00"
+  },
+  "links": [
+    "node_office_backup"
+  ],
   "_note_root": "root_required: на M1 rootstep доступен как программа прототипа. Сюжетно он появляется при вступлении в группу — значит этот заказ по сюжету будет позже учебных.",
-
   "services": [
     {
       "id": "svc_admin_login",
@@ -33,7 +37,6 @@
       "hints": []
     }
   ],
-
   "files": {
     "/home/users/list.txt": {
       "text": "Сотрудники: 14 человек. Половина работает из дома, пароли меняют раз в год.",
@@ -42,7 +45,8 @@
     "/home/buh/dolgi_2026.csv": {
       "size_kb": 120,
       "tag": "evidence",
-      "_note": "Зацепка про фирму-кредитора. На M1 это просто файл; сюжетное значение — в M3-M4."
+      "_note": "Зацепка про фирму-кредитора. На M1 это просто файл; сюжетное значение — в M3-M4.",
+      "file_id": "file_evidence_dolgi"
     },
     "/home/buh/zarplaty.csv": {
       "size_kb": 95
@@ -50,7 +54,8 @@
     "/sys/backup/klienty.db": {
       "size_kb": 8200,
       "tag": "evidence",
-      "_note": "Большой файл за правами администратора: скачать под трейсом без подготовки не выйдет. Проверка планирования."
+      "_note": "Большой файл за правами администратора: скачать под трейсом без подготовки не выйдет. Проверка планирования.",
+      "file_id": "file_evidence_klienty"
     },
     "/prog/nightly.sh": {
       "text": "Ночная выгрузка данных на резервный узел 77.61.204.40.",
@@ -73,9 +78,12 @@
       "log": true
     }
   },
-
   "on_hacked": [
-    { "set_flag": "node.office_server.hacked" },
-    { "heat": 5 }
+    {
+      "set_flag": "node.office_server.hacked"
+    },
+    {
+      "heat": 5
+    }
   ]
 }

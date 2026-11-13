@@ -42,9 +42,9 @@ data/
 
 ## Словарь (стандартные типы)
 
-Цели (`objective.type`): `hack_node`, `read_file`, `copy_file`, `delete_file`, `wipe_logs` (почистить логи узла), `talk`, `visit_location`, `wait_until`, `deliver` (отправить файл / сообщение).
+Цели (`objective.type`): `hack_node`, `read_file`, `copy_file`, `delete_file`, `wipe_logs` (почистить логи узла), `mask_backup` (вычистить файл из архивов узла), `talk`, `visit_location`, `wait_until`, `deliver` (отправить файл / сообщение).
 
-Условия (`requires`): `flag`, `not_flag`, `rank_at_least`, `episode_at_least`, `skill_at_least` (`["hacking", 4]`), `time_of_day`, `money_at_least`, `heat_at_most`, `day_at_least`.
+Условия (`requires`): `flag`, `not_flag`, `rank_at_least`, `episode_at_least`, `skill_at_least` (`["hacking", 4]`), `has_file` (по `file_id`, где бы он ни лежал на ПК героя), `time_of_day`, `money_at_least`, `heat_at_most`, `day_at_least`.
 
 Эффекты (`effects`): `money`, `rep` (персонаж / фракция), `heat`, `set_flag`, `unlock_quest`, `add_file`, `schedule_news`.
 
@@ -98,6 +98,23 @@ data/
   }
 }
 ```
+
+## Соглашение: файлы проверяются по `file_id`, а не по пути
+
+Решено 13.11.2026. Игрок волен скопировать файл себе, переименовать его и убрать в свою
+папку — условие всё равно должно срабатывать. Поэтому и условие `has_file`, и цель `deliver`
+(прикрепить файл к заказу) работают по `file_id` из данных узла, а не по пути.
+
+Проверка одна и простая: **лежит ли нужный `file_id` где-нибудь на ПК героя.** Один файл —
+один id; архив или бэкап это самостоятельный файл со своим id, а не копия цели
+(→ [terminal-spec.md](terminal-spec.md)).
+
+```json
+{ "type": "deliver", "what": "file_evidence_hotel", "to": "client_wife" }
+```
+
+Так же работает скрытая концовка: она смотрит, сколько файлов-компромата лежит у героя
+на ПК, где угодно (→ `../story/mysteries.md`).
 
 ## Соглашение: заметание следов — необязательная цель
 

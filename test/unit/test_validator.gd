@@ -125,6 +125,15 @@ func test_objective_pointing_to_missing_node_is_caught() -> void:
 	assert_string_contains(validator.summary(), "node_opechatka")
 
 
+func test_mask_backup_objective_passes() -> void:
+	# Подмена архива — отдельный этап заметания следов (docs/gameplay/hacking.md).
+	var quest: Dictionary = _good_quest()
+	quest["stages"][0]["optional"] = [
+		{"type": "mask_backup", "node": "node_husband_pc", "file": "/home/photos/hotel.jpg"},
+	]
+	assert_true(_validate(quest), validator.summary())
+
+
 func test_optional_wipe_logs_objective_with_bonus_passes() -> void:
 	# Соглашение из quest-format.md: заметание следов — необязательная цель с бонусом.
 	var quest: Dictionary = _good_quest()

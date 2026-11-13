@@ -1,5 +1,6 @@
 {
   "_note": "Взлом 2 из 3: обычный. Один слой защиты (матрица), трейс идёт, и узел в сети только вечером — так игрок впервые сталкивается с прайм-таймом. Узел из квеста «Неверный муж» (docs/story/side-quests/cheating-husband.md); на M1 проверяем только взлом.",
+  "_note_order": "Трейс есть, значит сюжетно это заказ уже эпохи группы (docs/gameplay/hacking.md, три ступени обучения). В прототипе проверяется с флагом story.group_joined; порядок квестов расставим в M3.",
   "id": "node_husband_pc",
   "title": "Домашний ПК",
   "address": "92.44.18.3",
@@ -9,8 +10,10 @@
   "root_required": false,
   "logs_path": "/log",
   "known_from_start": false,
-  "online": { "from": "18:00", "to": "23:30" },
-
+  "online": {
+    "from": "18:00",
+    "to": "23:30"
+  },
   "services": [
     {
       "id": "svc_firewall",
@@ -23,12 +26,12 @@
       ]
     }
   ],
-
   "files": {
     "/home/photos/hotel.jpg": {
       "size_kb": 2400,
       "tag": "evidence",
-      "_note": "Цель квеста: скопировать или удалить. Большой файл — качается заметное время под трейсом."
+      "_note": "Цель квеста: скопировать или удалить. Большой файл — качается заметное время под трейсом.",
+      "file_id": "file_evidence_hotel"
     },
     "/home/photos/semya.jpg": {
       "size_kb": 1800
@@ -55,9 +58,12 @@
       "log": true
     }
   },
-
   "on_hacked": [
-    { "set_flag": "node.husband_pc.hacked" },
-    { "heat": 3 }
+    {
+      "set_flag": "node.husband_pc.hacked"
+    },
+    {
+      "heat": 3
+    }
   ]
 }

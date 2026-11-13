@@ -20,6 +20,12 @@ const KNOWN_TYPES: PackedStringArray = [
 	"skill_at_least",
 ]
 
+## Типы из документации, которым нужны системы следующих этапов.
+## Валидатор их пропускает, проверка пока возвращает false с предупреждением.
+const DEFERRED_TYPES: PackedStringArray = [
+	"has_file",  # нужна файловая система игрока, M1
+]
+
 ## Где в GameState лежат ранг и эпизод: обычные числовые переменные состояния.
 const VAR_RANK: String = "progress.rank"
 const VAR_EPISODE: String = "progress.episode"
@@ -52,8 +58,12 @@ static func check_any(conditions: Array) -> bool:
 	return false
 
 
-## Для валидатора данных: известен ли такой тип условия.
+## Для валидатора данных: тип либо работает, либо запланирован — но не опечатка.
 static func is_known(type: String) -> bool:
+	return KNOWN_TYPES.has(type) or DEFERRED_TYPES.has(type)
+
+
+static func is_implemented(type: String) -> bool:
 	return KNOWN_TYPES.has(type)
 
 
@@ -83,5 +93,8 @@ static func _check_one(type: String, value: Variant) -> bool:
 				return false
 			return int(GameState.get_var_or(VAR_SKILL_PREFIX + str(pair[0]), 0)) >= int(pair[1])
 		_:
+			if DEFERRED_TYPES.has(type):
+				push_warning("Conditions: условие '%s' ещё не реализовано (нужна система следующего этапа)" % type)
+				return false
 			push_error("Conditions: неизвестный тип условия '%s'" % type)
 			return false

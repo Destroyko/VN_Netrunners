@@ -25,11 +25,15 @@ var _addresses: Dictionary = {}
 # Все узлы: нужны, чтобы проверить связи links на существующие id.
 var _nodes: Dictionary = {}
 
+# file_id содержательных файлов: по ним квесты ищут файл у игрока, поэтому они уникальны.
+var _file_ids: Dictionary = {}
+
 
 func validate_all(nodes: Dictionary) -> void:
 	errors.clear()
 	warnings.clear()
 	_addresses.clear()
+	_file_ids.clear()
 	_nodes = nodes
 	for id: String in nodes.keys():
 		_validate_node(id, nodes[id] as Dictionary)
@@ -169,6 +173,18 @@ func _validate_files(where: String, files: Dictionary) -> void:
 			warnings.append(
 				"%s: у файла '%s' нет ни text, ни size_kb, ни пометки system/log" % [where, path]
 			)
+		# file_id должен быть уникален во всех данных: по нему квест ищет файл у игрока,
+		# где бы тот его ни спрятал (docs/tech/quest-format.md).
+		if file.has("file_id"):
+			var file_id: String = str(file["file_id"])
+			if file_id.is_empty():
+				errors.append("%s: пустой file_id у файла '%s'" % [where, path])
+			elif _file_ids.has(file_id):
+				errors.append(
+					"%s: file_id '%s' уже занят (%s)" % [where, file_id, _file_ids[file_id]]
+				)
+			else:
+				_file_ids[file_id] = "%s %s" % [where, path]
 
 
 func _validate_logs_path(where: String, node: Dictionary, files: Dictionary) -> void:

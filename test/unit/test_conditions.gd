@@ -96,3 +96,10 @@ func test_known_types_cover_documented_dictionary() -> void:
 	for type: String in documented:
 		assert_true(Conditions.is_known(type), "тип условия из документации: " + type)
 	assert_false(Conditions.is_known("flagg"), "опечатка не проходит")
+
+
+func test_has_file_is_known_but_not_implemented() -> void:
+	# Условие ищет файл по file_id где угодно на ПК героя — нужна файловая система (M1).
+	assert_true(Conditions.is_known("has_file"))
+	assert_false(Conditions.is_implemented("has_file"), "нужна файловая система из M1")
+	assert_true(Conditions.is_implemented("flag"))

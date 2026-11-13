@@ -207,6 +207,29 @@ func test_empty_file_description_is_warning_not_error() -> void:
 	assert_eq(validator.warnings.size(), 1)
 
 
+func test_file_id_must_be_unique_across_all_data() -> void:
+	# По file_id квест ищет файл у игрока, где бы тот его ни спрятал.
+	var first: Dictionary = _good_node()
+	first["files"]["/home/dolgi.csv"] = {"size_kb": 10, "file_id": "file_evidence_dolgi"}
+	var second: Dictionary = _good_node()
+	second["id"] = "node_second"
+	second["address"] = "10.0.0.8"
+	second["files"] = {
+		"/home/kopiya.csv": {"size_kb": 10, "file_id": "file_evidence_dolgi"},
+		"/log/access.log": {"log": true},
+	}
+	validator.validate_all({"node_test": first, "node_second": second})
+	assert_false(validator.errors.is_empty())
+	assert_string_contains("\n".join(validator.errors), "file_evidence_dolgi")
+
+
+func test_unique_file_ids_pass() -> void:
+	var node: Dictionary = _good_node()
+	node["files"]["/home/dolgi.csv"] = {"size_kb": 10, "file_id": "file_evidence_dolgi"}
+	node["files"]["/home/hotel.jpg"] = {"size_kb": 20, "file_id": "file_evidence_hotel"}
+	assert_true(_check(node), _text())
+
+
 func test_logs_path_without_files_is_error() -> void:
 	var node: Dictionary = _good_node()
 	node["files"] = {"/home/zametka.txt": {"text": "..."}}
