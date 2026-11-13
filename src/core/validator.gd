@@ -110,6 +110,15 @@ func _validate_quest(
 		errors.append("%s: нет этапов (stages)" % where)
 
 	var outcomes: Dictionary = quest.get("outcomes", {}) as Dictionary
+
+	# Квест со сроком обязан описать, что будет, если срок вышел:
+	# иначе провал по времени проходит без последствий (docs/tech/quest-format.md).
+	if quest.has("deadline_days"):
+		if int(quest["deadline_days"]) <= 0:
+			errors.append("%s: deadline_days должен быть больше нуля" % where)
+		if not outcomes.has("expired"):
+			errors.append("%s: есть срок (deadline_days), но нет исхода 'expired'" % where)
+
 	var stage_ids: Dictionary = {}
 
 	for stage_variant: Variant in stages:

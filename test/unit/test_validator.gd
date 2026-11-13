@@ -125,6 +125,31 @@ func test_objective_pointing_to_missing_node_is_caught() -> void:
 	assert_string_contains(validator.summary(), "node_opechatka")
 
 
+func test_quest_with_deadline_needs_expired_outcome() -> void:
+	# Иначе провал по времени проходит без последствий (docs/tech/quest-format.md).
+	var quest: Dictionary = _good_quest()
+	quest["deadline_days"] = 3
+	assert_false(_validate(quest))
+	assert_string_contains(validator.summary(), "expired")
+
+	validator = Validator.new()
+	var with_outcome: Dictionary = _good_quest()
+	with_outcome["deadline_days"] = 3
+	with_outcome["outcomes"]["expired"] = {"effects": [{"rep": ["group", -5]}]}
+	assert_true(_validate(with_outcome), validator.summary())
+
+
+func test_deadline_must_be_positive() -> void:
+	var quest: Dictionary = _good_quest()
+	quest["deadline_days"] = 0
+	quest["outcomes"]["expired"] = {"effects": []}
+	assert_false(_validate(quest))
+
+
+func test_quest_without_deadline_needs_no_expired_outcome() -> void:
+	assert_true(_validate(_good_quest()), validator.summary())
+
+
 func test_mask_backup_objective_passes() -> void:
 	# Подмена архива — отдельный этап заметания следов (docs/gameplay/hacking.md).
 	var quest: Dictionary = _good_quest()
