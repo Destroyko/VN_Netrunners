@@ -34,8 +34,11 @@ func _refresh() -> void:
 		"Деньги: %d    Заметность: %d" % [GameState.money, GameState.heat],
 		"Сид случайности: %d" % Rng.get_seed(),
 		"",
+		"Сложность: %d" % int(GameState.difficulty),
+		"",
 		"Пробел — потратить час игрового времени",
 		"F1 — консоль разработчика",
+		"Esc — в главное меню",
 	])
 
 
@@ -43,6 +46,8 @@ func _input(event: InputEvent) -> void:
 	# Проверка руками, что время идёт и события доходят до интерфейса.
 	if event.is_action_pressed(&"ui_accept"):
 		Clock.advance(60)
+	elif event.is_action_pressed(&"ui_cancel"):
+		get_tree().change_scene_to_file(Screens.MAIN_MENU)
 
 
 func _on_time_advanced(_minute: int, _minutes_passed: int) -> void:

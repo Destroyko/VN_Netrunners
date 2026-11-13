@@ -1,0 +1,56 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ui/new_game.gd" id="1_new_game"]
+
+[node name="NewGame" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_new_game")
+
+[node name="Rows" type="VBoxContainer" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -140.0
+offset_top = -120.0
+offset_right = 140.0
+offset_bottom = 120.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Rows"]
+layout_mode = 2
+text = "Сложность"
+horizontal_alignment = 1
+
+[node name="Levels" type="VBoxContainer" parent="Rows"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Hint" type="Label" parent="Rows"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="Warning" type="Label" parent="Rows"]
+layout_mode = 2
+text = "Сложность выбирается один раз и не меняется."
+autowrap_mode = 3
+
+[node name="Spacer" type="Control" parent="Rows"]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+
+[node name="Start" type="Button" parent="Rows"]
+layout_mode = 2
+text = "Начать"
+
+[node name="Back" type="Button" parent="Rows"]
+layout_mode = 2
+text = "Назад"

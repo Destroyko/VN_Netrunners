@@ -62,6 +62,7 @@ docs/tech/
   terminal-spec.md      — команды терминала MVP, автодополнение, формат узла в JSON
   puzzles-spec.md       — правила головоломок «пароль» и «матрица», параметры, метрики солвера
   desktop-layout.md     — раскладка рабочего стола и окна терминала
+  resolution.md         — разрешение и масштаб интерфейса
 ```
 
 ## Код
@@ -70,9 +71,9 @@ docs/tech/
 project.godot           — проект Godot 4.7, viewport 640×360, целочисленное масштабирование
 src/
   autoload/             — GameState, EventBus, Clock, Rng
-  core/                 — Conditions, Effects, DataLoader, Validator, NodeValidator
+  core/                 — Conditions, Effects, DataLoader, Validator, NodeValidator, AppSettings
   systems/              — игровые системы (M1: терминал, файловая система, сеть, головоломки)
-  ui/                   — интерфейс (M0: заглушка main.tscn)
+  ui/                   — экраны: главное меню, новая игра, настройки, об игре, заглушка стола
   debug/                — консоль разработчика (F1)
 data/
   balance.json          — все числа баланса

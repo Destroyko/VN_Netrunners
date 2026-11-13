@@ -33,6 +33,7 @@ docs/            — дизайн-документы (.gdignore — Godot их �
 ideas/           — входящие идеи (.gdignore)
 src/
   autoload/      — синглтоны: GameState, EventBus, Clock, Rng, QuestManager, TriggerManager, NewsManager, SaveManager
+                   плюс инфраструктурные (не игровые системы): WindowGuard — пропорции окна
   core/          — общая логика: Conditions, Effects, DataLoader, Validator
   systems/       — игровые системы (чистая логика): terminal, filesystem, network, puzzles, economy, needs, heat
   ui/            — сцены и скрипты интерфейса: desktop, windows, apps
