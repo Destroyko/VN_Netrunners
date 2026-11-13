@@ -12,6 +12,7 @@ const OBJECTIVE_TYPES: PackedStringArray = [
 	"read_file",
 	"copy_file",
 	"delete_file",
+	"wipe_logs",
 	"talk",
 	"visit_location",
 	"wait_until",

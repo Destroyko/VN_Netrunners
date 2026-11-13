@@ -125,6 +125,19 @@ func test_objective_pointing_to_missing_node_is_caught() -> void:
 	assert_string_contains(validator.summary(), "node_opechatka")
 
 
+func test_optional_wipe_logs_objective_with_bonus_passes() -> void:
+	# Соглашение из quest-format.md: заметание следов — необязательная цель с бонусом.
+	var quest: Dictionary = _good_quest()
+	quest["stages"][0]["optional"] = [
+		{
+			"type": "wipe_logs",
+			"node": "node_husband_pc",
+			"on_done": [{"money": 40}, {"rep": ["group", 1]}],
+		},
+	]
+	assert_true(_validate(quest), validator.summary())
+
+
 func test_radiant_template_node_is_allowed() -> void:
 	# У radiant-квестов узел подставляется параметром: {phone}.
 	var quest: Dictionary = _good_quest()

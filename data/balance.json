@@ -41,13 +41,24 @@
   },
 
   "heat": {
-    "_note": "Заметность: рост от промахов и спад со временем (docs/gameplay/systems.md).",
+    "_note": "Заметность: рост от промахов и спад со временем (docs/gameplay/heat.md).",
     "max": 100,
     "decay_per_day": 5,
     "gain_hack_completed": 3,
     "gain_puzzle_failed": 5,
+    "gain_puzzle_retry_step": 2,
     "gain_trace_finished": 20,
     "gain_logs_left": 8,
-    "threshold_search": 70
+    "stage_size": 20,
+    "_note_stages": "5 этапов по 20 единиц; полоска в панели задач — 10 делений, этап = два деления.",
+    "threshold_hint": 60,
+    "threshold_search": 70,
+    "threshold_critical": 80
+  },
+
+  "puzzles": {
+    "_note": "Общие правила головоломок (docs/tech/puzzles-spec.md). Параметры по уровням сложности задаются в самих генераторах.",
+    "progress_reset_days": 2,
+    "_note_reset": "Частично вскрытые слои сервиса тают через столько игровых дней без продвижения. Доведённый трейс сбрасывает их сразу."
   }
 }
