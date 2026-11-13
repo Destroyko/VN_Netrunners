@@ -1,6 +1,6 @@
-# NV-netrunners — дизайн-документация
+# VN-netrunners — документация
 
-Рабочее название проекта: **NV-netrunners** (финальное название не выбрано).
+Рабочее название проекта: **VN-netrunners** (финальное название не выбрано).
 Сюжетная одиночная игра: симулятор жизни хакера + визуальная новелла. Онлайна нет.
 
 Правила для ИИ при работе с кодом и документами — в [`CLAUDE.md`](CLAUDE.md).
@@ -49,6 +49,56 @@ docs/
       cheating-husband.md — пример второстепенного квеста с моральным выбором
 ideas/
   inbox.md              — сырые идеи, которые ещё не разобраны
+```
+
+Технические документы, добавленные на M0 (все — на проверку):
+
+```
+docs/tech/
+  terminal-spec.md      — команды терминала MVP, автодополнение, формат узла в JSON
+  puzzles-spec.md       — правила головоломок «пароль» и «матрица», параметры, метрики солвера
+  desktop-layout.md     — раскладка рабочего стола и окна терминала
+```
+
+## Код
+
+```
+project.godot           — проект Godot 4.7, viewport 640×360, целочисленное масштабирование
+src/
+  autoload/             — GameState, EventBus, Clock, Rng
+  core/                 — Conditions, Effects, DataLoader, Validator, NodeValidator
+  systems/              — игровые системы (M1: терминал, файловая система, сеть, головоломки)
+  ui/                   — интерфейс (M0: заглушка main.tscn)
+  debug/                — консоль разработчика (F1)
+data/
+  balance.json          — все числа баланса
+  nodes/                — узлы сети: ПК героя и 3 тестовых взлома
+  quests/, news/, triggers/ — контент (пока пусто)
+test/unit/              — тесты логики
+tools/validate_data.gd  — валидатор данных
+addons/gut/             — GUT 9.7.1 (тесты)
+```
+
+## Запуск
+
+Godot 4.7.2 (установлен через winget, команда `godot` доступна в терминале).
+
+Тесты:
+
+```bash
+godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://test -gexit
+```
+
+Проверка данных:
+
+```bash
+godot --headless -s tools/validate_data.gd
+```
+
+Игра:
+
+```bash
+godot
 ```
 
 ## Правила, чтобы не было каши
