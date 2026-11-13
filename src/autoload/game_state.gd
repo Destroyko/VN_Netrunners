@@ -24,6 +24,10 @@ var minute: int = 0
 var _flags: Dictionary = {}
 var _vars: Dictionary = {}
 var _quests: Dictionary = {}
+## Файловые системы узлов: node_id → {files, dirs}. Лежат здесь, а не в системе, потому что
+## удаления и скопированные файлы обязаны попасть в сейв — иначе после загрузки мир
+## «забудет», что игрок там был (docs/tech/architecture.md).
+var _filesystems: Dictionary = {}
 
 
 ## Новая игра. Сложность задаётся здесь, потому что менять её потом нельзя.
@@ -36,6 +40,7 @@ func reset(new_difficulty: Difficulty = Difficulty.NORMAL) -> void:
 	_flags.clear()
 	_vars.clear()
 	_quests.clear()
+	_filesystems.clear()
 
 
 # --- Флаги -------------------------------------------------------------------
@@ -144,6 +149,23 @@ func is_quest_completed(quest_id: String) -> bool:
 	return entry.get("completed", false) as bool
 
 
+# --- Файловые системы узлов --------------------------------------------------
+# Хранение, а не правила: операции с файлами — в src/systems/filesystem.
+
+func has_filesystem(node_id: String) -> bool:
+	return _filesystems.has(node_id)
+
+
+## Возвращается сам словарь, а не копия: система файлов меняет его на месте,
+## и изменения сразу оказываются в состоянии игры.
+func filesystem_state(node_id: String) -> Dictionary:
+	return _filesystems.get(node_id, {}) as Dictionary
+
+
+func set_filesystem_state(node_id: String, state: Dictionary) -> void:
+	_filesystems[node_id] = state
+
+
 # --- Сейв --------------------------------------------------------------------
 
 func to_dict() -> Dictionary:
@@ -157,6 +179,7 @@ func to_dict() -> Dictionary:
 		"flags": _flags.duplicate(true),
 		"vars": _vars.duplicate(true),
 		"quests": _quests.duplicate(true),
+		"filesystems": _filesystems.duplicate(true),
 	}
 
 
@@ -170,6 +193,7 @@ func from_dict(data: Dictionary) -> void:
 	_flags = (data.get("flags", {}) as Dictionary).duplicate(true)
 	_vars = (data.get("vars", {}) as Dictionary).duplicate(true)
 	_quests = (data.get("quests", {}) as Dictionary).duplicate(true)
+	_filesystems = (data.get("filesystems", {}) as Dictionary).duplicate(true)
 
 
 # --- Внутреннее --------------------------------------------------------------
