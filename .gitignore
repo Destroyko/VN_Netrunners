@@ -1,0 +1,20 @@
+# Godot 4: кэш импорта и временные файлы
+.godot/
+/android/
+*.translation
+
+# Настройки экспорта содержат локальные пути и ключи
+export.cfg
+export_presets.cfg
+
+# Сборки
+/builds/
+/export/
+
+# Отчёты инструментов (генерируются заново)
+/tools/out/
+
+# Прочее
+.DS_Store
+Thumbs.db
+mono_crash.*.json

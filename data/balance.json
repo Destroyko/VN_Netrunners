@@ -1,0 +1,53 @@
+{
+  "_note": "Все числа баланса игры. ЗАГЛУШКИ: значения подбираем на плейтесте (docs/roadmap.md). Поля _note — комментарии для человека, код их игнорирует.",
+
+  "clock": {
+    "_note": "Длина дня и границы времени суток в минутах от начала дня. Открытый вопрос: сколько игровых часов в дне (docs/gameplay/core-loop.md).",
+    "minutes_per_day": 1440,
+    "time_of_day_bounds": {
+      "morning": 360,
+      "day": 660,
+      "evening": 1080,
+      "night": 1320
+    }
+  },
+
+  "action_minutes": {
+    "_note": "Стоимость действий во времени. Пока заглушки, уточняем в M1-M2.",
+    "hack_step": 15,
+    "terminal_command": 1,
+    "travel_short": 20,
+    "travel_long": 45,
+    "eat": 15,
+    "sleep_full": 480,
+    "legal_job_shift": 240
+  },
+
+  "economy": {
+    "_note": "Деньги и синки. Аренда еженедельная (docs/gameplay/economy.md).",
+    "start_money": 150,
+    "rent_per_week": 200,
+    "rent_day_of_week": 1,
+    "food_meal_cost": 12
+  },
+
+  "needs": {
+    "_note": "Расход сытости и энергии. Диапазон 0-100 (docs/gameplay/systems.md).",
+    "satiety_max": 100,
+    "satiety_per_hour": 3,
+    "energy_max": 100,
+    "energy_per_hour_awake": 4,
+    "energy_restored_per_hour_sleep": 12
+  },
+
+  "heat": {
+    "_note": "Заметность: рост от промахов и спад со временем (docs/gameplay/systems.md).",
+    "max": 100,
+    "decay_per_day": 5,
+    "gain_hack_completed": 3,
+    "gain_puzzle_failed": 5,
+    "gain_trace_finished": 20,
+    "gain_logs_left": 8,
+    "threshold_search": 70
+  }
+}

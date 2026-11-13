@@ -1,0 +1,48 @@
+{
+  "_note": "Взлом 1 из 3: учебный. Один слой защиты, трейса нет — можно спокойно разобраться с терминалом и головоломкой «пароль». Подсказка лежит рядом, чтобы игрок понял: разведка помогает.",
+  "id": "node_training_pc",
+  "title": "Учебный ПК",
+  "address": "10.0.0.7",
+  "difficulty": 1,
+  "trace_minutes": 0,
+  "required_services": 1,
+  "root_required": false,
+  "logs_path": "/sys/log",
+  "known_from_start": true,
+
+  "services": [
+    {
+      "id": "svc_login",
+      "name": "Вход по паролю",
+      "puzzle": "password",
+      "difficulty": 1,
+      "program": "passhound",
+      "hints": [
+        "В заметке на этом же узле написана кличка кота — с неё начинается пароль."
+      ]
+    }
+  ],
+
+  "files": {
+    "/home/zametka.txt": {
+      "text": "Опять забыл пароль. Подсказка для себя: кличка кота, четыре буквы."
+    },
+    "/home/privet.txt": {
+      "text": "Если ты это читаешь, значит разобрался с passhound. Дальше будет сложнее. — соседка",
+      "tag": "tutorial"
+    },
+    "/home/spisok_pokupok.txt": {
+      "text": "Хлеб, кофе, энергетики. Много энергетиков."
+    },
+    "/sys/x-server.sys": {
+      "system": true
+    },
+    "/sys/log/access.log": {
+      "log": true
+    }
+  },
+
+  "on_hacked": [
+    { "set_flag": "node.training_pc.hacked" }
+  ]
+}

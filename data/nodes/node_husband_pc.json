@@ -1,0 +1,62 @@
+{
+  "_note": "Взлом 2 из 3: обычный. Один слой защиты (матрица) + нужно повышение прав, трейс идёт. Узел из второстепенного квеста «Неверный муж» (docs/story/side-quests/cheating-husband.md) — на M1 проверяем на нём только взлом, квест подключается в M2.",
+  "id": "node_husband_pc",
+  "title": "Домашний ПК",
+  "address": "92.44.18.3",
+  "difficulty": 2,
+  "trace_minutes": 30,
+  "required_services": 1,
+  "root_required": true,
+  "logs_path": "/sys/log",
+  "known_from_start": false,
+
+  "services": [
+    {
+      "id": "svc_firewall",
+      "name": "Фаервол роутера",
+      "puzzle": "matrix",
+      "difficulty": 2,
+      "program": "gridrunner",
+      "hints": [
+        "Роутер старый: в сетке будет меньше помех, чем на корпоративных узлах."
+      ]
+    }
+  ],
+
+  "files": {
+    "/home/photos/hotel.jpg": {
+      "size_kb": 2400,
+      "tag": "evidence",
+      "_note": "Цель квеста: скопировать или удалить. Большой файл — качается заметное время под трейсом."
+    },
+    "/home/photos/semya.jpg": {
+      "size_kb": 1800
+    },
+    "/home/browser/history.txt": {
+      "text": "Отели у аэропорта. Доставка цветов. Юридическая консультация: раздел имущества.",
+      "tag": "clue"
+    },
+    "/home/work/otchet_kvartal.doc": {
+      "size_kb": 340
+    },
+    "/root/zametki.txt": {
+      "text": "Надо успеть перевести деньги до того, как она поймёт.",
+      "tag": "clue",
+      "_note": "В /root — виден только после rootstep. Награда за повышение прав."
+    },
+    "/sys/x-server.sys": {
+      "system": true
+    },
+    "/sys/log/access.log": {
+      "log": true
+    },
+    "/sys/log/auth.log": {
+      "log": true
+    }
+  },
+
+  "on_hacked": [
+    { "set_flag": "node.husband_pc.hacked" },
+    { "heat": 3 }
+  ]
+}

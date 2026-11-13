@@ -1,0 +1,45 @@
+{
+  "_note": "ПК героя. Взламывать не нужно, но файловая система настоящая: системные файлы можно удалить и сломать себе машину (docs/gameplay/hacking.md).",
+  "id": "node_home_pc",
+  "title": "Мой ПК",
+  "address": "localhost",
+  "difficulty": 1,
+  "trace_minutes": 0,
+  "required_services": 0,
+  "root_required": false,
+  "logs_path": "/sys/log",
+  "known_from_start": true,
+
+  "services": [],
+
+  "files": {
+    "/home/readme.txt": {
+      "text": "Старая ОС, восемь лет без обновлений. Половина программ уже не запускается."
+    },
+    "/home/photos/school.jpg": {
+      "size_kb": 1200
+    },
+    "/home/mail/archive.txt": {
+      "text": "Архив писем до аварии. Открывать больно, но иногда полезно."
+    },
+    "/home/notes/paroli.txt": {
+      "text": "Записывать пароли в файл — плохая идея. Но память после комы так себе."
+    },
+    "/sys/x-server.sys": {
+      "system": true,
+      "_note": "Удалишь — рабочий стол не загрузится. Чинится флешкой соседки."
+    },
+    "/sys/net.sys": {
+      "system": true
+    },
+    "/sys/theme.sys": {
+      "system": true,
+      "_note": "Скопируешь чужой — сменится оформление. Безобидная игрушка для любопытных."
+    },
+    "/sys/log/access.log": {
+      "log": true
+    }
+  },
+
+  "on_hacked": []
+}

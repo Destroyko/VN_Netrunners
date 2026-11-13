@@ -1,0 +1,79 @@
+{
+  "_note": "Взлом 3 из 3: сложный. Два слоя защиты (пароль + матрица), повышение прав и короткий трейс. Проверяем главный вопрос гейта M1: интересно ли взламывать, когда времени мало и надо готовиться заранее.",
+  "id": "node_office_server",
+  "title": "Сервер фирмы",
+  "address": "77.61.204.12",
+  "difficulty": 3,
+  "trace_minutes": 20,
+  "required_services": 2,
+  "root_required": true,
+  "logs_path": "/sys/log",
+  "known_from_start": false,
+
+  "services": [
+    {
+      "id": "svc_admin_login",
+      "name": "Панель администратора",
+      "puzzle": "password",
+      "difficulty": 3,
+      "program": "passhound",
+      "hints": [
+        "В переписке сотрудников на другом узле мелькает слово, которым они зовут офис.",
+        "deepscan открывает одну букву."
+      ]
+    },
+    {
+      "id": "svc_vpn",
+      "name": "Шифрованный канал",
+      "puzzle": "matrix",
+      "difficulty": 3,
+      "program": "gridrunner",
+      "hints": []
+    }
+  ],
+
+  "files": {
+    "/home/users/list.txt": {
+      "text": "Сотрудники: 14 человек. Половина работает из дома, пароли меняют раз в год.",
+      "tag": "clue"
+    },
+    "/home/buh/dolgi_2026.csv": {
+      "size_kb": 120,
+      "tag": "evidence",
+      "_note": "Зацепка про фирму-кредитора. На M1 это просто файл; сюжетное значение — в M3-M4."
+    },
+    "/home/buh/zarplaty.csv": {
+      "size_kb": 95
+    },
+    "/root/backup/klienty.db": {
+      "size_kb": 8200,
+      "tag": "evidence",
+      "_note": "Большой файл: скачать под трейсом в 20 минут не выйдет без подготовки. Проверка планирования."
+    },
+    "/root/skripty/nightly.sh": {
+      "text": "Ночная выгрузка данных в головной офис. Адрес: 77.61.204.40",
+      "tag": "clue",
+      "_note": "Ведёт к следующему узлу — так игрок находит сеть сам."
+    },
+    "/sys/x-server.sys": {
+      "system": true
+    },
+    "/sys/net.sys": {
+      "system": true
+    },
+    "/sys/log/access.log": {
+      "log": true
+    },
+    "/sys/log/auth.log": {
+      "log": true
+    },
+    "/sys/log/transfer.log": {
+      "log": true
+    }
+  },
+
+  "on_hacked": [
+    { "set_flag": "node.office_server.hacked" },
+    { "heat": 5 }
+  ]
+}
