@@ -1,0 +1,28 @@
+# В индексе всегда LF, в рабочем дереве тоже. Без eol=lf git на Windows
+# при core.autocrlf=true конвертирует файлы в CRLF и предупреждает об этом
+# при каждом add. Godot и так пишет LF, так что конвертация только мешает.
+* text=auto eol=lf
+
+# Текст проекта — на случай, если автоопределение ошибётся.
+*.gd       text
+*.gdshader text
+*.tscn     text
+*.tres     text
+*.godot    text
+*.import   text
+*.cfg      text
+*.json     text
+*.md       text
+*.svg      text
+
+# Бинарники не нормализовать и не показывать как текст в diff.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.webp binary
+*.ico  binary
+*.ttf  binary
+*.otf  binary
+*.ogg  binary
+*.wav  binary
+*.mp3  binary
