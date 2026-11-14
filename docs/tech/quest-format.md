@@ -47,7 +47,7 @@ data/
 
 Условия (`requires`): `flag`, `not_flag`, `rank_at_least`, `episode_at_least`, `skill_at_least` (`["hacking", 4]`), `has_file` (по `file_id`, где бы он ни лежал на ПК героя), `time_of_day`, `money_at_least`, `heat_at_most`, `day_at_least`.
 
-Эффекты (`effects`): `money`, `rep` (персонаж / фракция), `heat`, `set_flag`, `unlock_quest`, `add_file`, `schedule_news`.
+Эффекты (`effects`): `money`, `rep` (персонаж / фракция), `heat`, `set_flag`, `set_var`, `clear_flag`, `unlock_quest`, `add_file`, `schedule_news`, `send_message`, `add_note` (запись в блокнот, → [notebook.md](../gameplay/notebook.md)).
 
 Новые типы добавляются в код один раз — дальше используются во всех квестах.
 

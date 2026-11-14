@@ -53,6 +53,7 @@ func test_known_types_cover_documented_dictionary() -> void:
 	# Словарь из docs/tech/quest-format.md.
 	var documented: Array = [
 		"money", "rep", "heat", "set_flag", "unlock_quest", "add_file", "schedule_news",
+		"send_message", "add_note",
 	]
 	for type: String in documented:
 		assert_true(Effects.is_known(type), "тип эффекта из документации: " + type)

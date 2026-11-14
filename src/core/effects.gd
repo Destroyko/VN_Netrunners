@@ -25,6 +25,7 @@ const DEFERRED_TYPES: PackedStringArray = [
 	"add_file",       # filesystem, M1
 	"schedule_news",  # NewsManager, M2
 	"send_message",   # почта и мессенджер, M2
+	"add_note",       # блокнот заметок, docs/gameplay/notebook.md
 ]
 
 ## Репутация хранится как переменная состояния: rep.<кто>.
