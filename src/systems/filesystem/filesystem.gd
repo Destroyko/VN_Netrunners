@@ -188,10 +188,12 @@ func change_dir(cwd: String, arg: String, is_admin: bool = false) -> FsResult:
 # --- Изменение ---------------------------------------------------------------
 
 ## Удалить файл или всё по маске: `rm *` в каталоге логов.
-## Предупреждений нет даже для системных файлов — это обещанная свобода (hacking.md).
-func remove(cwd: String, arg: String, is_admin: bool = false) -> FsResult:
+## Обычный файл удаляется молча: удаление и есть намерение. Системный — только после
+## подтверждения: цена ошибки тут не «минус файл», а сломанная машина или потерянная
+## коллекция тем (docs/tech/terminal-spec.md). `force` — игрок уже ответил «да».
+func remove(cwd: String, arg: String, is_admin: bool = false, force: bool = false) -> FsResult:
 	if FsPath.has_mask(arg):
-		return _remove_by_mask(cwd, arg, is_admin)
+		return _remove_by_mask(cwd, arg, is_admin, force)
 
 	var target: String = FsPath.resolve(cwd, arg)
 	if not _files.has(target):
@@ -200,17 +202,22 @@ func remove(cwd: String, arg: String, is_admin: bool = false) -> FsResult:
 		return FsResult.fail(FsResult.Code.NOT_FOUND, target)
 	if FsPath.requires_admin(target) and not is_admin:
 		return FsResult.fail(FsResult.Code.NO_PERMISSION, target)
+	if is_system(target) and not force:
+		return FsResult.fail(FsResult.Code.NEEDS_CONFIRM_DELETE, target)
 	_files.erase(target)
 	return FsResult.ok(target)
 
 
-func _remove_by_mask(cwd: String, arg: String, is_admin: bool) -> FsResult:
+func _remove_by_mask(cwd: String, arg: String, is_admin: bool, force: bool) -> FsResult:
 	var directory: String = FsPath.normalize(cwd if not arg.contains(FsPath.ROOT) else FsPath.parent(FsPath.resolve(cwd, arg)))
 	var mask: String = FsPath.name_of(arg) if arg.contains(FsPath.ROOT) else arg
 	if FsPath.requires_admin(directory) and not is_admin:
 		return FsResult.fail(FsResult.Code.NO_PERMISSION, directory)
 
-	var removed: PackedStringArray = []
+	# Сначала собираем, потом удаляем: иначе на вопрос о системных файлах пришлось бы
+	# отвечать, когда половина маски уже удалена.
+	var matched: PackedStringArray = []
+	var system_files: PackedStringArray = []
 	for file_path: String in paths():
 		if not FsPath.is_direct_child(file_path, directory):
 			continue
@@ -218,15 +225,34 @@ func _remove_by_mask(cwd: String, arg: String, is_admin: bool) -> FsResult:
 			continue
 		if FsPath.requires_admin(file_path) and not is_admin:
 			continue
-		_files.erase(file_path)
-		removed.append(file_path)
-	if removed.is_empty():
+		matched.append(file_path)
+		if is_system(file_path):
+			system_files.append(file_path)
+
+	if matched.is_empty():
 		return FsResult.fail(FsResult.Code.NOT_FOUND, directory.path_join(mask))
-	return FsResult.ok_many(removed)
+	# Один вопрос на всю маску: `rm *` в /sys — ровно тот случай, ради которого он нужен.
+	if not system_files.is_empty() and not force:
+		var question := FsResult.fail(FsResult.Code.NEEDS_CONFIRM_DELETE, system_files[0])
+		question.paths = system_files
+		return question
+
+	for file_path: String in matched:
+		_files.erase(file_path)
+	return FsResult.ok_many(matched)
+
+
+## Системный файл — тот, что помечен в данных узла. Не список имён: на разных машинах
+## системными могут быть разные файлы, и решает это контент, а не код.
+func is_system(path: String) -> bool:
+	return bool((_files.get(FsPath.normalize(path), {}) as Dictionary).get("system", false))
 
 
 ## Переместить или переименовать в пределах этой машины.
-func move(cwd: String, from_arg: String, to_arg: String, is_admin: bool = false) -> FsResult:
+## `overwrite` — игрок уже ответил «да» на вопрос о замене.
+func move(
+	cwd: String, from_arg: String, to_arg: String, is_admin: bool = false, overwrite: bool = false
+) -> FsResult:
 	var from: String = FsPath.resolve(cwd, from_arg)
 	var to: String = _destination_for(cwd, from, to_arg)
 
@@ -237,8 +263,9 @@ func move(cwd: String, from_arg: String, to_arg: String, is_admin: bool = false)
 	if (FsPath.requires_admin(from) or FsPath.requires_admin(to)) and not is_admin:
 		return FsResult.fail(FsResult.Code.NO_PERMISSION, to)
 
-	# Перезапись разрешена, как в настоящем шелле: предупреждений мы не делаем (hacking.md).
 	var was_there: bool = _files.has(to)
+	if was_there and not overwrite:
+		return FsResult.fail(FsResult.Code.NEEDS_CONFIRM_REPLACE, to)
 	_files[to] = _files[from]
 	_files.erase(from)
 	var result := FsResult.ok(to)
@@ -249,7 +276,14 @@ func move(cwd: String, from_arg: String, to_arg: String, is_admin: bool = false)
 
 ## Скопировать файл на эту же или на другую машину: `cp` с узла к себе.
 ## file_id переезжает вместе с копией — по нему квесты ищут файл (docs/tech/quest-format.md).
-func copy_to(target_fs: Filesystem, cwd: String, from_arg: String, to_arg: String, is_admin: bool = false) -> FsResult:
+func copy_to(
+	target_fs: Filesystem,
+	cwd: String,
+	from_arg: String,
+	to_arg: String,
+	is_admin: bool = false,
+	overwrite: bool = false
+) -> FsResult:
 	var from: String = FsPath.resolve(cwd, from_arg)
 	if not _files.has(from):
 		return FsResult.fail(FsResult.Code.NOT_FOUND, from)
@@ -263,9 +297,11 @@ func copy_to(target_fs: Filesystem, cwd: String, from_arg: String, to_arg: Strin
 	if FsPath.requires_admin(to) and not is_admin:
 		return FsResult.fail(FsResult.Code.NO_PERMISSION, to)
 
-	# Перезапись разрешена: иначе сменить тему было бы нельзя без предварительного rm,
-	# а в шелле cp просто заменяет файл.
+	# Замена возможна, но не молча: игрок может копировать чужую тему просто посмотреть
+	# и случайно потерять свою, которую искал полигры. Поэтому сначала вопрос.
 	var was_there: bool = target_fs._files.has(to)
+	if was_there and not overwrite:
+		return FsResult.fail(FsResult.Code.NEEDS_CONFIRM_REPLACE, to)
 	target_fs._files[to] = (_files[from] as Dictionary).duplicate(true)
 	var result := FsResult.ok(to)
 	result.paths = [from, to]
@@ -277,6 +313,12 @@ func copy_to(target_fs: Filesystem, cwd: String, from_arg: String, to_arg: Strin
 ## из данных, выдача файла квестом. Прав не спрашивает — это не действие игрока, а игра.
 func put_file(path: String, data: Dictionary) -> void:
 	_files[FsPath.normalize(path)] = data.duplicate(true)
+
+
+## Убрать файл напрямую, минуя команды игрока: эффект из данных, уборка по сюжету.
+## Парная к put_file и так же без вопросов — спрашивать не у кого, это решение игры.
+func erase_file(path: String) -> bool:
+	return _files.erase(FsPath.normalize(path))
 
 
 ## Создать каталог. Только в /home: игрок раскладывает свою добычу, а не чинит чужую систему.

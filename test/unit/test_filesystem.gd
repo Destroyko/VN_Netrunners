@@ -126,10 +126,50 @@ func test_rm_deletes_file() -> void:
 	assert_false(fs.has_file("/home/readme.txt"))
 
 
-func test_rm_system_file_is_allowed_without_warning() -> void:
-	# Обещанная свобода: системный файл удаляется как любой другой (docs/gameplay/hacking.md).
-	assert_true(fs.remove("/sys", "x-server.sys", true).is_ok())
+func test_rm_ordinary_file_does_not_ask() -> void:
+	# Вопрос только про системные файлы: обычное удаление и есть намерение игрока.
+	assert_false(fs.remove("/home", "readme.txt").needs_confirm())
+
+
+func test_rm_system_file_asks_first() -> void:
+	var asked: FsResult = fs.remove("/sys", "x-server.sys", true)
+	assert_true(asked.needs_confirm(), "ждём ответа игрока")
+	assert_true(fs.has_file("/sys/x-server.sys"), "до ответа файл на месте")
+	assert_string_contains(asked.message(), "x-server.sys")
+	assert_string_contains(asked.message(), "системный файл")
+
+
+func test_rm_system_file_deletes_after_confirmation() -> void:
+	# Обещанная свобода остаётся: спросили — и удалили (docs/gameplay/hacking.md).
+	fs.remove("/sys", "x-server.sys", true)
+	assert_true(fs.remove("/sys", "x-server.sys", true, true).is_ok())
 	assert_false(fs.has_file("/sys/x-server.sys"), "ПК теперь сломан — так и задумано")
+
+
+func test_rm_mask_over_system_files_asks_once() -> void:
+	fs.put_file("/sys/net.sys", {"system": true})
+	var asked: FsResult = fs.remove("/sys", "*", true)
+	assert_true(asked.needs_confirm())
+	assert_eq(asked.paths.size(), 2, "в вопросе перечислено, что под удалением")
+	assert_string_contains(asked.message(), "системные файлы")
+	assert_true(fs.has_file("/sys/x-server.sys"), "ничего не удалено до ответа")
+	assert_true(fs.has_file("/sys/net.sys"))
+
+	var done: FsResult = fs.remove("/sys", "*", true, true)
+	assert_eq(done.paths.size(), 2)
+	assert_false(fs.has_file("/sys/x-server.sys"))
+
+
+func test_rm_mask_without_system_files_does_not_ask() -> void:
+	# Чистка логов — рутина, за которую не спрашивают: иначе вопрос перестанут читать.
+	assert_false(fs.remove("/log", "*").needs_confirm())
+
+
+func test_game_erases_files_without_questions() -> void:
+	# Эффект из данных или уборка по сюжету: спрашивать не у кого.
+	assert_true(fs.erase_file("/sys/x-server.sys"))
+	assert_false(fs.has_file("/sys/x-server.sys"))
+	assert_false(fs.erase_file("/sys/x-server.sys"), "второй раз удалять нечего")
 
 
 func test_rm_mask_clears_logs() -> void:
@@ -188,11 +228,20 @@ func test_copy_is_independent_from_source() -> void:
 	assert_true(home.has_file("/home/kopiya.txt"), "копия живёт своей жизнью")
 
 
-func test_copy_replaces_existing_file_and_says_so() -> void:
-	# Перезапись разрешена, как в шелле: предупреждений мы не делаем. Но результат
-	# помечает замену, чтобы терминал сообщил — молча потерять свой файл обиднее.
+func test_copy_over_existing_file_asks_first() -> void:
+	# Игрок может копировать чужую тему просто посмотреть и случайно потерять свою,
+	# которую искал полигры. Поэтому сначала вопрос, а не молчаливая замена.
 	var home := Filesystem.new("node_home_pc", {"/home/a.txt": {"text": "занято"}})
-	var result: FsResult = fs.copy_to(home, "/home", "readme.txt", "/home/a.txt")
+	var asked: FsResult = fs.copy_to(home, "/home", "readme.txt", "/home/a.txt")
+	assert_true(asked.needs_confirm(), "ждём ответа игрока")
+	assert_false(asked.is_ok())
+	assert_string_contains(asked.message(), "заменить?")
+	assert_eq(home.read("/home/a.txt").text, "занято", "до ответа ничего не поменялось")
+
+
+func test_copy_replaces_after_confirmation() -> void:
+	var home := Filesystem.new("node_home_pc", {"/home/a.txt": {"text": "занято"}})
+	var result: FsResult = fs.copy_to(home, "/home", "readme.txt", "/home/a.txt", false, true)
 	assert_true(result.is_ok())
 	assert_true(result.replaced, "замена отмечена")
 	assert_eq(home.read("/home/a.txt").text, "привет", "лежит новый файл")
@@ -205,13 +254,41 @@ func test_copy_to_free_place_is_not_a_replacement() -> void:
 	assert_false(result.replaced)
 
 
-func test_move_over_existing_file_replaces_it() -> void:
+func test_move_over_existing_file_asks_first() -> void:
 	fs.put_file("/home/zametka.txt", {"text": "старое"})
-	var result: FsResult = fs.move("/home", "readme.txt", "zametka.txt")
+	var asked: FsResult = fs.move("/home", "readme.txt", "zametka.txt")
+	assert_true(asked.needs_confirm())
+	assert_true(fs.has_file("/home/readme.txt"), "исходник на месте, пока не ответили")
+	assert_eq(fs.read("/home/zametka.txt").text, "старое")
+
+
+func test_move_replaces_after_confirmation() -> void:
+	fs.put_file("/home/zametka.txt", {"text": "старое"})
+	var result: FsResult = fs.move("/home", "readme.txt", "zametka.txt", false, true)
 	assert_true(result.is_ok(), result.message())
 	assert_true(result.replaced, "замена отмечена")
 	assert_eq(fs.read("/home/zametka.txt").text, "привет", "лежит перемещённый файл")
 	assert_false(fs.has_file("/home/readme.txt"))
+
+
+func test_collected_theme_is_safe_from_the_question() -> void:
+	# Соглашение: темы собираем в /home под своими именами, применяем копией в /sys.
+	# Тогда вопрос о замене касается только активной темы, а коллекция не под угрозой.
+	var home := Filesystem.new("node_home_pc", {
+		"/home/themes/corp.sys": {"system": true, "file_id": "theme_corp"},
+		"/sys/theme.sys": {"system": true, "file_id": "theme_default"},
+	})
+	var target := Filesystem.new("node_x", {"/sys/theme.sys": {"system": true, "file_id": "theme_x"}})
+
+	# Копим в коллекцию — места свободны, вопросов нет.
+	assert_true(target.copy_to(home, "/sys", "theme.sys", "/home/themes/x.sys", true).is_ok())
+	assert_true(home.has_file("/home/themes/x.sys"))
+	assert_true(home.has_file("/home/themes/corp.sys"), "старая коллекция цела")
+
+	# А вот установка поверх активной темы спросит.
+	assert_true(
+		home.copy_to(home, "/home/themes", "x.sys", "/sys/theme.sys", true).needs_confirm()
+	)
 
 
 func test_guest_cannot_copy_from_sys() -> void:

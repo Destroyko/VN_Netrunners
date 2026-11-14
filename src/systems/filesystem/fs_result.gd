@@ -16,6 +16,12 @@ enum Code {
 	ALREADY_EXISTS,
 	BAD_PATH,
 	NOT_WRITABLE,
+	## Не ошибка, а вопрос. Терминал печатает его, запоминает команду и повторяет её,
+	## если игрок ответил «y».
+	## На месте назначения уже есть файл: `cp`, `mv`.
+	NEEDS_CONFIRM_REPLACE,
+	## Под удаление попал системный файл: `rm`.
+	NEEDS_CONFIRM_DELETE,
 }
 
 var code: Code = Code.OK
@@ -25,8 +31,8 @@ var path: String = ""
 var paths: PackedStringArray = []
 ## Текст для вывода (например, содержимое файла при `cat`).
 var text: String = ""
-## Файл на месте назначения был заменён. Не ошибка (`cp` и `mv` перезаписывают, как в шелле),
-## но терминал об этом сообщает: молча потерять свой файл обиднее, чем осознанно.
+## Файл на месте назначения был заменён — после того, как игрок ответил «y».
+## Терминал об этом сообщает: молча потерять свой файл обиднее, чем осознанно.
 var replaced: bool = false
 
 
@@ -56,6 +62,11 @@ func is_ok() -> bool:
 	return code == Code.OK
 
 
+## Операция не сделана, но и не провалена: ждёт ответа игрока.
+func needs_confirm() -> bool:
+	return code == Code.NEEDS_CONFIRM_REPLACE or code == Code.NEEDS_CONFIRM_DELETE
+
+
 ## Текст ошибки для игрока. Формулировки — из спецификации терминала.
 func message() -> String:
 	match code:
@@ -75,5 +86,12 @@ func message() -> String:
 			return "так нельзя: %s" % path
 		Code.NOT_WRITABLE:
 			return "сюда нельзя писать: %s" % path
+		Code.NEEDS_CONFIRM_REPLACE:
+			return "здесь уже есть %s. заменить? (y/n)" % FsPath.name_of(path)
+		Code.NEEDS_CONFIRM_DELETE:
+			# Консоль не рассказывает, что случится: она только переспрашивает.
+			if paths.size() > 1:
+				return "вы действительно хотите удалить системные файлы (%d)? (y/n)" % paths.size()
+			return "вы действительно хотите удалить системный файл %s? (y/n)" % FsPath.name_of(path)
 		_:
 			return "неизвестная ошибка"

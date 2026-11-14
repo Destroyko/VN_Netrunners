@@ -25,7 +25,7 @@ func test_healthy_pc() -> void:
 
 
 func test_deleting_x_server_breaks_the_desktop() -> void:
-	pc.remove("/sys", "x-server.sys", true)
+	pc.erase_file(SystemFiles.FILE_X_SERVER)
 	assert_true(SystemFiles.is_broken(pc))
 	assert_false(SystemFiles.has_desktop(pc))
 	assert_true(SystemFiles.has_network(pc), "сеть не при чём")
@@ -37,7 +37,7 @@ func test_deleting_x_server_breaks_the_desktop() -> void:
 
 func test_deleting_net_keeps_the_desktop() -> void:
 	# Машина работает, просто локально: это не «сломанный ПК».
-	pc.remove("/sys", "net.sys", true)
+	pc.erase_file(SystemFiles.FILE_NET)
 	assert_false(SystemFiles.has_network(pc))
 	assert_true(SystemFiles.has_desktop(pc))
 	assert_false(SystemFiles.is_broken(pc))
@@ -45,14 +45,14 @@ func test_deleting_net_keeps_the_desktop() -> void:
 
 func test_deleting_theme_breaks_nothing() -> void:
 	# Безопасный эксперимент с системным файлом: оформление станет стандартным, и всё.
-	pc.remove("/sys", "theme.sys", true)
+	pc.erase_file(SystemFiles.FILE_THEME)
 	assert_false(SystemFiles.is_broken(pc))
 	assert_eq(SystemFiles.missing(pc).size(), 0, "тема не входит в системный минимум")
 	assert_eq(SystemFiles.theme_in_system(pc), "", "нет файла — стандартная тема")
 
 
 func test_everything_missing() -> void:
-	pc.remove("/sys", "*", true)
+	pc.remove("/sys", "*", true, true)
 	assert_true(SystemFiles.is_broken(pc))
 	assert_eq(SystemFiles.missing(pc).size(), 2, "x-server и net")
 
@@ -83,12 +83,23 @@ func test_stolen_theme_keeps_its_id() -> void:
 	var target := Filesystem.new("node_office_server", {
 		"/sys/theme.sys": {"system": true, "file_id": "theme_corp"},
 	})
-	assert_true(target.copy_to(pc, "/sys", "theme.sys", SystemFiles.FILE_THEME, true).is_ok())
+	# Своя тема на месте, значит сначала спросят — и только после ответа заменят.
+	assert_true(
+		target.copy_to(pc, "/sys", "theme.sys", SystemFiles.FILE_THEME, true).needs_confirm(),
+		"молча свою тему не теряем"
+	)
+	assert_true(target.copy_to(pc, "/sys", "theme.sys", SystemFiles.FILE_THEME, true, true).is_ok())
 	assert_eq(SystemFiles.theme_in_system(pc), "theme_corp", "id переехал с копией")
 
 
+func test_deleting_own_theme_asks_first() -> void:
+	# Та же потеря, что при копировании чужой темы поверх своей: спрашиваем и здесь.
+	assert_true(pc.remove("/sys", "theme.sys", true).needs_confirm())
+	assert_true(pc.has_file(SystemFiles.FILE_THEME), "коллекция цела, пока не ответил")
+
+
 func test_reboot_reports_state() -> void:
-	pc.remove("/sys", "x-server.sys", true)
+	pc.erase_file(SystemFiles.FILE_X_SERVER)
 	var result: Dictionary = SystemFiles.reboot(pc)
 	assert_false(bool(result["desktop"]), "стол не собрался")
 	assert_true(bool(result["network"]))
@@ -98,7 +109,7 @@ func test_reboot_reports_state() -> void:
 # --- Восстановление ----------------------------------------------------------
 
 func test_flashdrive_restores_system_files() -> void:
-	pc.remove("/sys", "*", true)
+	pc.remove("/sys", "*", true, true)
 	var restored: PackedStringArray = SystemFiles.restore_system(pc)
 	assert_eq(restored.size(), 2)
 	assert_false(SystemFiles.is_broken(pc), "ПК снова загружается")
@@ -108,7 +119,7 @@ func test_flashdrive_restores_system_files() -> void:
 func test_flashdrive_does_not_touch_user_files() -> void:
 	# Чинит только /sys — это её обещание игроку (docs/gameplay/hacking.md).
 	pc.remove("/home", "readme.txt")
-	pc.remove("/sys", "x-server.sys", true)
+	pc.erase_file(SystemFiles.FILE_X_SERVER)
 	SystemFiles.restore_system(pc)
 	assert_false(pc.has_file("/home/readme.txt"), "пользовательские файлы не возвращаются")
 	assert_true(pc.has_file("/sys/x-server.sys"))
@@ -120,6 +131,6 @@ func test_flashdrive_does_nothing_when_all_is_well() -> void:
 
 func test_flashdrive_does_not_restore_theme() -> void:
 	# Тема — косметика: флешка ставит обычную ОС, а не возвращает украденное оформление.
-	pc.remove("/sys", "theme.sys", true)
+	pc.erase_file(SystemFiles.FILE_THEME)
 	SystemFiles.restore_system(pc)
 	assert_false(pc.has_file(SystemFiles.FILE_THEME))
