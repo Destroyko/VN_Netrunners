@@ -25,6 +25,9 @@ var path: String = ""
 var paths: PackedStringArray = []
 ## Текст для вывода (например, содержимое файла при `cat`).
 var text: String = ""
+## Файл на месте назначения был заменён. Не ошибка (`cp` и `mv` перезаписывают, как в шелле),
+## но терминал об этом сообщает: молча потерять свой файл обиднее, чем осознанно.
+var replaced: bool = false
 
 
 static func ok(for_path: String = "", with_text: String = "") -> FsResult:

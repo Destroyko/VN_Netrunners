@@ -188,12 +188,30 @@ func test_copy_is_independent_from_source() -> void:
 	assert_true(home.has_file("/home/kopiya.txt"), "копия живёт своей жизнью")
 
 
-func test_copy_over_existing_file_fails() -> void:
+func test_copy_replaces_existing_file_and_says_so() -> void:
+	# Перезапись разрешена, как в шелле: предупреждений мы не делаем. Но результат
+	# помечает замену, чтобы терминал сообщил — молча потерять свой файл обиднее.
 	var home := Filesystem.new("node_home_pc", {"/home/a.txt": {"text": "занято"}})
-	assert_eq(
-		fs.copy_to(home, "/home", "readme.txt", "/home/a.txt").code,
-		FsResult.Code.ALREADY_EXISTS
-	)
+	var result: FsResult = fs.copy_to(home, "/home", "readme.txt", "/home/a.txt")
+	assert_true(result.is_ok())
+	assert_true(result.replaced, "замена отмечена")
+	assert_eq(home.read("/home/a.txt").text, "привет", "лежит новый файл")
+
+
+func test_copy_to_free_place_is_not_a_replacement() -> void:
+	var home := Filesystem.new("node_home_pc", {})
+	var result: FsResult = fs.copy_to(home, "/home", "readme.txt", "/home/a.txt")
+	assert_true(result.is_ok())
+	assert_false(result.replaced)
+
+
+func test_move_over_existing_file_replaces_it() -> void:
+	fs.put_file("/home/zametka.txt", {"text": "старое"})
+	var result: FsResult = fs.move("/home", "readme.txt", "zametka.txt")
+	assert_true(result.is_ok(), result.message())
+	assert_true(result.replaced, "замена отмечена")
+	assert_eq(fs.read("/home/zametka.txt").text, "привет", "лежит перемещённый файл")
+	assert_false(fs.has_file("/home/readme.txt"))
 
 
 func test_guest_cannot_copy_from_sys() -> void:

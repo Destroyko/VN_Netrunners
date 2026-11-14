@@ -234,15 +234,16 @@ func move(cwd: String, from_arg: String, to_arg: String, is_admin: bool = false)
 		return FsResult.fail(FsResult.Code.NOT_FOUND, from)
 	if not FsPath.is_valid(to):
 		return FsResult.fail(FsResult.Code.BAD_PATH, to)
-	if _files.has(to):
-		return FsResult.fail(FsResult.Code.ALREADY_EXISTS, to)
 	if (FsPath.requires_admin(from) or FsPath.requires_admin(to)) and not is_admin:
 		return FsResult.fail(FsResult.Code.NO_PERMISSION, to)
 
+	# Перезапись разрешена, как в настоящем шелле: предупреждений мы не делаем (hacking.md).
+	var was_there: bool = _files.has(to)
 	_files[to] = _files[from]
 	_files.erase(from)
 	var result := FsResult.ok(to)
 	result.paths = [from, to]
+	result.replaced = was_there
 	return result
 
 
@@ -258,16 +259,24 @@ func copy_to(target_fs: Filesystem, cwd: String, from_arg: String, to_arg: Strin
 	var to: String = target_fs._destination_for(cwd, from, to_arg)
 	if not FsPath.is_valid(to):
 		return FsResult.fail(FsResult.Code.BAD_PATH, to)
-	if target_fs._files.has(to):
-		return FsResult.fail(FsResult.Code.ALREADY_EXISTS, to)
 	# Писать в системные каталоги чужой машины тоже нужны права.
 	if FsPath.requires_admin(to) and not is_admin:
 		return FsResult.fail(FsResult.Code.NO_PERMISSION, to)
 
+	# Перезапись разрешена: иначе сменить тему было бы нельзя без предварительного rm,
+	# а в шелле cp просто заменяет файл.
+	var was_there: bool = target_fs._files.has(to)
 	target_fs._files[to] = (_files[from] as Dictionary).duplicate(true)
 	var result := FsResult.ok(to)
 	result.paths = [from, to]
+	result.replaced = was_there
 	return result
+
+
+## Положить файл напрямую, минуя команды игрока: восстановление с флешки, эффект `add_file`
+## из данных, выдача файла квестом. Прав не спрашивает — это не действие игрока, а игра.
+func put_file(path: String, data: Dictionary) -> void:
+	_files[FsPath.normalize(path)] = data.duplicate(true)
 
 
 ## Создать каталог. Только в /home: игрок раскладывает свою добычу, а не чинит чужую систему.
