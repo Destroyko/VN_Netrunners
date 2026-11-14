@@ -81,6 +81,10 @@ soft lighting, clean dark colored outline, limited palette, game sprite / visual
 
 Негатив (если инструмент поддерживает): `blurry, 3d render, photorealistic, smooth gradients, 8-bit, retro, chibi, text, watermark, extra fingers`.
 
+Готовые промпты на конкретные кадры, разрешения под целое деление и формат, в котором
+описывать новый кадр, — в [ai-pipeline.md](ai-pipeline.md), раздел «Промпты». Этот файл
+остаётся каноном стиля: при расхождении правим здесь.
+
 ## Именование файлов
 
 `bg_<локация>_<время>.png` (bg_apartment_night.png), `chr_<персонаж>_<эмоция>.png` (chr_roommate_smile.png), `ui_<элемент>.png`.
