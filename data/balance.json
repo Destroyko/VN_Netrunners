@@ -61,11 +61,18 @@
     "_note": "Заметность: рост от промахов и спад со временем (docs/gameplay/heat.md).",
     "max": 100,
     "decay_per_day": 5,
-    "gain_hack_completed": 3,
+    "_note_no_flat_gain": "Плоского прироста за сам факт взлома нет (был gain_hack_completed: 3): заметность берётся только со следов, которые игрок оставил. Аккуратный взлом стоит ровно 1.",
     "gain_puzzle_failed": 5,
     "gain_puzzle_retry_step": 2,
     "gain_trace_finished": 20,
-    "gain_logs_left": 8,
+    "_note_logs": "Заметность за взлом = сумма весов записей, оставшихся в логах к отключению. Запись об отключении пишется после чистки, поэтому минимум в 1 неустраним — это тормоз против гринда (docs/gameplay/heat.md).",
+    "log_weights": {
+      "connect": 1,
+      "disconnect": 1,
+      "root": 3,
+      "file_deleted": 4,
+      "file_created": 3
+    },
     "stage_size": 20,
     "_note_stages": "5 этапов по 20 единиц; полоска в панели задач — 10 делений, этап = два деления.",
     "threshold_hint": 60,
@@ -92,7 +99,7 @@
   },
 
   "logs": {
-    "_note": "Логи на узлах и на ПК героя (docs/gameplay/hacking.md).",
+    "_note": "Логи на узлах и на ПК героя (docs/gameplay/hacking.md). Веса записей — в разделе heat.",
     "max_entries": 200,
     "_note_rotation": "Хранятся последние N записей, старые отбрасываются. Сюжетные записи ротацией не вытесняются."
   }
