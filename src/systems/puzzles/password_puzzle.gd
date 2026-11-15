@@ -160,10 +160,12 @@ func is_over() -> bool:
 ## Игрок назвал слово. Возвращает:
 ##   valid — слово принято (иначе попытка не потрачена), reason — почему нет (length / unknown / over);
 ##   marks — метки по буквам; solved — угадано; failed — попытки кончились.
-func guess(text: String) -> Dictionary:
+## `strict = false` — слово не из словаря тоже считается попыткой (интерфейс с ячейками: опечаток
+## там нет, а подбирать буквы без цены нельзя); `in_dictionary` в ответе говорит, было ли оно словом.
+func guess(text: String, strict: bool = true) -> Dictionary:
 	var result: Dictionary = {
 		"valid": false, "reason": "", "marks": [], "solved": false, "failed": false,
-		"attempts_left": attempts_left(),
+		"attempts_left": attempts_left(), "in_dictionary": true,
 	}
 	if is_over():
 		result["reason"] = "over"
@@ -174,9 +176,11 @@ func guess(text: String) -> Dictionary:
 		result["reason"] = "length"
 		return result
 	# Опечатка не тратит попытку: слово должно быть из словаря.
-	if not Words.has(entered):
+	var known_word: bool = Words.has(entered)
+	if not known_word and strict:
 		result["reason"] = "unknown"
 		return result
+	result["in_dictionary"] = known_word
 
 	var marks: Array[int] = marks_for(word, entered)
 	history.append({"word": entered, "marks": marks})

@@ -197,3 +197,12 @@ func test_no_guesses_after_the_end() -> void:
 	var puzzle: PasswordPuzzle = _puzzle()
 	puzzle.guess(puzzle.word)
 	assert_eq(puzzle.guess(puzzle.word)["reason"], "over")
+
+
+func test_non_strict_guess_spends_an_attempt_on_a_non_word() -> void:
+	var puzzle: PasswordPuzzle = PasswordPuzzle.generate(2, 3, 0)
+	var turn: Dictionary = puzzle.guess("ъъъъъ", false)
+	assert_true(turn["valid"])
+	assert_false(turn["in_dictionary"])
+	assert_eq(puzzle.history.size(), 1)
+

@@ -19,11 +19,14 @@ var puzzle: PasswordPuzzle
 var _history: RichTextLabel
 var _note: Label
 var _slot_row: HBoxContainer
+var _slot_holder: Control
 var _zone: LetterZone
 var _slots: Array[String] = []
 var _locked: Array[bool] = []
 var _pool: Array[String] = []
 var _done: bool = false
+## Идёт тряска неверного слова: ввод на это время закрыт.
+var _busy: bool = false
 
 
 func setup(game: PasswordPuzzle) -> void:
@@ -39,15 +42,21 @@ func setup(game: PasswordPuzzle) -> void:
 	_history.add_theme_font_override("normal_font", _mono())
 	add_child(_history)
 
+	# Обёртка нужна, чтобы трясти ряд: внутри контейнера положение детей задаёт сам контейнер.
+	_slot_holder = Control.new()
+	_slot_holder.custom_minimum_size = Vector2(0, 60)
+	add_child(_slot_holder)
 	_slot_row = HBoxContainer.new()
 	_slot_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	add_child(_slot_row)
+	_slot_row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_slot_holder.add_child(_slot_row)
 
 	_note = Label.new()
 	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_note)
 
 	_zone = LetterZone.new()
+	_zone.alignment = FlowContainer.ALIGNMENT_CENTER
 	_zone.custom_minimum_size = Vector2(360, 110)
 	_zone.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_zone.returned.connect(func(from: Dictionary) -> void: unplace(int(from["index"])))
@@ -98,7 +107,7 @@ static func build_pool(game: PasswordPuzzle) -> Array[String]:
 
 ## Буква из пула — в ячейку. Занятая ячейка меняется: старая буква уходит обратно в пул.
 func place(pool_index: int, slot_index: int) -> void:
-	if _done or pool_index < 0 or pool_index >= _pool.size() or _locked[slot_index]:
+	if _done or _busy or pool_index < 0 or pool_index >= _pool.size() or _locked[slot_index]:
 		return
 	var letter: String = _pool[pool_index]
 	_pool.remove_at(pool_index)
@@ -110,7 +119,7 @@ func place(pool_index: int, slot_index: int) -> void:
 
 ## Буква из ячейки — обратно в пул.
 func unplace(slot_index: int) -> void:
-	if _done or _locked[slot_index] or _slots[slot_index].is_empty():
+	if _done or _busy or _locked[slot_index] or _slots[slot_index].is_empty():
 		return
 	_pool.append(_slots[slot_index])
 	_slots[slot_index] = ""
@@ -118,7 +127,7 @@ func unplace(slot_index: int) -> void:
 
 
 func move_slot(from_index: int, to_index: int) -> void:
-	if _done or from_index == to_index or _locked[from_index] or _locked[to_index]:
+	if _done or _busy or from_index == to_index or _locked[from_index] or _locked[to_index]:
 		return
 	var swap: String = _slots[to_index]
 	_slots[to_index] = _slots[from_index]
@@ -149,7 +158,7 @@ func _after_change() -> void:
 
 ## Все ячейки заполнены: слово идёт в партию.
 func _evaluate() -> void:
-	_apply(puzzle.guess("".join(_slots)))
+	_apply(puzzle.guess("".join(_slots), false))
 
 
 ## Итог проверки: верные буквы закрепляются, лишние исчезают, «не там» уходят в пул.
@@ -163,6 +172,7 @@ func _apply(result: Dictionary) -> void:
 		_refresh()
 		_note.text = _reason_text(str(result["reason"]))
 		return
+	var shake: bool = not bool(result.get("in_dictionary", true))
 	var marks: Array = result["marks"] as Array
 	for index: int in puzzle.length:
 		if _locked[index]:
@@ -174,7 +184,10 @@ func _apply(result: Dictionary) -> void:
 			if mark == PasswordPuzzle.MARK_PRESENT:
 				_pool.append(_slots[index])
 			_slots[index] = ""
-	_refresh()
+	if shake and not _done:
+		_shake_then_refresh()
+	else:
+		_refresh()
 	if bool(result["solved"]):
 		_finish(1, "Пароль подошёл.")
 	elif bool(result["failed"]):
@@ -188,7 +201,7 @@ func submit(text: String) -> Dictionary:
 	if _done:
 		return {}
 	var entered: String = text.strip_edges().to_lower().replace("ё", "е")
-	var result: Dictionary = puzzle.guess(entered)
+	var result: Dictionary = puzzle.guess(entered, false)
 	if bool(result["valid"]):
 		for index: int in puzzle.length:
 			if not _locked[index]:
@@ -198,10 +211,27 @@ func submit(text: String) -> Dictionary:
 	return result
 
 
+## Слово не из словаря: ячейки на секунду краснеют и трясутся, потом буквы разбираются по меткам.
+func _shake_then_refresh() -> void:
+	_busy = true
+	for tile: Node in _slot_row.get_children():
+		if not (tile as LetterTile).locked:
+			(tile as LetterTile).modulate = Color(1.0, 0.35, 0.35)
+	var tween: Tween = create_tween()
+	for step: int in 6:
+		tween.tween_property(_slot_row, "position:x", 10.0 if step % 2 == 0 else -10.0, 0.06)
+	tween.tween_property(_slot_row, "position:x", 0.0, 0.06)
+	tween.tween_interval(0.35)
+	tween.tween_callback(func() -> void:
+		_busy = false
+		_refresh())
+
+
 func _finish(gained: int, message: String) -> void:
 	_done = true
 	_note.text = message
-	_refresh()
+	if not _busy:
+		_refresh()
 	var button := Button.new()
 	button.text = "Дальше"
 	button.pressed.connect(func() -> void: finished.emit(gained))
