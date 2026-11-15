@@ -398,17 +398,43 @@ func test_play_dump_opens_from_the_console() -> void:
 	assert_true(dialog.panel is DumpPanel)
 
 
-func test_hover_lens_paints_the_cell_and_its_neighbours() -> void:
+func test_hover_lens_paints_exactly_what_the_puzzle_says() -> void:
 	var panel := DumpPanel.new()
 	panel.setup(DumpPuzzle.generate(2, 4))
 	add_child_autofree(panel)
 	panel._on_hover(panel.puzzle.width + 3)  # вторая строка, четвёртый столбец
 	var lens: Dictionary = panel.puzzle.lens(panel.puzzle.top + 1, 3)
-	assert_ne(panel.cell_color(1, 3), DumpPanel.CELL_IDLE, "клетка под мышью подкрашена")
-	assert_ne(panel.cell_color(1, 2), DumpPanel.CELL_IDLE, "сосед слева тоже")
-	assert_eq(panel.cell_color(1, 0), DumpPanel.CELL_IDLE, "дальние клетки — нет")
-	var expected: Color = DumpPanel.CELL_MATCH if lens[3] == DumpPuzzle.LENS_MATCH else DumpPanel.CELL_WRONG
-	assert_eq(panel.cell_color(1, 3), expected)
+	for col: int in panel.puzzle.width:
+		if lens.has(col):
+			assert_ne(panel.cell_color(1, col), DumpPanel.CELL_IDLE, "столбец %d под лупой" % col)
+		else:
+			assert_eq(panel.cell_color(1, col), DumpPanel.CELL_IDLE, "столбец %d вне лупы" % col)
 	panel._on_hover(-1)
 	assert_eq(panel.cell_color(1, 3), DumpPanel.CELL_IDLE, "мышь ушла — лупа погасла")
+
+
+func test_lens_goes_out_after_a_click() -> void:
+	var panel := DumpPanel.new()
+	panel.setup(DumpPuzzle.generate(2, 4))
+	add_child_autofree(panel)
+	panel._on_hover(3)
+	panel.click(0, 3)
+	for col: int in panel.puzzle.width:
+		assert_eq(panel.cell_color(0, col), DumpPanel.CELL_IDLE)
+
+
+func test_caught_piece_rolls_the_train_to_the_next_one() -> void:
+	var panel := DumpPanel.new()
+	panel.setup(DumpPuzzle.generate(3, 4))
+	add_child_autofree(panel)
+	assert_almost_eq(panel.train_x(), panel.train_offset(0), 0.5, "первый кусок по центру")
+	var spot: Vector2i = _dump_spot(panel)
+	var guard: int = 0
+	while spot.x < 0 and guard < 40:
+		panel.step()
+		spot = _dump_spot(panel)
+		guard += 1
+	panel.click(spot.x, spot.y)
+	assert_almost_eq(panel.train_x(), panel.train_offset(1), 0.5, "второй кусок по центру")
+	assert_lt(panel.train_offset(1), panel.train_offset(0), "поезд едет влево")
 

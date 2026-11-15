@@ -1,15 +1,16 @@
 class_name DumpPanel
 extends VBoxContainer
-## «Перехват в дампе»: сверху куски хэша (пойманные — зелёные, текущий — крупно), ниже плавно
-## ползёт дамп памяти. Клик по клетке нужного куска ловит его, клик мимо — красная тряска и сброс
-## собранного. Наведение мыши — «лупа»: клетка и соседи подкрашиваются (`DumpPuzzle.lens`).
-## Правил здесь нет: всё решает `DumpPuzzle`, окно только показывает и двигает экран.
+## «Перехват в дампе»: сверху «поезд» кусков хэша (текущий по центру, пойманный уезжает влево и
+## тает, следующий въезжает справа), ниже плавно ползёт дамп памяти. Клик по клетке нужного куска
+## ловит его, клик мимо — красная тряска и сброс собранного. Наведение мыши — «лупа»: клетки
+## подкрашиваются (`DumpPuzzle.lens`). Правил здесь нет: всё решает `DumpPuzzle`, окно только
+## показывает и двигает экран.
 
 signal finished(gained: int)
 
-const COLOR_CAUGHT: String = "#5fd27a"
-const COLOR_CURRENT: String = "#f0f2f5"
-const COLOR_LATER: String = "#5b606c"
+const COLOR_CAUGHT: Color = Color("#5fd27a")
+const COLOR_CURRENT: Color = Color("#f0f2f5")
+const COLOR_LATER: Color = Color("#5b606c")
 const CELL_SIZE: Vector2 = Vector2(42, 28)
 const GAP: int = 2
 const CELL_IDLE: Color = Color(0.1, 0.12, 0.15)
@@ -18,14 +19,20 @@ const CELL_MATCH: Color = Color(0.15, 0.33, 0.2)
 const CELL_WRONG: Color = Color(0.35, 0.14, 0.14)
 const TEXT_DUMP: Color = Color(0.62, 0.68, 0.72)
 const TARGET_FONT_SIZE: int = 22
+## Фон окна (как у `DesktopWindow`): в него растворяются края «поезда».
+const BACKGROUND: Color = Color(0.09, 0.1, 0.13)
+const PIECE_GAP: int = 40
+const FADE_WIDTH: float = 90.0
+const TRAIN_SECONDS: float = 0.35
 
 ## Выключатель анимаций: тесты гоняют партию мгновенно.
 static var animate: bool = true
 
 var puzzle: DumpPuzzle
 
-var _pieces: RichTextLabel
-var _window: Control
+var _strip: Control
+var _train: HBoxContainer
+var _shown_stage: int = -1
 var _grid: GridContainer
 var _note: Label
 var _next_button: Button
@@ -43,28 +50,20 @@ func setup(game: DumpPuzzle) -> void:
 	_scroll_seconds = maxf(0.2, float(config.get("scroll_seconds", 1.0)))
 	_lens_enabled = bool(config.get("lens", true))
 
-	_pieces = RichTextLabel.new()
-	_pieces.bbcode_enabled = true
-	_pieces.fit_content = true
-	_pieces.scroll_active = false
-	_pieces.add_theme_font_override("normal_font", PasswordPanel._mono())
-	_pieces.add_theme_font_size_override("normal_font_size", TARGET_FONT_SIZE)
-	add_child(_pieces)
+	_build_train()
 
 	# Окно дампа обрезает сетку: в сетке на строку больше, и она плавно едет вверх внутри окна.
 	var center := CenterContainer.new()
 	add_child(center)
-	_window = Control.new()
-	_window.clip_contents = true
-	_window.custom_minimum_size = Vector2(
-		puzzle.width * (CELL_SIZE.x + GAP) - GAP, puzzle.rows_visible * (CELL_SIZE.y + GAP) - GAP
-	)
-	center.add_child(_window)
+	var window := Control.new()
+	window.clip_contents = true
+	window.custom_minimum_size = Vector2(_grid_width(), puzzle.rows_visible * (CELL_SIZE.y + GAP) - GAP)
+	center.add_child(window)
 	_grid = GridContainer.new()
 	_grid.columns = puzzle.width
 	_grid.add_theme_constant_override("h_separation", GAP)
 	_grid.add_theme_constant_override("v_separation", GAP)
-	_window.add_child(_grid)
+	window.add_child(_grid)
 	for row: int in puzzle.rows_visible + 1:
 		for col: int in puzzle.width:
 			var cell := Button.new()
@@ -93,6 +92,17 @@ func setup(game: DumpPuzzle) -> void:
 	_refresh()
 
 
+## Ширина подписей известна точно только в дереве сцены (там применяется шрифт): ставим «поезд»
+## на место ещё раз, без анимации.
+func _ready() -> void:
+	if puzzle != null:
+		_train.position.x = train_offset(mini(puzzle.stage, puzzle.targets.size() - 1))
+
+
+func _grid_width() -> float:
+	return puzzle.width * (CELL_SIZE.x + GAP) - GAP
+
+
 ## Дамп ползёт непрерывно: сетка сдвигается по пикселям, а раз в `scroll_seconds` экран
 ## перескакивает на строку вперёд и сдвиг обнуляется — глазу это незаметно.
 func _process(delta: float) -> void:
@@ -118,6 +128,9 @@ func click(row: int, col: int) -> Dictionary:
 	if _done:
 		return {}
 	var result: Dictionary = puzzle.pick(puzzle.top + row, col)
+	# После клика лупа гаснет: подсвеченный кусок либо пойман, либо уже не нужен.
+	# Загорится снова, когда мышь перейдёт на другую клетку.
+	_hovered = -1
 	match str(result["result"]):
 		DumpPuzzle.PICK_MISS:
 			_flash(Color(1.0, 0.4, 0.4), true)
@@ -125,7 +138,6 @@ func click(row: int, col: int) -> Dictionary:
 			_flash(Color(0.5, 1.0, 0.6), false)
 		DumpPuzzle.PICK_DONE:
 			_done = true
-			_hovered = -1
 			_grid.modulate = Color(0.5, 1.0, 0.6)
 			_note.text = "Хэш собран."
 			_next_button.visible = true
@@ -142,7 +154,7 @@ func is_done() -> bool:
 	return _done
 
 
-## Состояние клетки сетки под лупой (для тестов): цвет её фона.
+## Цвет фона клетки сетки (для тестов лупы).
 func cell_color(row: int, col: int) -> Color:
 	var cell: Button = _grid.get_child(row * puzzle.width + col) as Button
 	return (cell.get_theme_stylebox("normal") as StyleBoxFlat).bg_color
@@ -168,20 +180,94 @@ func _flash(tint: Color, shake: bool) -> void:
 	tween.tween_property(_grid, "modulate", Color.WHITE, 0.15)
 
 
-func _refresh() -> void:
-	var parts: PackedStringArray = []
+# --- «Поезд» кусков --------------------------------------------------------------
+
+## Полоса с кусками хэша: обрезана по краям, края растворяются в фоне окна градиентом.
+func _build_train() -> void:
+	var center := CenterContainer.new()
+	add_child(center)
+	_strip = Control.new()
+	_strip.clip_contents = true
+	center.add_child(_strip)
+	_train = HBoxContainer.new()
+	_train.add_theme_constant_override("separation", PIECE_GAP)
+	_strip.add_child(_train)
 	for index: int in puzzle.targets.size():
 		var names: PackedStringArray = []
 		for value: int in puzzle.targets[index]:
 			names.append(puzzle.symbol_name(value))
-		var color: String = COLOR_LATER
+		var label := Label.new()
+		label.text = " ".join(names)
+		label.add_theme_font_override("font", PasswordPanel._mono())
+		label.add_theme_font_size_override("font_size", TARGET_FONT_SIZE)
+		_train.add_child(label)
+	var height: float = (_train.get_child(0) as Label).get_minimum_size().y + 6.0
+	_strip.custom_minimum_size = Vector2(_grid_width(), height)
+	_strip.add_child(_fade(true, height))
+	_strip.add_child(_fade(false, height))
+
+
+## Градиент от фона окна к прозрачному: кусок не обрезается резко, а тает у края.
+func _fade(left: bool, height: float) -> TextureRect:
+	var clear := Color(BACKGROUND, 0.0)
+	var gradient := Gradient.new()
+	gradient.set_color(0, BACKGROUND if left else clear)
+	gradient.set_color(1, clear if left else BACKGROUND)
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.width = int(FADE_WIDTH)
+	texture.height = 4
+	var rect := TextureRect.new()
+	rect.texture = texture
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_SCALE
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.size = Vector2(FADE_WIDTH, height)
+	rect.position = Vector2(0.0 if left else _grid_width() - FADE_WIDTH, 0.0)
+	return rect
+
+
+## Где должен стоять «поезд», чтобы кусок `index` оказался по центру полосы. Считаем по
+## минимальным размерам подписей: раскладка контейнера в этот момент может быть ещё не готова.
+func train_offset(index: int) -> float:
+	var x: float = 0.0
+	for i: int in index:
+		x += (_train.get_child(i) as Label).get_minimum_size().x + PIECE_GAP
+	var width: float = (_train.get_child(index) as Label).get_minimum_size().x
+	return _grid_width() / 2.0 - (x + width / 2.0)
+
+
+func train_x() -> float:
+	return _train.position.x
+
+
+func _refresh_train() -> void:
+	for index: int in _train.get_child_count():
+		var label: Label = _train.get_child(index) as Label
+		var color: Color = COLOR_LATER
 		if index < puzzle.stage:
 			color = COLOR_CAUGHT
 		elif index == puzzle.stage:
 			color = COLOR_CURRENT
-		parts.append("[color=%s]%s[/color]" % [color, " ".join(names)])
-	_pieces.text = "[center]%s[/center]" % "   ".join(parts)
+		label.add_theme_color_override("font_color", color)
+		# Пойманный кусок уезжает притушенным, как отцепленный вагон.
+		label.modulate.a = 0.55 if index < puzzle.stage else 1.0
+	var stage: int = mini(puzzle.stage, puzzle.targets.size() - 1)
+	if stage == _shown_stage:
+		return
+	_shown_stage = stage
+	var goal: float = train_offset(stage)
+	if not animate or not is_inside_tree():
+		_train.position.x = goal
+		return
+	var tween: Tween = create_tween()
+	tween.tween_property(_train, "position:x", goal, TRAIN_SECONDS).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
+
+# --- Экран -----------------------------------------------------------------------
+
+func _refresh() -> void:
+	_refresh_train()
 	for row: int in puzzle.rows_visible + 1:
 		var symbols: PackedInt32Array = puzzle.row_symbols(puzzle.top + row)
 		for col: int in puzzle.width:

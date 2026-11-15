@@ -144,11 +144,12 @@ func _put_decoy(symbols: PackedInt32Array, target: PackedInt32Array, taken: int)
 
 # --- Лупа ----------------------------------------------------------------------
 
-## Подсказка при наведении на клетку (решено 15.11.2026, на пробу): сама клетка и её соседи
-## слева и справа. Клетка с байтом из текущего куска — «подходит», иначе «не подходит». Если
-## подходит, соседи сверяются с тем, что в куске стоит рядом с этим байтом: совпал — «подходит»,
-## нет — «не подходит»; сосед за краем куска — просто «рядом». Байт встречается в куске дважды —
-## берём место, где сходится больше соседей. Возвращает {столбец: состояние}.
+## Подсказка при наведении на клетку (решено 15.11.2026, на пробу). Клетка с байтом из текущего
+## куска — «подходит», и тогда лупа накрывает весь кусок по длине: столько клеток, сколько в куске,
+## выровненных по месту этого байта в куске. Каждая сверяется со своим байтом куска: совпал —
+## «подходит», нет — «не подходит». Байт встречается в куске дважды — берём место, где сходится
+## больше клеток. Чужой байт — «не подходит», соседи слева и справа — просто «рядом».
+## Возвращает {столбец: состояние}; клетки за краем строки пропускаются.
 func lens(row: int, col: int) -> Dictionary:
 	var result: Dictionary = {}
 	var symbols: PackedInt32Array = row_symbols(row)
@@ -159,23 +160,23 @@ func lens(row: int, col: int) -> Dictionary:
 		if target[index] != symbols[col]:
 			continue
 		var score: int = 0
-		if index > 0 and col > 0 and target[index - 1] == symbols[col - 1]:
-			score += 1
-		if index < target.size() - 1 and col < width - 1 and target[index + 1] == symbols[col + 1]:
-			score += 1
+		for offset: int in target.size():
+			var at: int = col - index + offset
+			if at >= 0 and at < width and symbols[at] == target[offset]:
+				score += 1
 		if score > best_score:
 			best = index
 			best_score = score
-	result[col] = LENS_WRONG if best < 0 else LENS_MATCH
-	for side: int in [-1, 1]:
-		var neighbour: int = col + side
-		if neighbour < 0 or neighbour >= width:
-			continue
-		var expected: int = best + side
-		if best < 0 or expected < 0 or expected >= target.size():
-			result[neighbour] = LENS_NEAR
-		else:
-			result[neighbour] = LENS_MATCH if target[expected] == symbols[neighbour] else LENS_WRONG
+	if best < 0:
+		result[col] = LENS_WRONG
+		for neighbour: int in [col - 1, col + 1]:
+			if neighbour >= 0 and neighbour < width:
+				result[neighbour] = LENS_NEAR
+		return result
+	for offset: int in target.size():
+		var at: int = col - best + offset
+		if at >= 0 and at < width:
+			result[at] = LENS_MATCH if symbols[at] == target[offset] else LENS_WRONG
 	return result
 
 
