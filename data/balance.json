@@ -109,8 +109,9 @@
     },
 
     "matrix": {
-      "_note": "«Матрица» по уровням (docs/tech/puzzles-spec.md). size — сторона сетки, buffer — клеток в буфере, sequences — сколько последовательностей собрать, seq_min/seq_max — их длина, noise — шумных ячеек, slack — допустимый запас B - min_moves. Калибруем отчётом на плейтесте.",
+      "_note": "«Матрица» по уровням (docs/tech/puzzles-spec.md). size — сторона сетки, buffer — клеток в буфере, sequences — сколько последовательностей собрать, seq_min/seq_max — их длина, noise — шумных ячеек, slack — допустимый запас B - min_moves. Калибруем отчётом на плейтесте. tries — сколько раз можно упереться в тупик за партию (после тупика сетка слоя меняется).",
       "max_tries": 60,
+      "tries": 3,
       "solutions_cap": 200,
       "nodes_cap": 20000,
       "levels": {

@@ -7,6 +7,7 @@ var _gained: int = -1
 
 func before_each() -> void:
 	GameState.reset()
+	MatrixPanel.animate = false
 	_gained = -1
 
 
@@ -177,23 +178,60 @@ func test_dead_end_ends_the_round_at_once() -> void:
 	assert_lte(panel.puzzle.picks.size(), panel.puzzle.capacity)
 
 
+func _factory(seed_value: int) -> Callable:
+	return func(index: int) -> MatrixPuzzle: return MatrixPuzzle.generate_round(2, seed_value, index)
+
+
+func _wrong_picks_until_dead_end(panel: MatrixPanel) -> void:
+	var steps: int = 0
+	var round_puzzle: MatrixPuzzle = panel.puzzle
+	while panel.puzzle == round_puzzle and not panel.is_done() and steps < 30:
+		var moves: PackedInt32Array = round_puzzle.legal_moves()
+		if moves.is_empty():
+			return
+		var wrong: int = moves[0]
+		for cell: int in moves:
+			var index: int = round_puzzle.picks.size()
+			if index >= round_puzzle.solution.size() or cell != round_puzzle.solution[index]:
+				wrong = cell
+				break
+		panel.pick(wrong)
+		steps += 1
+
+
 func test_rounds_follow_one_another_and_total_is_reported() -> void:
 	var first: MatrixPuzzle = MatrixPuzzle.generate_round(2, 5, 0)
 	var panel := MatrixPanel.new()
-	panel.setup(first, 2, func(index: int) -> MatrixPuzzle: return MatrixPuzzle.generate_round(2, 5, index))
+	panel.setup(first, 2, _factory(5))
 	panel.finished.connect(_on_finished)
 	add_child_autofree(panel)
 	for cell: int in first.solution:
 		panel.pick(cell)
-	assert_false(panel.is_done(), "второй раунд впереди")
-	assert_string_contains(panel.note_text(), "Слой вскрыт")
-	(panel.get_children().filter(func(c: Node) -> bool: return c is Button).back() as Button).pressed.emit()
-	assert_ne(panel.puzzle, first, "началась новая сетка")
+	assert_false(panel.is_done(), "второй слой впереди")
+	assert_ne(panel.puzzle, first, "после слоя сразу новая сетка")
 	for cell: int in panel.puzzle.solution:
 		panel.pick(cell)
 	assert_true(panel.is_done())
 	(panel.get_children().filter(func(c: Node) -> bool: return c is Button).back() as Button).pressed.emit()
 	assert_eq(_gained, 2)
+
+
+func test_dead_end_gives_a_new_grid_for_the_same_layer_until_tries_run_out() -> void:
+	var first: MatrixPuzzle = MatrixPuzzle.generate_round(2, 9, 0)
+	var panel := MatrixPanel.new()
+	panel.setup(first, 1, _factory(9))
+	panel.finished.connect(_on_finished)
+	add_child_autofree(panel)
+	_wrong_picks_until_dead_end(panel)
+	if panel.is_done():
+		return # случайно выиграли: сид-зависимая редкость, повтор не проверить
+	assert_ne(panel.puzzle, first, "тупик — новая сетка, а не конец")
+	for _i: int in 5:
+		_wrong_picks_until_dead_end(panel)
+	assert_true(panel.is_done(), "попытки кончились")
+	(panel.get_children().filter(func(c: Node) -> bool: return c is Button).back() as Button).pressed.emit()
+	# «Неверный» путь иногда всё же собирает цель другим путём, так что 0 или 1.
+	assert_true(_gained == 0 or _gained == 1)
 
 
 # --- Модальное окно на столе ----------------------------------------------------

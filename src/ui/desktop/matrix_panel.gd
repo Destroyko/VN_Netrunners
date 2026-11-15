@@ -10,6 +10,12 @@ signal finished(gained: int)
 const COLOR_LEGAL: Color = Color(0.25, 0.6, 0.4)
 const COLOR_IDLE: Color = Color(0.17, 0.19, 0.24)
 const COLOR_USED: Color = Color(0.1, 0.11, 0.14)
+const TINT_FAIL: Color = Color(1.0, 0.4, 0.4)
+const TINT_WIN: Color = Color(0.45, 1.0, 0.55)
+const DEFAULT_TRIES: int = 3
+
+## Выключатель анимаций: тесты гоняют партию мгновенно.
+static var animate: bool = true
 
 var puzzle: MatrixPuzzle
 
@@ -26,6 +32,11 @@ var _offset: int = 0
 var _rounds: int = 1
 var _round: int = 0
 var _next_round: Callable
+var _tries_left: int = DEFAULT_TRIES
+var _tries_total: int = DEFAULT_TRIES
+var _retries_used: int = 0
+## Идёт анимация перехода: ходы на это время закрыты.
+var _busy: bool = false
 
 
 ## `rounds` — сколько раундов осталось сыграть, `next_round(index)` отдаёт головоломку раунда
@@ -34,6 +45,8 @@ func setup(game: MatrixPuzzle, rounds: int = 1, next_round: Callable = Callable(
 	_rounds = maxi(rounds, 1)
 	_next_round = next_round
 	_offset = layers_done
+	_tries_total = int(PuzzleLevels.section("matrix").get("tries", DEFAULT_TRIES))
+	_tries_left = _tries_total
 
 	_round_label = Label.new()
 	add_child(_round_label)
@@ -83,7 +96,7 @@ func _start_round(game: MatrixPuzzle) -> void:
 
 ## Выбрать ячейку. Ход принимает `MatrixPuzzle`, он же решает, закончился ли раунд.
 func pick(cell: int) -> Dictionary:
-	if _done or _round_over:
+	if _done or _round_over or _busy:
 		return {}
 	var result: Dictionary = puzzle.pick(cell)
 	if not bool(result["ok"]):
@@ -103,25 +116,79 @@ func _end_round() -> void:
 	for child: Node in _grid.get_children():
 		(child as Button).disabled = true
 	var won: bool = puzzle.layers() == puzzle.targets.size()
-	_gained += puzzle.layers()
-	var more: bool = won and _round + 1 < _rounds and _next_round.is_valid()
-	if more:
-		_note.text = "Слой вскрыт."
-	elif won:
+	if won:
+		_gained += puzzle.layers()
+		if _round + 1 < _rounds and _next_round.is_valid():
+			# Слой вскрыт: сетка зеленеет и переворачивается к следующему слою.
+			_round += 1
+			var upcoming: MatrixPuzzle = _next_round.call(_round + _retries_used * RETRY_STRIDE) as MatrixPuzzle
+			_transition(TINT_WIN, false, _start_round.bind(upcoming))
+			return
 		_done = true
 		_note.text = "Все слои вскрыты."
-	else:
-		_done = true
-		_note.text = "Тупик: эту цепочку уже не собрать."
+		_grid.modulate = TINT_WIN
+		_next_button.visible = true
+		return
+	# Тупик: тряска и красный цвет, затем новая сетка этого же слоя, пока есть попытки.
+	_tries_left -= 1
+	if _tries_left > 0 and _next_round.is_valid():
+		_retries_used += 1
+		var retry: MatrixPuzzle = _next_round.call(_round + _retries_used * RETRY_STRIDE) as MatrixPuzzle
+		_transition(TINT_FAIL, true, _start_round.bind(retry))
+		return
+	_gained += puzzle.layers()
+	_done = true
+	_note.text = "Тупик. Попытки кончились."
+	_grid.modulate = TINT_FAIL
 	_next_button.visible = true
 
 
-func _on_next() -> void:
-	if _done:
-		finished.emit(_gained)
+## Раунд раундов: чтобы повтор слоя не совпал с сеткой другого слоя.
+const RETRY_STRIDE: int = 1000
+
+
+## Переход между сетками: подсветка цветом (и тряска), затем плитки переворачиваются
+## по горизонтали, и на обороте уже новая сетка.
+func _transition(tint: Color, shake: bool, swap: Callable) -> void:
+	if not animate:
+		swap.call()
 		return
-	_round += 1
-	_start_round(_next_round.call(_round) as MatrixPuzzle)
+	_busy = true
+	_grid.modulate = tint
+	var base: float = _grid.position.x
+	var tween: Tween = create_tween()
+	if shake:
+		for step: int in 6:
+			tween.tween_property(_grid, "position:x", base + (10.0 if step % 2 == 0 else -10.0), 0.06)
+		tween.tween_property(_grid, "position:x", base, 0.06)
+	tween.tween_interval(0.3)
+	tween.tween_callback(_flip_out.bind(swap))
+
+
+func _flip_out(swap: Callable) -> void:
+	var tween: Tween = create_tween().set_parallel(true)
+	for child: Node in _grid.get_children():
+		var tile: Button = child as Button
+		tile.pivot_offset = tile.size / 2.0
+		tween.tween_property(tile, "scale:x", 0.0, 0.2)
+	tween.chain().tween_callback(func() -> void:
+		swap.call()
+		_grid.modulate = Color.WHITE
+		_flip_in())
+
+
+func _flip_in() -> void:
+	var tween: Tween = create_tween().set_parallel(true)
+	for child: Node in _grid.get_children():
+		var tile: Button = child as Button
+		tile.pivot_offset = tile.size / 2.0
+		tile.scale = Vector2(0.0, 1.0)
+		tween.tween_property(tile, "scale:x", 1.0, 0.2)
+	tween.chain().tween_callback(func() -> void: _busy = false)
+
+
+func _on_next() -> void:
+	finished.emit(_gained)
 
 
 ## Игрок закрыл окно или нажал «Выйти»: засчитываются уже вскрытые слои.
@@ -138,7 +205,7 @@ func note_text() -> String:
 
 
 func _refresh() -> void:
-	_round_label.text = "Слой %d из %d" % [_offset + _round + 1, _offset + _rounds]
+	_round_label.text = "Слой %d из %d · попыток: %d из %d" % [_offset + _round + 1, _offset + _rounds, _tries_left, _tries_total]
 	var legal: PackedInt32Array = puzzle.legal_moves() if not _round_over else PackedInt32Array()
 	for cell: int in puzzle.size * puzzle.size:
 		var button: Button = _grid.get_child(cell) as Button
