@@ -869,3 +869,39 @@ func test_admin_can_change_files() -> void:
 func test_own_pc_needs_no_rights() -> void:
 	assert_false(run("mkdir proekty").contains("недостаточно прав"), "на своём ПК игрок хозяин")
 
+
+# --- Ранняя игра: логин администратора и подчищенные следы --------------------------
+
+func test_client_admin_login_gives_rights_on_entry() -> void:
+	# Заказ подработки: адрес и логин администратора — удалить и положить можно сразу, без rootstep.
+	Effects.apply({"reveal_node": {"node": "node_training_pc", "open": ["svc_login"], "admin": true}})
+	run("connect 10.0.0.7")
+	assert_true(t.admin(), "логин администратора")
+	assert_false(run("rm spisok_pokupok.txt").contains("недостаточно прав"))
+
+
+func test_plain_client_login_is_a_guest() -> void:
+	Effects.apply({"reveal_node": {"node": "node_training_pc", "open": ["svc_login"]}})
+	run("connect 10.0.0.7")
+	assert_false(t.admin())
+
+
+func test_covered_session_leaves_no_traces() -> void:
+	# Ворота gate.cover: за игроком подчищают — ни удаления, ни входа, ни выхода в логах узла.
+	GameState.set_flag(Terminal.GATE_COVER)
+	Effects.apply({"reveal_node": {"node": "node_training_pc", "open": ["svc_login"], "admin": true}})
+	var before: int = logbook("node_training_pc").count()
+	run("connect 10.0.0.7")
+	run("rm spisok_pokupok.txt")
+	run("dc")
+	assert_eq(logbook("node_training_pc").count(), before, "журнал узла не изменился")
+
+
+func test_without_cover_the_session_is_logged() -> void:
+	Effects.apply({"reveal_node": {"node": "node_training_pc", "open": ["svc_login"], "admin": true}})
+	var before: int = logbook("node_training_pc").count()
+	run("connect 10.0.0.7")
+	run("rm spisok_pokupok.txt")
+	run("dc")
+	assert_gt(logbook("node_training_pc").count(), before)
+

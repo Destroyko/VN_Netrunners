@@ -357,21 +357,31 @@ func hung_up(node: String, was_connected: bool) -> void:
 	_cwd_remote = HOME_DIR
 	if not was_connected:
 		return
-	Logbook.for_node(node).append(
-		Logbook.CATEGORY_SESSION, "сеанс закрыт", GameState.day, GameState.minute, false, "logout"
-	)
+	if not traces_covered():
+		Logbook.for_node(node).append(
+			Logbook.CATEGORY_SESSION, "сеанс закрыт", GameState.day, GameState.minute, false, "logout"
+		)
 	EventBus.node_disconnected.emit(node)
 
 
 ## Записать след на чужом узле. На своём ПК следов нет: терминал не пишет туда то,
 ## что игрок делает сам (решено 15.11.2026).
 func note(category: String, text: String, slug: String = "") -> void:
-	if not is_remote():
+	if not is_remote() or traces_covered():
 		return
 	Logbook.for_node(node_id()).append(category, text, GameState.day, GameState.minute, false, slug)
 	# Записано в журнал — значит, действие «громкое»: анализ действий узла его заметил.
 	if net.has_ids(node_id()) and session.is_tracing():
 		_ids_extra += int((DataLoader.balance().get("nodes", {}) as Dictionary).get("ids_trace_minutes", 3))
+
+
+## Ворота `gate.cover` (docs/tech/gates.md): пока открыты, за игроком подчищают — его сеансы
+## на чужих узлах не оставляют записей в логах. Кто и почему подчищает — решают рельсы.
+const GATE_COVER: String = "gate.cover"
+
+
+static func traces_covered() -> bool:
+	return GameState.has_flag(GATE_COVER)
 
 
 func has_network() -> bool:

@@ -129,11 +129,13 @@ func book_entry(node_id: String) -> Dictionary:
 ## Заказ выдал игроку точку входа: адрес попадает в книгу, а клиент ещё и называет, что это
 ## за узел, и может дать «логины» — сервисы, которые он знает и открывает заранее
 ## (network.md, «Как игрок попадает в сеть»). Возвращает false, если такого узла нет.
-func reveal(node_id: String, open_services: Array, now: int) -> bool:
+func reveal(node_id: String, open_services: Array, now: int, admin_login: bool = false) -> bool:
 	if not has_node_def(node_id):
 		return false
 	mark_known(node_id)
 	_entry(node_id)["probed"] = true
+	if admin_login:
+		_entry(node_id)["admin_login"] = true
 	for service_id: Variant in open_services:
 		if not service(node_id, str(service_id)).is_empty():
 			mark_cracked(node_id, str(service_id), now)
@@ -438,6 +440,12 @@ func effective_difficulty(node_id: String, base: int) -> int:
 
 
 # --- Взломанные узлы ---------------------------------------------------------
+
+## Заказчик дал логин администратора: на этом узле игрок сразу с правами (удалить, положить —
+## работа офисного технаря). Логин не взлом — сбросы сервисов его не трогают.
+func has_admin_login(node_id: String) -> bool:
+	return bool(_peek(node_id).get("admin_login", false))
+
 
 func has_hacked(node_id: String) -> bool:
 	return bool(_peek(node_id).get("hacked", false))

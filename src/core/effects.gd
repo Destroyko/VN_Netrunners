@@ -121,12 +121,14 @@ static func _apply_one(type: String, value: Variant) -> bool:
 		"take_item":
 			return Inventory.take(str(value))
 		"reveal_node":
-			# Формат: {"reveal_node": "node_x"} или {"reveal_node": {"node": "node_x", "open": ["svc_login"]}}.
-			# Заказ даёт адрес и, если клиент знает логины, открывает часть сервисов заранее.
+			# Формат: {"reveal_node": "node_x"} или {"reveal_node": {"node": "node_x", "open": ["svc_login"], "admin": true}}.
+			# Заказ даёт адрес и, если клиент знает логины, открывает часть сервисов заранее;
+			# "admin": логин администратора — на узле сразу с правами.
 			var target: String = reveal_target(value)
 			var net: Network = Network.for_game()
 			var now: int = net.abs_minute(GameState.day, GameState.minute)
-			if not net.reveal(target, reveal_open(value), now):
+			var admin: bool = value is Dictionary and bool((value as Dictionary).get("admin", false))
+			if not net.reveal(target, reveal_open(value), now, admin):
 				push_error("Effects: reveal_node: нет такого узла: '%s'" % target)
 				return false
 			return true

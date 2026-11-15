@@ -108,6 +108,8 @@ func connect_to(address: String, now: int) -> NetResult:
 		return login
 
 	_state["connected"] = true
+	if _net.has_admin_login(node_id):
+		_state["admin"] = true
 	var result := NetResult.ok(node_id)
 	result.address = address
 	result.first_hack = _net.mark_hacked(node_id)
