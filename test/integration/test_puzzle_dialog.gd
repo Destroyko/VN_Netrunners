@@ -55,6 +55,7 @@ func test_typo_does_not_spend_an_attempt() -> void:
 	panel.submit("ъъъъъ")
 	assert_eq(panel.puzzle.attempts_left(), before)
 	assert_string_contains(panel.note_text(), "не потрачена")
+	assert_false(panel.note_text().contains("словар"), "игроку про словарь не говорим")
 
 
 func test_running_out_of_attempts_ends_the_game_and_reveals_the_word() -> void:
@@ -243,3 +244,14 @@ func test_disconnect_closes_the_puzzle_window() -> void:
 	(pair[1] as TerminalView).submit("dc")
 	await wait_frames(2)
 	assert_false(desktop.has_puzzle_open())
+
+
+func test_unknown_word_returns_letters_to_the_pool() -> void:
+	var panel: PasswordPanel = _password_panel()
+	var before: int = panel.pool_letters().size()
+	for index: int in panel.puzzle.length:
+		if not panel.puzzle.known.has(index):
+			panel.place(0, index)
+	if panel.puzzle.attempts_left() < panel.puzzle.max_attempts:
+		return
+	assert_eq(panel.pool_letters().size(), before, "слова не из словаря вернулись в пул")

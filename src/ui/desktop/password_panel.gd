@@ -155,6 +155,12 @@ func _evaluate() -> void:
 ## Итог проверки: верные буквы закрепляются, лишние исчезают, «не там» уходят в пул.
 func _apply(result: Dictionary) -> void:
 	if not bool(result["valid"]):
+		# Слово не подошло и не из словаря: буквы возвращаются в пул, попытка не тратится.
+		for index: int in puzzle.length:
+			if not _locked[index] and not _slots[index].is_empty():
+				_pool.append(_slots[index])
+				_slots[index] = ""
+		_refresh()
 		_note.text = _reason_text(str(result["reason"]))
 		return
 	var marks: Array = result["marks"] as Array
@@ -229,7 +235,7 @@ static func _reason_text(reason: String) -> String:
 		"length":
 			return "Нужно слово ровно нужной длины."
 		"unknown":
-			return "Такого слова в словаре нет. Попытка не потрачена: поменяй буквы."
+			return "Не подходит. Попытка не потрачена, попробуй другие буквы."
 	return "Ввод не принят."
 
 
