@@ -107,12 +107,10 @@ func _open_puzzle(target: String, service: String, program: String, result: Term
 		var extra: int = int(GameState.get_var_or(VAR_DEEPSCAN_PREFIX + target + "." + service, 0))
 		puzzle = PasswordPuzzle.generate(level, seed_value, extra)
 	else:
-		var params: Dictionary = PuzzleLevels.matrix(level)
-		layers_total = int(params["sequences"])
+		layers_total = int(PuzzleLevels.matrix(level)["sequences"])
 		layers_done = mini(progress.layers(target, service, now), layers_total - 1)
-		# Вскрытые слои остаются: собирать надо только оставшиеся цели.
-		params["sequences"] = layers_total - layers_done
-		puzzle = MatrixPuzzle.generate(level, seed_value, params)
+		# Слой = раунд с одной целью. Вскрытые слои остаются: играть надо только оставшиеся.
+		puzzle = MatrixPuzzle.generate_round(level, seed_value, 0)
 
 	_t.set_puzzle({
 		"node": target, "service": service, "kind": kind, "level": level,
@@ -122,6 +120,7 @@ func _open_puzzle(target: String, service: String, program: String, result: Term
 		"type": "puzzle", "kind": kind, "node": target, "service": service,
 		"difficulty": level, "alert": alert, "attempt": attempt,
 		"layers_done": layers_done, "layers_total": layers_total, "puzzle": puzzle,
+		"rounds": layers_total - layers_done, "seed": seed_value,
 	}
 
 

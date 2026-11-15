@@ -265,12 +265,12 @@ func play_puzzle(kind: String, level: int, seed_value: int) -> bool:
 	if kind == "password":
 		puzzle = PasswordPuzzle.generate(level, seed_value, 0)
 	else:
-		var params: Dictionary = PuzzleLevels.matrix(level)
-		layers_total = int(params["sequences"])
-		puzzle = MatrixPuzzle.generate(level, seed_value, params)
+		layers_total = int(PuzzleLevels.matrix(level)["sequences"])
+		puzzle = MatrixPuzzle.generate_round(level, seed_value, 0)
 	_show_puzzle({
 		"type": "puzzle", "kind": kind, "node": "тренировка", "service": kind,
 		"layers_done": 0, "layers_total": layers_total, "puzzle": puzzle,
+		"rounds": layers_total, "seed": seed_value, "difficulty": level,
 	}, null)
 	return true
 

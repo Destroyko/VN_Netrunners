@@ -95,7 +95,43 @@ func layers() -> int:
 
 
 func is_finished() -> bool:
-	return buffer.size() >= capacity or layers() == targets.size() or legal_moves().is_empty()
+	return buffer.size() >= capacity or layers() == targets.size() or legal_moves().is_empty() or is_hopeless()
+
+
+## Тупик: ни одна цепочка ходов из этого положения не соберёт больше целей, чем собрано.
+## Партия кончается сразу, а не после того, как игрок дозаполнит буфер зря.
+func is_hopeless() -> bool:
+	var goal: int = layers()
+	if goal >= targets.size():
+		return false
+	return not _can_collect_more(buffer, _used, picks.size(), picks[picks.size() - 1] if not picks.is_empty() else -1, goal)
+
+
+func _collected_in(sequence: PackedInt32Array) -> int:
+	var count: int = 0
+	for target: Variant in targets:
+		if contains_run(sequence, target as PackedInt32Array):
+			count += 1
+	return count
+
+
+## Перебор оставшихся ходов; глубина ограничена свободными клетками буфера, поэтому он быстрый.
+func _can_collect_more(
+	sequence: PackedInt32Array, used: PackedByteArray, made: int, last: int, goal: int
+) -> bool:
+	var left: int = capacity - sequence.size()
+	for cell: int in legal_cells(size, made, last, used, noise, left):
+		var next: PackedInt32Array = sequence.duplicate()
+		next.append(grid[cell])
+		if noise[cell] == 1:
+			next.append(JUNK)
+		if _collected_in(next) > goal:
+			return true
+		var next_used: PackedByteArray = used.duplicate()
+		next_used[cell] = 1
+		if _can_collect_more(next, next_used, made + 1, cell, goal):
+			return true
+	return false
 
 
 # --- Правила: общие для партии и солвера --------------------------------------
@@ -159,6 +195,20 @@ static func contains_run(buffer: PackedInt32Array, target: PackedInt32Array) -> 
 
 
 # --- Генерация ---------------------------------------------------------------
+
+## Параметры одного раунда: одна цель, буфер ровно под неё и запас уровня.
+## Слой защиты = один раунд (docs/tech/puzzles-spec.md): собрал цель — следующий раунд с новой сеткой.
+static func round_params(game_level: int) -> Dictionary:
+	var params: Dictionary = PuzzleLevels.matrix(game_level)
+	var slack: Array = params.get("slack", [0, 0]) as Array
+	params["sequences"] = 1
+	params["buffer"] = int(params["seq_max"]) + int(slack[0])
+	return params
+
+
+static func generate_round(game_level: int, seed_value: int, index: int) -> MatrixPuzzle:
+	return generate(game_level, ("round:%d:%d" % [seed_value, index]).hash(), round_params(game_level))
+
 
 ## Головоломка по уровню и сиду. `params` — параметры вместо тех, что в balance.json.
 ## Если за отведённые попытки подходящей не нашлось, отдаёт наименее плохую с пометкой.

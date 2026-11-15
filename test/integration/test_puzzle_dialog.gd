@@ -159,14 +159,41 @@ func test_illegal_move_is_refused_with_a_hint() -> void:
 	assert_eq(panel.puzzle.picks.size(), 0)
 
 
-func test_give_up_reports_what_was_collected() -> void:
+func test_dead_end_ends_the_round_at_once() -> void:
 	var panel: MatrixPanel = _matrix_panel()
-	panel.pick(panel.puzzle.solution[0])
-	(panel.find_child("GiveUp", true, false) as Button).pressed.emit()
+	# Идём заведомо мимо решения, пока партия не закончится сама: буфер дозаполнять не нужно.
+	var steps: int = 0
+	while not panel.puzzle.is_finished() and steps < 30:
+		var moves: PackedInt32Array = panel.puzzle.legal_moves()
+		var wrong: int = moves[0]
+		for cell: int in moves:
+			var index: int = panel.puzzle.picks.size()
+			if index >= panel.puzzle.solution.size() or cell != panel.puzzle.solution[index]:
+				wrong = cell
+				break
+		panel.pick(wrong)
+		steps += 1
+	assert_true(panel.puzzle.is_finished())
+	assert_lte(panel.puzzle.picks.size(), panel.puzzle.capacity)
+
+
+func test_rounds_follow_one_another_and_total_is_reported() -> void:
+	var first: MatrixPuzzle = MatrixPuzzle.generate_round(2, 5, 0)
+	var panel := MatrixPanel.new()
+	panel.setup(first, 2, func(index: int) -> MatrixPuzzle: return MatrixPuzzle.generate_round(2, 5, index))
+	panel.finished.connect(_on_finished)
+	add_child_autofree(panel)
+	for cell: int in first.solution:
+		panel.pick(cell)
+	assert_false(panel.is_done(), "второй раунд впереди")
+	assert_string_contains(panel.note_text(), "Слой вскрыт")
+	(panel.get_children().filter(func(c: Node) -> bool: return c is Button).back() as Button).pressed.emit()
+	assert_ne(panel.puzzle, first, "началась новая сетка")
+	for cell: int in panel.puzzle.solution:
+		panel.pick(cell)
 	assert_true(panel.is_done())
-	var button: Button = panel.get_children().filter(func(c: Node) -> bool: return c is Button).back() as Button
-	button.pressed.emit()
-	assert_eq(_gained, panel.puzzle.layers())
+	(panel.get_children().filter(func(c: Node) -> bool: return c is Button).back() as Button).pressed.emit()
+	assert_eq(_gained, 2)
 
 
 # --- Модальное окно на столе ----------------------------------------------------

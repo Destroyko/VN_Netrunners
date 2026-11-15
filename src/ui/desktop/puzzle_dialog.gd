@@ -25,7 +25,11 @@ func setup(request: Dictionary) -> void:
 		panel = password
 	elif puzzle is MatrixPuzzle:
 		var matrix := MatrixPanel.new()
-		matrix.setup(puzzle as MatrixPuzzle)
+		var level: int = int(request.get("difficulty", request.get("level", 2)))
+		var seed_value: int = int(request.get("seed", 0))
+		var make_round: Callable = func(index: int) -> MatrixPuzzle:
+			return MatrixPuzzle.generate_round(level, seed_value, index)
+		matrix.setup(puzzle as MatrixPuzzle, int(request.get("rounds", 1)), make_round, int(request.get("layers_done", 0)))
 		matrix.finished.connect(_on_finished)
 		panel = matrix
 	else:
@@ -43,11 +47,7 @@ func setup(request: Dictionary) -> void:
 
 
 static func _header(request: Dictionary) -> String:
-	var text: String = "%s · сервис %s" % [str(request.get("node", "")), str(request.get("service", ""))]
-	var total: int = int(request.get("layers_total", 1))
-	if total > 1:
-		text += " · слой %d из %d" % [int(request.get("layers_done", 0)) + 1, total]
-	return text
+	return "%s · сервис %s" % [str(request.get("node", "")), str(request.get("service", ""))]
 
 
 ## Выйти, не доиграв (кнопка или закрытие окна): засчитывается то, что успел собрать.

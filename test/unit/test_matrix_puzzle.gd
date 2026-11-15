@@ -127,13 +127,25 @@ func test_target_in_the_middle_of_the_buffer_counts() -> void:
 
 # --- Конец партии ------------------------------------------------------------
 
-func test_game_ends_when_the_buffer_is_full() -> void:
+func test_game_ends_at_once_when_the_target_cannot_be_collected_any_more() -> void:
+	# Цель из символов, которых в сетке нет: уже первый ход — тупик, добивать буфер не надо.
 	var puzzle: MatrixPuzzle = _grid3([], [[7, 7]], 2)
 	puzzle.pick(1)
-	assert_false(puzzle.is_finished())
-	puzzle.pick(4)
+	assert_true(puzzle.is_hopeless())
 	assert_true(puzzle.is_finished())
-	assert_eq(puzzle.layers(), 0, "ходы кончились, ни одной цели — провал")
+	assert_eq(puzzle.layers(), 0, "ни одной цели — провал")
+
+
+func test_a_reachable_target_is_not_a_dead_end() -> void:
+	var puzzle: MatrixPuzzle = _grid3([], [[1, 4]], 6)
+	assert_false(puzzle.is_hopeless())
+
+
+func test_round_generation_has_one_target_and_a_tight_buffer() -> void:
+	var puzzle: MatrixPuzzle = MatrixPuzzle.generate_round(2, 7, 0)
+	assert_eq(puzzle.targets.size(), 1)
+	assert_eq(puzzle.capacity, MatrixPuzzle.round_params(2)["buffer"])
+	assert_eq(MatrixPuzzle.generate_round(2, 7, 1).puzzle_seed != puzzle.puzzle_seed, true, "у раундов разные сетки")
 
 
 func test_game_ends_early_when_everything_is_collected() -> void:
@@ -220,3 +232,17 @@ func test_most_puzzles_land_in_the_levels_slack_range() -> void:
 func test_slack_is_the_buffer_minus_the_shortest_solution() -> void:
 	var puzzle: MatrixPuzzle = MatrixPuzzle.generate(3, 8)
 	assert_eq(int(puzzle.metrics["slack"]), puzzle.capacity - int(puzzle.metrics["min_moves"]))
+
+
+func test_every_round_is_solvable_on_all_levels() -> void:
+	var accepted: int = 0
+	var total: int = 0
+	for level: int in range(PuzzleLevels.MIN_LEVEL, PuzzleLevels.MAX_LEVEL + 1):
+		for seed_value: int in 15:
+			var puzzle: MatrixPuzzle = MatrixPuzzle.generate_round(level, seed_value, 0)
+			assert_true(bool(puzzle.metrics["solvable"]), "уровень %d, сид %d" % [level, seed_value])
+			total += 1
+			if bool(puzzle.metrics["accepted"]):
+				accepted += 1
+	gut.p("раунды «матрицы» в допуске: %d из %d" % [accepted, total])
+
