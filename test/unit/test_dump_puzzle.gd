@@ -141,8 +141,26 @@ func test_lens_on_a_foreign_byte_is_red_with_plain_neighbours() -> void:
 	assert_eq(lens[3], DumpPuzzle.LENS_NEAR)
 
 
-func test_lens_is_cut_at_the_edge_of_the_row() -> void:
-	# Наводимся на 1C в первой клетке: начало куска осталось бы за левым краем.
+func test_piece_that_would_stick_out_of_the_row_is_not_green() -> void:
+	# Наводимся на 1C в первой клетке: начало куска оказалось бы за левым краем — кусок тут
+	# стоять не может, и лупа не должна гореть зелёным (клик был бы промахом).
 	var puzzle: DumpPuzzle = _puzzle_with_row([1, 5, 0, 0, 0, 0, 0, 0], [14, 5, 1])
-	assert_eq(puzzle.lens(0, 0).keys(), [0])
+	var lens: Dictionary = puzzle.lens(0, 0)
+	assert_eq(lens[0], DumpPuzzle.LENS_WRONG)
+	assert_eq(puzzle.pick(0, 0)["result"], DumpPuzzle.PICK_MISS, "и клик тут действительно промах")
+
+
+func test_all_green_lens_always_means_a_catch() -> void:
+	# Главное обещание лупы: если она вся зелёная — клик ловит кусок. Проверяем на потоке.
+	for seed_value: int in 15:
+		var puzzle: DumpPuzzle = DumpPuzzle.generate(4, seed_value)
+		for row: int in puzzle.visible_rows():
+			for col: int in puzzle.width:
+				var lens: Dictionary = puzzle.lens(row, col)
+				var all_green: bool = lens.size() == puzzle.current_target().size()
+				for state: Variant in lens.values():
+					all_green = all_green and state == DumpPuzzle.LENS_MATCH
+				if all_green:
+					var copy: DumpPuzzle = DumpPuzzle.generate(4, seed_value)
+					assert_ne(copy.pick(row, col)["result"], DumpPuzzle.PICK_MISS, "сид %d, %d:%d" % [seed_value, row, col])
 

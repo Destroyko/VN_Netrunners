@@ -159,6 +159,10 @@ func lens(row: int, col: int) -> Dictionary:
 	for index: int in target.size():
 		if target[index] != symbols[col]:
 			continue
+		# Кусок, вылезающий за край строки, здесь стоять не может: такое место не считаем,
+		# иначе обрезанная лупа горела бы зелёным там, где клик — промах.
+		if col - index < 0 or col - index + target.size() > width:
+			continue
 		var score: int = 0
 		for offset: int in target.size():
 			var at: int = col - index + offset
