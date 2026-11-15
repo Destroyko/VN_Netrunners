@@ -21,7 +21,7 @@ const GAP: int = 2
 const CELL_IDLE: Color = Color(0.1, 0.12, 0.15)
 const CELL_LENS: Color = Color(0.22, 0.25, 0.3)
 const CELL_MATCH: Color = Color(0.15, 0.33, 0.2)
-const CELL_WRONG: Color = Color(0.35, 0.14, 0.14)
+const CELL_ELSEWHERE: Color = Color(0.38, 0.32, 0.1)
 const TEXT_DUMP: Color = Color(0.62, 0.68, 0.72)
 const TARGET_FONT_SIZE: int = 22
 ## Фон окна (как у `DesktopWindow`): в него растворяются края «поезда».
@@ -309,8 +309,8 @@ func _paint_lens() -> void:
 			match str(lens[index % puzzle.width]):
 				DumpPuzzle.LENS_MATCH:
 					color = CELL_MATCH
-				DumpPuzzle.LENS_WRONG:
-					color = CELL_WRONG
+				DumpPuzzle.LENS_ELSEWHERE:
+					color = CELL_ELSEWHERE
 				_:
 					color = CELL_LENS
 		var cell: Button = _grid.get_child(index) as Button

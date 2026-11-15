@@ -122,7 +122,7 @@ func test_lens_on_the_edge_of_a_right_piece_is_not_all_green() -> void:
 	var puzzle: DumpPuzzle = _puzzle_with_row([0, 0, 14, 5, 1, 0, 0, 0], [14, 5, 1])
 	var lens: Dictionary = puzzle.lens(0, 2)
 	assert_eq(lens.keys(), [1, 2, 3])
-	assert_eq(lens[2], DumpPuzzle.LENS_WRONG, "на месте середины куска стоит не 55")
+	assert_eq(lens[2], DumpPuzzle.LENS_ELSEWHERE, "на месте середины куска стоит не 55")
 
 
 func test_five_byte_lens_takes_two_cells_on_each_side() -> void:
@@ -161,7 +161,7 @@ func test_lens_tells_misplaced_bytes_from_foreign_ones() -> void:
 	# Цель 14 5 1. Окно вокруг столбца 3: [1, 0, 14] — 1C есть в куске (не там), 00 нет, C4 есть (не там).
 	var puzzle: DumpPuzzle = _puzzle_with_row([0, 0, 1, 0, 14, 0, 0, 0], [14, 5, 1])
 	var lens: Dictionary = puzzle.lens(0, 3)
-	assert_eq(lens[2], DumpPuzzle.LENS_WRONG, "байт из куска не на своём месте — красный")
+	assert_eq(lens[2], DumpPuzzle.LENS_ELSEWHERE, "байт из куска не на своём месте — жёлтый")
 	assert_eq(lens[3], DumpPuzzle.LENS_EMPTY, "байта в куске нет — серый")
-	assert_eq(lens[4], DumpPuzzle.LENS_WRONG)
+	assert_eq(lens[4], DumpPuzzle.LENS_ELSEWHERE)
 
