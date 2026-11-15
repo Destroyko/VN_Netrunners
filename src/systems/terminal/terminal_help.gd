@@ -48,4 +48,4 @@ static func show(args: PackedStringArray, result: TermResult) -> void:
 		result.add("использование: %s [сервис]" % name)
 		result.add(Programs.about(name))
 	else:
-		result.add("команда не найдена: %s. help — список команд" % args[0])
+		result.add("команда не найдена: %s" % args[0])

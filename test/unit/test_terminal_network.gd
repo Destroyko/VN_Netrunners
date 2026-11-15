@@ -43,7 +43,7 @@ func test_probe_shows_services_and_hints() -> void:
 	var text: String = run("probe 10.0.0.7")
 	assert_string_contains(text, "svc_login")
 	assert_string_contains(text, "passhound")
-	assert_string_contains(text, "подсказка:")
+	assert_false(text.contains("подсказка"), "консоль не подсказывает: подсказки — в блокноте")
 
 
 func test_probe_shows_trace_and_prime_time() -> void:
@@ -82,7 +82,7 @@ func test_connect_to_unknown_address() -> void:
 
 
 func test_connect_to_own_pc_is_refused() -> void:
-	assert_eq(run("connect localhost"), "это твой ПК")
+	assert_eq(run("connect localhost"), "локальный адрес")
 
 
 func test_connect_router_changes_the_prompt() -> void:
@@ -117,11 +117,11 @@ func test_scan_on_a_remote_node_shows_its_neighbours() -> void:
 func test_denied_connect_keeps_the_target_and_marks_it_closed() -> void:
 	reach_training_pc()
 	var text: String = run("connect 10.0.0.7")
-	assert_string_contains(text, "вход закрыт")
-	assert_string_contains(text, "вскрыто 0 из 1")
+	assert_string_contains(text, "соединение с 10.0.0.7 установлено")
+	assert_string_contains(text, "вход отклонён")
 	assert_false(text.contains("svc_login"), "защиту показывает probe, а не connect")
 	assert_false(text.contains("двер"), "метафор в консоли нет")
-	assert_eq(t.prompt(), "10.0.0.7:[закрыт]$ ")
+	assert_eq(t.prompt(), "10.0.0.7> ")
 
 
 func test_probe_without_an_address_examines_the_target() -> void:
@@ -151,7 +151,7 @@ func test_first_connect_marks_the_hack_and_applies_effects() -> void:
 
 
 func test_dc_without_connection() -> void:
-	assert_eq(run("dc"), "ты ни к чему не подключён")
+	assert_eq(run("dc"), "нет соединения")
 
 
 func test_dc_disconnects_and_emits() -> void:
@@ -216,7 +216,7 @@ func test_run_without_a_program_name() -> void:
 
 func test_cracker_needs_a_target() -> void:
 	learn_programs()
-	assert_string_contains(run("passhound"), "сначала выбери цель")
+	assert_string_contains(run("passhound"), "цель не выбрана")
 
 
 func test_passhound_asks_the_interface_for_a_puzzle() -> void:
@@ -260,7 +260,7 @@ func test_failed_puzzle_keeps_the_service_closed_and_can_be_retried() -> void:
 	run("passhound")
 	assert_string_contains(t.finish_puzzle(0).text(), "провал")
 	assert_signal_emitted(EventBus, "puzzle_failed")
-	assert_string_contains(run("connect 10.0.0.7"), "вскрыто 0 из 1")
+	assert_string_contains(run("connect 10.0.0.7"), "вход отклонён")
 	run("passhound")
 	assert_eq(last.request["type"], "puzzle", "повторить можно")
 
@@ -420,7 +420,7 @@ func test_guest_cannot_open_sys() -> void:
 
 func test_rootstep_needs_a_connection() -> void:
 	learn_programs()
-	assert_string_contains(run("rootstep"), "сначала connect")
+	assert_string_contains(run("rootstep"), "нет подключения")
 
 
 func test_rootstep_raises_rights_and_leaves_a_trace() -> void:
@@ -474,7 +474,7 @@ func test_logwipe_clears_the_whole_log_folder() -> void:
 
 func test_logwipe_needs_a_connection() -> void:
 	learn_programs()
-	assert_string_contains(run("logwipe"), "сначала connect")
+	assert_string_contains(run("logwipe"), "нет подключения")
 
 
 func test_deepscan_opens_one_more_symbol() -> void:
@@ -611,7 +611,7 @@ func test_put_to_a_chosen_folder_on_the_node() -> void:
 
 
 func test_put_needs_a_connection() -> void:
-	assert_string_contains(run("put readme.txt"), "сначала подключись")
+	assert_string_contains(run("put readme.txt"), "нет подключения")
 
 
 func test_put_over_existing_file_asks() -> void:

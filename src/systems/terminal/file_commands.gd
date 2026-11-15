@@ -105,7 +105,7 @@ func _download(args: PackedStringArray, result: TermResult, confirmed: bool) -> 
 ## `put`: положить файл со своего ПК на узел. Запись на цели оставляет след в логах.
 func put(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 	if not _t.is_remote():
-		result.add("сначала подключись к узлу: connect <адрес>")
+		result.add("нет подключения к узлу")
 		return
 	if args.is_empty():
 		result.add("использование: put <файл у себя> [куда на узле]")

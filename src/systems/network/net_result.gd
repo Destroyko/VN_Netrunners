@@ -68,19 +68,19 @@ func message() -> String:
 		Code.OK:
 			return ""
 		Code.UNKNOWN_ADDRESS:
-			return "неизвестный адрес: %s. scan покажет, что рядом" % address
+			return "неизвестный адрес: %s" % address
 		Code.OFFLINE:
 			return "узел не в сети"
 		Code.SERVICES_LEFT:
 			return "узел отказал: вскрыто %d из %d сервисов" % [cracked, required]
 		Code.LOCAL:
-			return "это твой ПК"
+			return "локальный адрес"
 		Code.ALREADY_CONNECTED:
-			return "ты уже подключён"
+			return "соединение уже установлено"
 		Code.NOT_CONNECTED:
-			return "ты ни к чему не подключён"
+			return "нет соединения"
 		Code.NO_TARGET:
-			return "сначала выбери цель: connect <адрес>"
+			return "цель не выбрана"
 		Code.NO_SUCH_SERVICE:
 			return "нет такого сервиса: %s" % service_id
 		Code.ALREADY_CRACKED:

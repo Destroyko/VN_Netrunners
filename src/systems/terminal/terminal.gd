@@ -120,8 +120,8 @@ func prompt() -> String:
 	if is_remote():
 		where = str(net.definition(node_id()).get("address", node_id()))
 	elif not session.target_id().is_empty():
-		# Узел закрыт: цель выбрана, но внутрь не вошли.
-		return "%s:[закрыт]$ " % session.target_address()
+		# Соединение есть, входа нет: адрес без каталога — файлы узла ещё недоступны.
+		return "%s> " % session.target_address()
 	return "%s:%s%s " % [where, cwd(), "#" if is_remote() and admin() else "$"]
 
 
@@ -195,7 +195,7 @@ func _dispatch(text: String, confirmed: bool, result: TermResult) -> TermResult:
 			if Programs.is_program(command):
 				_programs.launch(command, args, result)
 			else:
-				result.add("команда не найдена: %s. help — список команд" % words[0])
+				result.add("команда не найдена: %s" % words[0])
 	return result
 
 
@@ -333,7 +333,7 @@ func apply_outcome(
 		result.add("слой вскрыт: %d из %d. сервис %s ещё держится" % [layers_now, layers_total, service])
 	else:
 		EventBus.puzzle_failed.emit(kind, level, node, service, attempt)
-		result.add("провал: сервис %s не поддался. можно попробовать ещё раз" % service)
+		result.add("провал: сервис %s не поддался" % service)
 
 
 # --- Остальные команды -------------------------------------------------------
@@ -349,7 +349,7 @@ func _show_history(result: TermResult) -> void:
 ## Чужую машину перезагружать нельзя: это было бы то же, что `dc`, но с лишним шумом.
 func _reboot(result: TermResult) -> void:
 	if is_remote():
-		result.add("перезагрузить можно только свой ПК: сначала dc")
+		result.add("перезагрузка недоступна на удалённом узле")
 		return
 	session.disconnect_now()
 	result.add("перезагрузка...")

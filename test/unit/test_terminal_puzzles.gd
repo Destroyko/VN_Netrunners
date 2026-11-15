@@ -102,7 +102,7 @@ func test_partial_success_keeps_the_layers() -> void:
 	run("gridrunner")
 	assert_string_contains(t.finish_puzzle(1).text(), "слой вскрыт: 1 из 2")
 	assert_signal_emitted(EventBus, "puzzle_solved")
-	assert_string_contains(run("connect 92.44.18.3"), "вскрыто 0 из 1", "один слой — ещё не сервис")
+	assert_string_contains(run("connect 92.44.18.3"), "вход отклонён", "один слой — ещё не сервис")
 
 
 func test_layers_survive_a_voluntary_disconnect() -> void:

@@ -143,7 +143,7 @@ func _pick_service(target: String, program: String, args: PackedStringArray, res
 	if fitting.is_empty():
 		result.add("%s не работает против этой защиты" % program)
 	else:
-		result.add("укажи сервис: %s" % ", ".join(fitting))
+		result.add("не указан сервис (подходят: %s)" % ", ".join(fitting))
 	return ""
 
 
@@ -179,7 +179,7 @@ func _deepscan(program: String, args: PackedStringArray, result: TermResult) -> 
 
 func _rootstep(result: TermResult) -> void:
 	if not _t.is_remote():
-		result.add("права повышают на узле: сначала connect <адрес>")
+		result.add("нет подключения к узлу")
 		return
 	if _t.session.has_admin():
 		result.add("права уже повышены")
@@ -198,7 +198,7 @@ func _rootstep(result: TermResult) -> void:
 
 func _logwipe(result: TermResult) -> void:
 	if not _t.is_remote():
-		result.add("логи чистят на узле: сначала connect <адрес>")
+		result.add("нет подключения к узлу")
 		return
 	result.add_all(PackedStringArray(LOGWIPE_LOG))
 	result.request = {"type": "progress", "title": "logwipe"}

@@ -41,7 +41,7 @@ func probe(args: PackedStringArray, result: TermResult) -> void:
 	# Без адреса — узел, к которому подключались последним (после connect).
 	var address: String = args[0] if not args.is_empty() else _t.session.target_address()
 	if address.is_empty():
-		result.add("использование: probe <адрес> — или сначала connect <адрес>")
+		result.add("использование: probe [адрес]")
 		return
 	var seen: NetResult = _t.net.probe(address, _t.now())
 	if not seen.is_ok():
@@ -58,8 +58,6 @@ func probe(args: PackedStringArray, result: TermResult) -> void:
 			service["id"], service["name"], PUZZLE_NAMES.get(service["puzzle"], service["puzzle"]),
 			service["program"], int(service["difficulty"]), "  вскрыт" if bool(service["cracked"]) else ""
 		])
-		for hint: Variant in service["hints"] as Array:
-			result.add("    подсказка: %s" % str(hint))
 
 	var minutes: int = int(info["trace_minutes"])
 	result.add("трейс: %s" % (("%d мин" % minutes) if minutes > 0 else "нет"))
@@ -90,10 +88,10 @@ func connect_to(args: PackedStringArray, result: TermResult) -> void:
 		_t.hung_up(before_node, true)
 
 	if tried.code == NetResult.Code.SERVICES_LEFT:
-		# Игрок остаётся у этого узла: защиты он ещё не видел (её показывает probe).
-		var door: Dictionary = _t.net.definition(tried.node_id)
-		result.add("%s: вход закрыт, вскрыто %d из %d." % [door.get("address", tried.node_id), tried.cracked, tried.required])
-		result.add("probe — показать защиту узла.")
+		# Соединение есть, входа нет: узел становится целью взлома. Что за защита — покажет probe.
+		var target: Dictionary = _t.net.definition(tried.node_id)
+		result.add("соединение с %s установлено" % target.get("address", tried.node_id))
+		result.add("вход отклонён")
 		_t.spend(_t.minutes_of("terminal_command"), result)
 		return
 	if not tried.is_ok():

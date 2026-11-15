@@ -10,8 +10,8 @@ func test_empty_line_does_nothing() -> void:
 	assert_eq(t.history().size(), 0, "пустое в историю не идёт")
 
 
-func test_unknown_command_points_to_help() -> void:
-	assert_eq(run("foo"), "команда не найдена: foo. help — список команд")
+func test_unknown_command_is_reported_without_hints() -> void:
+	assert_eq(run("foo"), "команда не найдена: foo")
 
 
 func test_command_case_is_ignored() -> void:
@@ -190,7 +190,7 @@ func test_another_command_cancels_the_question() -> void:
 	run("cp mail/archive.txt copy.txt")
 	assert_eq(run("pwd"), "/home", "другая команда выполняется как обычно")
 	assert_false(t.has_question())
-	assert_eq(run("y"), "команда не найдена: y. help — список команд", "старый вопрос уже закрыт")
+	assert_eq(run("y"), "команда не найдена: y", "старый вопрос уже закрыт")
 
 
 func test_mv_renames() -> void:
@@ -266,4 +266,4 @@ func test_reboot_is_refused_on_a_remote_machine() -> void:
 	enter("node_husband_pc")
 	Clock.set_time(1, 19 * 60)
 	enter("node_husband_pc")
-	assert_string_contains(run("reboot"), "только свой ПК")
+	assert_string_contains(run("reboot"), "удалённом узле")

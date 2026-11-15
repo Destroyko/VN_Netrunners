@@ -146,7 +146,7 @@ func test_failed_hop_keeps_the_old_session() -> void:
 func test_dc_without_connection() -> void:
 	var result: NetResult = session.disconnect_now()
 	assert_eq(result.code, NetResult.Code.NOT_CONNECTED)
-	assert_eq(result.message(), "ты ни к чему не подключён")
+	assert_eq(result.message(), "нет соединения")
 
 
 func test_dc_closes_the_connection() -> void:
@@ -183,7 +183,7 @@ func test_dc_keeps_cracked_services() -> void:
 func test_cracker_needs_a_target() -> void:
 	var result: NetResult = session.begin_cracking("svc_login", "passhound", _at(1, 9), true)
 	assert_eq(result.code, NetResult.Code.NO_TARGET)
-	assert_string_contains(result.message(), "connect")
+	assert_eq(result.message(), "цель не выбрана")
 
 
 func test_cracker_rejects_unknown_service() -> void:
