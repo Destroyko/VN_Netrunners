@@ -76,6 +76,13 @@ static func programs() -> Dictionary:
 	return (data as Dictionary) if data is Dictionary else {}
 
 
+## Предметы инвентаря (docs/gameplay/hacking.md). Пустой словарь, если файла нет.
+static func items() -> Dictionary:
+	var path: String = DATA_ROOT.path_join("items.json")
+	var data: Variant = load_json(path) if FileAccess.file_exists(path) else null
+	return (data as Dictionary) if data is Dictionary else {}
+
+
 static func quests() -> Dictionary:
 	var all: Dictionary = {}
 	for sub: String in ["main", "side", "radiant"]:

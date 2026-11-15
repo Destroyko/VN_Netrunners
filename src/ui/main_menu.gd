@@ -28,7 +28,7 @@ func _ready() -> void:
 func _on_new_game() -> void:
 	GameState.reset()
 	Rng.randomize_seed()
-	get_tree().change_scene_to_file(Screens.DESKTOP)
+	get_tree().change_scene_to_file(Screens.ROOM)
 
 
 func _on_settings() -> void:

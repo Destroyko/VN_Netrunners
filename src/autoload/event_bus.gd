@@ -22,6 +22,9 @@ signal day_started(day: int)
 ## Пока сна как системы нет (M2), в M1 это событие шлёт консоль разработчика: `sleep`.
 signal slept(nights: int)
 
+## Флешка починила свой ПК: вернула файлы из /sys и (или) поставила обычную ОС.
+signal system_restored(paths: PackedStringArray, os_changed: bool)
+
 # --- Квесты (шлёт QuestManager, M2) -----------------------------------------
 
 signal quest_stage_changed(quest_id: String, stage_id: String)

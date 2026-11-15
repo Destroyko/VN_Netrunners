@@ -17,6 +17,8 @@ const KNOWN_TYPES: PackedStringArray = [
 	"set_var",
 	"rep",
 	"reveal_node",
+	"give_item",
+	"take_item",
 ]
 
 ## Типы из документации, которым нужны системы следующих этапов.
@@ -114,6 +116,10 @@ static func _apply_one(type: String, value: Variant) -> bool:
 			var key: String = VAR_REP_PREFIX + str(pair_rep[0])
 			GameState.set_var(key, int(GameState.get_var_or(key, 0)) + int(pair_rep[1]))
 			return true
+		"give_item":
+			return Inventory.give(str(value))
+		"take_item":
+			return Inventory.take(str(value))
 		"reveal_node":
 			# Формат: {"reveal_node": "node_x"} или {"reveal_node": {"node": "node_x", "open": ["svc_login"]}}.
 			# Заказ даёт адрес и, если клиент знает логины, открывает часть сервисов заранее.

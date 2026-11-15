@@ -9,4 +9,6 @@ const NEW_GAME: String = "res://src/ui/new_game.tscn"
 const SETTINGS: String = "res://src/ui/settings_screen.tscn"
 const ABOUT: String = "res://src/ui/about.tscn"
 ## Рабочий стол. На M0.5 это заглушка из M0, в M1 на её месте появится настоящий.
+## Комната героя: отсюда начинается игра (заглушка M1).
+const ROOM: String = "res://src/ui/room.tscn"
 const DESKTOP: String = "res://src/ui/main.tscn"

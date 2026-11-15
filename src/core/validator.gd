@@ -70,6 +70,11 @@ func validate_data(
 	errors.append_array(program_validator.errors)
 	warnings.append_array(program_validator.warnings)
 
+	var item_validator := ItemValidator.new()
+	item_validator.validate(DataLoader.items())
+	errors.append_array(item_validator.errors)
+	warnings.append_array(item_validator.warnings)
+
 	for id: String in news.keys():
 		_validate_news(id, news[id] as Dictionary)
 	for id: String in quests.keys():

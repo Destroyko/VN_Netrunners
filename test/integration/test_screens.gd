@@ -89,3 +89,16 @@ func test_every_screen_has_a_way_back() -> void:
 func test_desktop_stub_opens() -> void:
 	var desktop: Node = _open(Screens.DESKTOP)
 	assert_not_null(desktop.get_node_or_null("Info") as Label)
+
+
+func test_room_has_its_objects() -> void:
+	var room: Node = _open(Screens.ROOM)
+	for node_name: String in ["Monitor", "SystemBlock", "Inventory", "Output", "Menu"]:
+		assert_not_null(room.get_node_or_null("Rows/" + node_name), "на месте: " + node_name)
+
+
+func test_room_lists_inventory_items_as_buttons() -> void:
+	GameState.reset()
+	Inventory.give("item_flash_backup")
+	var room: Node = _open(Screens.ROOM)
+	assert_eq(room.get_node("Rows/Inventory").get_child_count(), 1)

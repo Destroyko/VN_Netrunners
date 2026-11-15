@@ -18,6 +18,7 @@ const KNOWN_TYPES: PackedStringArray = [
 	"rank_at_least",
 	"episode_at_least",
 	"skill_at_least",
+	"has_item",
 ]
 
 ## Типы из документации, которым нужны системы следующих этапов.
@@ -92,6 +93,8 @@ static func _check_one(type: String, value: Variant) -> bool:
 				push_error("Conditions: skill_at_least ожидает [навык, значение], получено: %s" % [value])
 				return false
 			return int(GameState.get_var_or(VAR_SKILL_PREFIX + str(pair[0]), 0)) >= int(pair[1])
+		"has_item":
+			return Inventory.has(str(value))
 		_:
 			if DEFERRED_TYPES.has(type):
 				push_warning("Conditions: условие '%s' ещё не реализовано (нужна система следующего этапа)" % type)
