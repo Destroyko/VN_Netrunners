@@ -202,6 +202,8 @@ func _validate_services(where: String, services: Array) -> void:
 			errors.append("%s: повторяющийся id сервиса '%s'" % [where, service_id])
 		seen[service_id] = true
 
+		if service.has("wall") and not Network.WALLS.has(str(service["wall"])):
+			errors.append("%s: неизвестная стена '%s' (есть: %s)" % [service_where, service["wall"], ", ".join(Network.WALLS)])
 		var puzzle: String = str(service.get("puzzle", ""))
 		if not puzzle.is_empty() and not PUZZLE_TYPES.has(puzzle):
 			errors.append("%s: неизвестный тип головоломки '%s'" % [service_where, puzzle])

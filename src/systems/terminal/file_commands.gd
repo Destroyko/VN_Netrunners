@@ -85,6 +85,10 @@ func _download(args: PackedStringArray, result: TermResult, confirmed: bool) -> 
 	if args.is_empty():
 		result.add("использование: cp <файл> [куда у себя]  (по умолчанию в %s)" % Terminal.DUMP_DIR)
 		return
+	# Фаервол узла режет исходящее: смотреть можно, вынести нельзя (hacking.md, «Стены»).
+	if _t.net.firewall_up(_t.node_id(), _t.now()):
+		result.add("передача заблокирована: фаервол узла")
+		return
 	var remote: Filesystem = _t.fs()
 	var source: String = FsPath.resolve(_t.cwd(), args[0])
 	var target: String = _destination(args, source, Terminal.DUMP_DIR, 1)

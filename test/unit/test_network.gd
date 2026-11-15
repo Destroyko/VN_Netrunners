@@ -31,11 +31,11 @@ func _definitions() -> Dictionary:
 		},
 		"node_office": {
 			"id": "node_office", "title": "Сервер фирмы", "address": "77.0.0.12", "device": "server",
-			"links": ["node_router"], "required_services": 2, "trace_minutes": 60,
+			"links": ["node_router"], "required_services": 2, "trace_minutes": 60, "ids": true,
 			"online": {"from": "08:00", "to": "18:00"},
 			"services": [
 				{"id": "svc_login", "name": "Вход", "puzzle": "password", "program": "passhound", "difficulty": 2},
-				{"id": "svc_fw", "name": "Фаервол", "puzzle": "matrix", "program": "gridrunner", "difficulty": 2},
+				{"id": "svc_fw", "name": "Фаервол", "puzzle": "matrix", "program": "gridrunner", "difficulty": 2, "wall": "firewall"},
 			],
 		},
 		"node_night": {
@@ -403,4 +403,20 @@ func test_deep_scan_goes_through_the_whole_network() -> void:
 func test_plain_scan_still_sees_only_neighbours() -> void:
 	var found: Array[Dictionary] = net.scan("node_lab")
 	assert_eq(found.size(), 1)
+
+
+# --- Стены -----------------------------------------------------------------------
+
+func test_firewall_is_up_until_its_service_is_cracked() -> void:
+	var now: int = _at(1, 9)
+	assert_true(net.firewall_up("node_office", now))
+	assert_false(net.firewall_up("node_lab", now), "у учебного ПК фаервола нет")
+	net.mark_cracked("node_office", "svc_fw", now)
+	assert_false(net.firewall_up("node_office", now))
+
+
+func test_ids_is_a_node_property() -> void:
+	assert_true(net.has_ids("node_office"))
+	assert_false(net.has_ids("node_lab"))
+	assert_true(bool(net.describe("node_office", _at(1, 9))["ids"]))
 

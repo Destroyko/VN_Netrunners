@@ -61,6 +61,7 @@ func probe(args: PackedStringArray, result: TermResult) -> void:
 	result.add(PROBE_RULE)
 	result.add("для входа требуется сервисов: %d" % int(info["required_services"]))
 	result.add("обнаружен мониторинг подключений: %s" % ("да" if int(info["trace_minutes"]) > 0 else "нет"))
+	result.add("обнаружен анализ действий: %s" % ("да" if bool(info["ids"]) else "нет"))
 	_t.spend(_t.minutes_of("probe", 2), result)
 
 

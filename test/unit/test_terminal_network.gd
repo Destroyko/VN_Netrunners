@@ -750,3 +750,53 @@ func test_own_command_does_not_count_the_trace_twice() -> void:
 	t.spend(1, TermResult.new())  # команда тратит минуту сама
 	assert_eq(t.session.trace_left(), 56)
 
+
+# --- Стены: защита, которая мешает и после входа ---------------------------------
+
+func _inside_office_past_the_login_only() -> void:
+	# Клиент дал логин в панель администратора — этого хватает, чтобы войти (нужен один сервис),
+	# но фаервол периметра (1194) остаётся.
+	learn_programs()
+	reveal("node_office_server", ["svc_admin_login"])
+	Clock.set_time(1, 10 * 60)
+	run("connect 77.61.204.12")
+
+
+func test_firewall_blocks_downloads_after_entry() -> void:
+	_inside_office_past_the_login_only()
+	assert_true(t.session.has_connection(), "внутрь пустили")
+	var before: int = minute()
+	assert_string_contains(run("cp /home/users/list.txt"), "заблокирована: фаервол")
+	assert_eq(minute(), before, "за отказ время не берём")
+	assert_false(t.home_fs().has_file(Terminal.DUMP_DIR + "/list.txt"))
+	assert_string_contains(run("cat /home/users/list.txt"), "Сотрудники", "смотреть можно")
+
+
+func test_cracked_firewall_lets_files_out() -> void:
+	_inside_office_past_the_login_only()
+	Network.for_game().mark_cracked("node_office_server", "svc_vpn", t.now())
+	assert_false(run("cp /home/users/list.txt").contains("заблокирована"))
+	assert_true(t.home_fs().has_file(Terminal.DUMP_DIR + "/list.txt"))
+
+
+func test_probe_shows_action_analysis() -> void:
+	reveal("node_office_server")
+	assert_string_contains(run("probe 77.61.204.12"), "обнаружен анализ действий: да")
+	reach_training_pc()
+	assert_string_contains(run("probe 10.0.0.7"), "обнаружен анализ действий: нет")
+
+
+func test_action_analysis_makes_loud_actions_eat_the_trace() -> void:
+	_inside_office_past_the_login_only()
+	GameState.set_flag(Programs.GATE_PRESSURE)
+	run("gridrunner 1194")  # первый взломщик — трейс пошёл
+	t.finish_puzzle(0)
+	var quiet_before: int = t.session.trace_left()
+	run("cat /home/users/list.txt")  # тихое: в журнал не пишется
+	var quiet_cost: int = quiet_before - t.session.trace_left()
+	var loud_before: int = t.session.trace_left()
+	run("rm /home/users/list.txt")  # громкое: удаление пишется в журнал
+	var loud_cost: int = loud_before - t.session.trace_left()
+	var extra: int = int((DataLoader.balance()["nodes"] as Dictionary)["ids_trace_minutes"])
+	assert_eq(loud_cost, quiet_cost + extra, "громкое действие стоит лишних минут трейса")
+

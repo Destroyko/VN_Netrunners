@@ -341,3 +341,11 @@ func test_real_nodes_from_data_folder_are_valid() -> void:
 	assert_eq(validator.errors.size(), 0, "\n".join(validator.errors))
 	for id: String in ["node_home_pc", "node_training_pc", "node_husband_pc", "node_office_server"]:
 		assert_true(nodes.has(id), "узел на месте: " + id)
+
+
+func test_unknown_wall_is_error() -> void:
+	var node: Dictionary = _good_node()
+	(node["services"][0] as Dictionary)["wall"] = "moat"
+	assert_false(_check(node))
+	assert_string_contains(_text(), "неизвестная стена")
+

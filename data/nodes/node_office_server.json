@@ -6,7 +6,9 @@
   "device": "server",
   "difficulty": 3,
   "trace_minutes": 60,
-  "required_services": 2,
+  "required_services": 1,
+  "ids": true,
+  "_note_walls": "Стены (hacking.md): войти хватит панели администратора, но фаервол периметра режет скачивание, а анализ действий ускоряет трейс от громких действий. Вынести файлы — значит ломать и фаервол.",
   "root_required": true,
   "logs_path": "/log",
   "known_from_start": false,
@@ -27,13 +29,13 @@
       "difficulty": 3,
       "program": "passhound",
       "hints": [
-        "Слово длинное: без deepscan четырёх попыток может не хватить."
       ]
     },
     {
       "id": "svc_vpn",
       "port": 1194,
-      "name": "Шифрованный канал",
+      "name": "Фаервол периметра",
+      "wall": "firewall",
       "puzzle": "matrix",
       "difficulty": 3,
       "program": "gridrunner",

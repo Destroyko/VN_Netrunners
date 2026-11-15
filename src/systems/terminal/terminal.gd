@@ -46,6 +46,8 @@ var _pending: Dictionary = {}
 ## Головоломка, которую открыли программой: {"service", "kind", "difficulty", "node"}.
 var _puzzle: Dictionary = {}
 var _line: String = ""
+## Лишние минуты трейса за «громкие» действия на узле с анализом действий; списываются в spend.
+var _ids_extra: int = 0
 
 var _files: FileCommands
 var _network: NetCommands
@@ -272,7 +274,10 @@ func spend(minutes: int, result: TermResult) -> void:
 	Clock.advance(minutes)
 	_spending = false
 	result.minutes += minutes
-	handle_events(session.advance(minutes, now()), result)
+	# Штраф анализа действий: трейс идёт быстрее часов, часы — как обычно.
+	var extra: int = _ids_extra
+	_ids_extra = 0
+	handle_events(session.advance(minutes + extra, now()), result)
 
 
 ## Сообщить игроку о том, что произошло с сеансом, и закрыть его последствия.
@@ -318,6 +323,9 @@ func note(category: String, text: String, slug: String = "") -> void:
 	if not is_remote():
 		return
 	Logbook.for_node(node_id()).append(category, text, GameState.day, GameState.minute, false, slug)
+	# Записано в журнал — значит, действие «громкое»: анализ действий узла его заметил.
+	if net.has_ids(node_id()) and session.is_tracing():
+		_ids_extra += int((DataLoader.balance().get("nodes", {}) as Dictionary).get("ids_trace_minutes", 3))
 
 
 func has_network() -> bool:

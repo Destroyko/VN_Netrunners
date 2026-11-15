@@ -153,6 +153,28 @@ func scan(from_id: String) -> Array[Dictionary]:
 	return found
 
 
+## Стены — сервисы, которые мешают и после входа (docs/gameplay/hacking.md, «Стены»).
+## Поле `wall` у сервиса; нет поля — обычный замок: мешает только войти.
+const WALL_FIREWALL: String = "firewall"
+const WALLS: PackedStringArray = [WALL_FIREWALL]
+
+
+## Фаервол узла ещё стоит: исходящие передачи (скачать файл себе) заблокированы, даже если
+## игрок уже внутри. Вскрыл сервис-фаервол — передачи открыты.
+func firewall_up(node_id: String, now: int) -> bool:
+	for service_variant: Variant in definition(node_id).get("services", []) as Array:
+		var service_def: Dictionary = service_variant as Dictionary
+		if str(service_def.get("wall", "")) == WALL_FIREWALL and not is_cracked(node_id, str(service_def.get("id", "")), now):
+			return true
+	return false
+
+
+## На узле анализ действий (IDS): пока идёт трейс, «громкие» действия — те, что пишутся в журнал
+## узла, — отъедают трейс сильнее. Инструмента против него у героя пока нет.
+func has_ids(node_id: String) -> bool:
+	return bool(definition(node_id).get("ids", false))
+
+
 ## Устройства, с которых работает `deepscan`: у них таблицы маршрутов на всю сеть.
 const DEEPSCAN_DEVICES: PackedStringArray = ["router", "server"]
 
@@ -203,6 +225,7 @@ func describe(node_id: String, now: int) -> Dictionary:
 		services.append({
 			"id": service_id,
 			"port": int(service_def.get("port", 0)),
+			"wall": str(service_def.get("wall", "")),
 			"name": str(service_def.get("name", "")),
 			"puzzle": str(service_def.get("puzzle", "")),
 			"program": str(service_def.get("program", "")),
@@ -219,6 +242,7 @@ func describe(node_id: String, now: int) -> Dictionary:
 		"required_services": required_services(node_id),
 		"cracked_services": cracked_count(node_id, now),
 		"trace_minutes": int(def.get("trace_minutes", 0)),
+		"ids": has_ids(node_id),
 		"online": def.get("online", {}),
 		"online_now": is_online(node_id, now),
 	}

@@ -20,6 +20,7 @@
       "id": "svc_firewall",
       "port": 443,
       "name": "Фаервол роутера",
+      "wall": "firewall",
       "puzzle": "matrix",
       "difficulty": 2,
       "program": "gridrunner",
