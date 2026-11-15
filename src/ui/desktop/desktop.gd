@@ -45,6 +45,8 @@ var _dialog: PuzzleDialog
 var _puzzle_window: DesktopWindow
 ## Тренировочная головоломка из консоли разработчика: терминал о ней не знает.
 var _practice: bool = false
+## Консоль, к которой привязана трансляция: в неё уходят действия мышью.
+var _remote_view: TerminalView
 var _rows: VBoxContainer
 var _emergency: Control
 var _opened_count: int = 0
@@ -73,10 +75,14 @@ func _build() -> void:
 	_area.clip_contents = true
 	rows.add_child(_area)
 
-	var wallpaper := ColorRect.new()
+	# Фон стола принимает файлы, брошенные из трансляции чужого ПК: они скачиваются к себе.
+	var wallpaper := DesktopDropZone.new()
+	wallpaper.name = "Wallpaper"
 	wallpaper.color = Color(0.06, 0.07, 0.1)
 	wallpaper.set_anchors_preset(Control.PRESET_FULL_RECT)
-	wallpaper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wallpaper.mouse_filter = Control.MOUSE_FILTER_PASS
+	wallpaper.remote_file_dropped.connect(_on_remote_file_dropped)
+	wallpaper.menu_requested.connect(_on_wallpaper_menu)
 	_area.add_child(wallpaper)
 
 	_icons = GridContainer.new()
@@ -283,9 +289,10 @@ func _on_remote_requested(request: Dictionary, view: TerminalView) -> void:
 	window.position = WindowRules.cascade(_opened_count, window.size, _windows.size)
 	var session := RemoteSession.new()
 	window.body.add_child(session)
+	_remote_view = view
 	session.setup(terminal, node, address, terminal.net.remote_desktop(node), func(text: String) -> String:
 		view.submit(text)
-		return "" if not terminal.login_pending() else "доступ запрещён")
+		return "" if not terminal.login_pending() else "доступ запрещён", run_remote_command)
 	_open[REMOTE_APP] = window
 	_opened_count += 1
 	focus(window)
@@ -293,6 +300,59 @@ func _on_remote_requested(request: Dictionary, view: TerminalView) -> void:
 
 ## После каждой команды окно удалённого узла сверяется с консолью: вошли — проводник,
 ## отменили вход или отключились — окно закрыто, файлы поменялись — список перечитан.
+## Действие мышью в трансляции — команда той же консоли: путь один, правила одни. Если команда
+## спросила подтверждение (системный файл), спрашиваем окном, а ответ уходит в консоль.
+func run_remote_command(line: String) -> String:
+	if _remote_view == null or not is_instance_valid(_remote_view):
+		return ""
+	var result: TermResult = _remote_view.submit(line)
+	if terminal.has_question():
+		var dialog := ConfirmationDialog.new()
+		dialog.name = "RemoteConfirm"
+		dialog.dialog_text = terminal.last_question()
+		dialog.ok_button_text = "Да"
+		dialog.cancel_button_text = "Нет"
+		dialog.confirmed.connect(func() -> void: _answer_remote(dialog, "y"))
+		dialog.canceled.connect(func() -> void: _answer_remote(dialog, "n"))
+		add_child(dialog)
+		dialog.popup_centered()
+		return ""
+	return result.lines[result.lines.size() - 1] if not result.lines.is_empty() else ""
+
+
+func _answer_remote(dialog: ConfirmationDialog, answer: String) -> void:
+	if is_instance_valid(_remote_view) and terminal.has_question():
+		_remote_view.submit(answer)
+	dialog.queue_free()
+
+
+## Правая кнопка по своему столу: «Вставить» скачивает файл из буфера трансляции (как в RDP:
+## скопировал там — вставил здесь). Вырезанный там файл здесь тоже просто копируется.
+func _on_wallpaper_menu(at_position: Vector2) -> void:
+	var menu := PopupMenu.new()
+	menu.name = "WallpaperMenu"
+	menu.add_item("Вставить", 0)
+	var clip: Dictionary = FileBrowser.clipboard
+	menu.set_item_disabled(0, clip.is_empty() or terminal.session.target_id() != str(clip.get("node", "")))
+	menu.id_pressed.connect(func(_id: int) -> void: paste_to_own_desktop())
+	menu.popup_hide.connect(menu.queue_free)
+	add_child(menu)
+	menu.position = Vector2i(get_screen_position() + at_position)
+	menu.popup()
+
+
+func paste_to_own_desktop() -> void:
+	if not FileBrowser.clipboard.is_empty():
+		_on_remote_file_dropped(FileBrowser.clipboard)
+
+
+## Файл из трансляции брошен на свой стол — скачать к себе, как `cp` с узла.
+func _on_remote_file_dropped(data: Dictionary) -> void:
+	if terminal.session.target_id() != str(data.get("node", "")):
+		return
+	run_remote_command("cp \"%s\"" % str(data["remote_file"]))
+
+
 func _sync_remote_window() -> void:
 	var window: DesktopWindow = window_of(REMOTE_APP)
 	if window == null:

@@ -417,7 +417,7 @@ func test_reading_leaves_no_trace() -> void:
 
 
 func test_deleting_on_the_target_leaves_a_trace() -> void:
-	enter("node_training_pc")
+	enter_as_admin("node_training_pc")
 	run("rm spisok_pokupok.txt")
 	assert_true(logbook("node_training_pc").categories().has(Logbook.CATEGORY_FILE_DELETED))
 
@@ -432,7 +432,7 @@ func test_many_deletions_cost_the_same_as_one() -> void:
 
 
 func test_cleaning_logs_leaves_no_new_trace_but_exit_stays() -> void:
-	enter("node_training_pc")
+	enter_as_admin("node_training_pc")
 	run("rm spisok_pokupok.txt")
 	run("cd /log/access")
 	run("rm *")
@@ -631,7 +631,7 @@ func test_small_download_fits_the_trace() -> void:
 
 
 func test_put_uploads_a_file_and_leaves_a_trace() -> void:
-	enter("node_training_pc")
+	enter_as_admin("node_training_pc")
 	assert_eq(run("put readme.txt"), "", "успешная загрузка молчит")
 	assert_true(Filesystem.for_node("node_training_pc").has_file("/home/readme.txt"))
 	assert_true(logbook("node_training_pc").categories().has(Logbook.CATEGORY_FILE_CREATED))
@@ -639,13 +639,13 @@ func test_put_uploads_a_file_and_leaves_a_trace() -> void:
 
 
 func test_put_takes_the_source_from_your_own_pc() -> void:
-	enter("node_training_pc")
+	enter_as_admin("node_training_pc")
 	run("put mail/archive.txt")
 	assert_true(Filesystem.for_node("node_training_pc").has_file("/home/archive.txt"))
 
 
 func test_put_to_a_chosen_folder_on_the_node() -> void:
-	enter("node_training_pc")
+	enter_as_admin("node_training_pc")
 	run("put readme.txt podarok/")
 	assert_true(Filesystem.for_node("node_training_pc").has_file("/home/podarok/readme.txt"))
 
@@ -655,7 +655,7 @@ func test_put_needs_a_connection() -> void:
 
 
 func test_put_over_existing_file_asks() -> void:
-	enter("node_training_pc")
+	enter_as_admin("node_training_pc")
 	run("put readme.txt")
 	assert_string_contains(run("put readme.txt"), "заменить? (y/n)")
 
@@ -838,6 +838,7 @@ func test_action_analysis_makes_loud_actions_eat_the_trace() -> void:
 	GameState.set_flag(Programs.GATE_PRESSURE)
 	run("gridrunner 1194")  # первый взломщик — трейс пошёл
 	t.finish_puzzle(0)
+	t.session.grant_admin()  # удалять гостю нельзя
 	var quiet_before: int = t.session.trace_left()
 	run("cat /home/users/list.txt")  # тихое: в журнал не пишется
 	var quiet_cost: int = quiet_before - t.session.trace_left()
@@ -846,4 +847,25 @@ func test_action_analysis_makes_loud_actions_eat_the_trace() -> void:
 	var loud_cost: int = loud_before - t.session.trace_left()
 	var extra: int = int((DataLoader.balance()["nodes"] as Dictionary)["ids_trace_minutes"])
 	assert_eq(loud_cost, quiet_cost + extra, "громкое действие стоит лишних минут трейса")
+
+
+# --- Права гостя ------------------------------------------------------------------
+
+func test_guest_on_a_node_only_reads() -> void:
+	enter("node_training_pc")
+	assert_false(t.admin())
+	for line: String in ["rm spisok_pokupok.txt", "mv spisok_pokupok.txt drugoe.txt", "mkdir novaya", "put readme.txt"]:
+		assert_string_contains(run(line), "недостаточно прав", line)
+	assert_true(Filesystem.for_node("node_training_pc").has_file("/home/spisok_pokupok.txt"), "ничего не тронуто")
+	assert_false(run("cat spisok_pokupok.txt").contains("недостаточно прав"), "читать можно")
+
+
+func test_admin_can_change_files() -> void:
+	enter_as_admin("node_training_pc")
+	assert_false(run("mv spisok_pokupok.txt drugoe.txt").contains("недостаточно прав"))
+	assert_true(Filesystem.for_node("node_training_pc").has_file("/home/drugoe.txt"))
+
+
+func test_own_pc_needs_no_rights() -> void:
+	assert_false(run("mkdir proekty").contains("недостаточно прав"), "на своём ПК игрок хозяин")
 

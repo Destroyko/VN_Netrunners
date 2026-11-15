@@ -186,6 +186,11 @@ func history() -> PackedStringArray:
 	return _history.duplicate()
 
 
+## Текст вопроса «y/n», который ждёт ответа (для окна подтверждения); пусто — вопроса нет.
+func last_question() -> String:
+	return str(_pending.get("question", ""))
+
+
 func has_question() -> bool:
 	return not _pending.is_empty()
 
@@ -296,7 +301,7 @@ func _dispatch(text: String, confirmed: bool, result: TermResult) -> TermResult:
 func ask(result: TermResult, question: String) -> void:
 	result.question = question
 	result.add(question)
-	_pending = {"line": _line}
+	_pending = {"line": _line, "question": question}
 
 
 # --- Время и последствия -----------------------------------------------------

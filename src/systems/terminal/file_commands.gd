@@ -114,6 +114,8 @@ func put(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 	if args.is_empty():
 		result.add("использование: put <файл у себя> [куда на узле]")
 		return
+	if _guest_on_node(result):
+		return
 	var source: String = FsPath.resolve(_t.home_cwd(), args[0])
 	var home: Filesystem = _t.home_fs()
 	var target: String = _destination(args, source, _t.cwd(), 1)
@@ -138,6 +140,8 @@ func mv(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 	if args.size() < 2:
 		result.add("использование: mv <файл> <куда>")
 		return
+	if _guest_on_node(result):
+		return
 	var moved: FsResult = _t.fs().move(_t.cwd(), args[0], args[1], _t.admin(), confirmed)
 	_finish_copy(moved, result)
 	if moved.is_ok():
@@ -147,6 +151,8 @@ func mv(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 func rm(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 	if args.is_empty():
 		result.add("использование: rm <файл или маска>")
+		return
+	if _guest_on_node(result):
 		return
 	var removed: FsResult = _t.fs().remove(_t.cwd(), args[0], _t.admin(), confirmed)
 	if removed.needs_confirm():
@@ -177,6 +183,8 @@ func mkdir(args: PackedStringArray, result: TermResult) -> void:
 	if args.is_empty():
 		result.add("использование: mkdir <путь>")
 		return
+	if _guest_on_node(result):
+		return
 	var made: FsResult = _t.fs().make_dir(_t.cwd(), args[0], _t.admin())
 	if not made.is_ok():
 		result.add(made.message())
@@ -185,6 +193,16 @@ func mkdir(args: PackedStringArray, result: TermResult) -> void:
 
 
 # --- Общее -------------------------------------------------------------------
+
+## Права на чужом узле как в Unix (решено 15.11.2026): гость — «остальные» в правах вида 664,
+## ему только читать и скачивать. Удалять, перемещать, переименовывать, записывать — с правами
+## администратора (`rootstep`). На своём ПК игрок хозяин и делает что хочет.
+func _guest_on_node(result: TermResult) -> bool:
+	if _t.is_remote() and not _t.admin():
+		result.add("недостаточно прав. нужен доступ администратора")
+		return true
+	return false
+
 
 ## Куда класть: путь из аргумента (абсолютный или от `base`), а если не указан или оканчивается
 ## на «/» — в каталог `base` под тем же именем. Пустой каталог ещё не существует, поэтому

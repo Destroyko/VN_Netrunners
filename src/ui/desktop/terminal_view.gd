@@ -120,13 +120,16 @@ func _on_screen_input(event: InputEvent) -> void:
 
 # --- Ввод ----------------------------------------------------------------------
 
-func submit(line: String) -> void:
+## Выполнить строку как введённую с клавиатуры. Итог возвращается — его показывает и проводник.
+func submit(line: String) -> TermResult:
 	_history_pos = -1
 	# Пароль не печатается и не пишется в журнал — как в настоящей консоли.
 	var shown: String = "" if terminal.login_pending() else line
 	_print(_prompt.text + shown)
 	SessionLog.write("term", _prompt.text + (shown if not terminal.login_pending() else "***"))
-	show_result(terminal.execute(line))
+	var result: TermResult = terminal.execute(line)
+	show_result(result)
+	return result
 
 
 func _on_submitted(text: String) -> void:

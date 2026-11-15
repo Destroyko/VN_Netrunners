@@ -10,7 +10,7 @@ extends Control
 
 const TASKBAR_HEIGHT: float = 26.0
 const ICON_SIZE: Vector2 = Vector2(84, 60)
-const APP_TITLES: Dictionary = {"files": "Проводник"}
+const APP_TITLES: Dictionary = {"files": "Проводник", "viewer": "Блокнот"}
 
 var terminal: Terminal
 var node_id: String = ""
@@ -18,6 +18,8 @@ var address: String = ""
 
 var _desk: Dictionary = {}
 var _submit: Callable
+## Выполнить строку как команду консоли — так проводник копирует и удаляет.
+var _run: Callable
 var _lock: Control
 var _desktop: Control
 var _windows: Control
@@ -25,7 +27,11 @@ var _clock: Label
 
 
 ## `submit(text) -> String` — ввести пароль: пусто — вошли, иначе текст ошибки.
-func setup(shared_terminal: Terminal, node: String, host: String, desk: Dictionary, submit: Callable) -> void:
+func setup(
+	shared_terminal: Terminal, node: String, host: String, desk: Dictionary, submit: Callable,
+	run: Callable = Callable()
+) -> void:
+	_run = run
 	terminal = shared_terminal
 	node_id = node
 	address = host
@@ -132,11 +138,39 @@ func open_app(app: String) -> DesktopWindow:
 	_windows.add_child(window)
 	if app == "files":
 		var browser := FileBrowser.new()
+		browser.run_command = _run
+		browser.file_opened.connect(open_file)
 		browser.setup(terminal, node_id)
 		window.body.add_child(browser)
 	var area: Vector2 = _windows.size if _windows.size != Vector2.ZERO else Vector2(480, 300)
 	window.size = Vector2(minf(320.0, area.x - 16.0), minf(230.0, area.y - 16.0))
 	window.position = Vector2(ICON_SIZE.x + 16.0, 8.0)
+	return window
+
+
+## Показать файл узла в «Блокноте» внутри трансляции. Двоичный файл — без текста, как в жизни.
+func open_file(file_path: String) -> DesktopWindow:
+	var window: DesktopWindow = null
+	for existing: DesktopWindow in app_windows():
+		if existing.app_id == "viewer":
+			window = existing
+	if window == null:
+		window = DesktopWindow.new()
+		window.app_id = "viewer"
+		window.set_minimum(Vector2(220, 140))
+		window.focus_requested.connect(func(w: DesktopWindow) -> void: w.move_to_front())
+		_windows.add_child(window)
+		var text := TextEdit.new()
+		text.editable = false
+		text.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		text.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+		window.body.add_child(text)
+		window.size = Vector2(300, 200)
+		window.position = Vector2(ICON_SIZE.x + 40.0, 40.0)
+	window.title = "Блокнот — %s" % FsPath.name_of(file_path)
+	var data: Dictionary = Filesystem.for_node(node_id).file_data(file_path)
+	(window.body.get_child(0) as TextEdit).text = str(data.get("text", "(двоичный файл)"))
+	window.move_to_front()
 	return window
 
 

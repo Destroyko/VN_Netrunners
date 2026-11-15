@@ -48,6 +48,14 @@ func enter(node_id: String) -> String:
 	return run("connect " + address_of(node_id))
 
 
+## Войти и сразу стать администратором: писать и удалять на чужом узле гостю нельзя
+## (права как в Unix, решено 15.11.2026). Права выдаются напрямую, без rootstep и его следа в логах.
+func enter_as_admin(node_id: String) -> String:
+	var text: String = enter(node_id)
+	t.session.grant_admin()
+	return text
+
+
 ## Игрок прошёл через домашний роутер к учебному узлу — так, как задумано в игре.
 func reach_training_pc() -> void:
 	run("scan")

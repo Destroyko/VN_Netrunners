@@ -593,3 +593,88 @@ func test_entry_by_a_client_login_opens_the_desktop_unlocked() -> void:
 	var remote: DesktopWindow = desktop.window_of("remote")
 	assert_not_null(remote)
 	assert_false((remote.body.get_child(0) as RemoteSession).is_locked())
+
+
+# --- Проводник в трансляции: меню как в Windows ------------------------------------
+
+func _explorer_in_home() -> Array:
+	# Учебный ПК по логину от заказчика, трансляция, проводник в /home. [стол, проводник].
+	Effects.apply({"reveal_node": {"node": "node_training_pc", "open": ["svc_login"]}})
+	FileBrowser.clipboard = {}
+	var scene: PackedScene = load(Screens.DESKTOP) as PackedScene
+	var desktop: Desktop = scene.instantiate() as Desktop
+	add_child_autofree(desktop)
+	await wait_frames(2)
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	view.submit("connect 10.0.0.7")
+	await wait_frames(2)
+	var session: RemoteSession = desktop.window_of("remote").body.get_child(0) as RemoteSession
+	var browser: FileBrowser = session.open_app("files").body.get_child(0) as FileBrowser
+	browser.open_item(browser.item_names().find("home/"))
+	return [desktop, browser, session]
+
+
+func _row(browser: FileBrowser, name: String) -> int:
+	return browser.item_names().find(name)
+
+
+func test_guest_cannot_delete_from_the_explorer() -> void:
+	var setup: Array = await _explorer_in_home()
+	var browser: FileBrowser = setup[1] as FileBrowser
+	browser.act(_row(browser, "spisok_pokupok.txt"), FileBrowser.MENU_DELETE)
+	assert_string_contains(browser.status_text(), "недостаточно прав")
+	assert_true(Filesystem.for_node("node_training_pc").has_file("/home/spisok_pokupok.txt"))
+
+
+func test_admin_renames_cuts_pastes_and_deletes() -> void:
+	var setup: Array = await _explorer_in_home()
+	var desktop: Desktop = setup[0] as Desktop
+	var browser: FileBrowser = setup[1] as FileBrowser
+	desktop.terminal.session.grant_admin()
+	var fs: Filesystem = Filesystem.for_node("node_training_pc")
+	browser.rename(_row(browser, "spisok_pokupok.txt"), "novoe.txt")
+	assert_true(fs.has_file("/home/novoe.txt"), "переименован")
+	browser.act(_row(browser, "novoe.txt"), FileBrowser.MENU_CUT)
+	browser.path = "/prog"
+	browser.refresh()
+	browser.paste()
+	assert_true(fs.has_file("/prog/novoe.txt"), "вырезан и вставлен в другую папку")
+	browser.act(_row(browser, "novoe.txt"), FileBrowser.MENU_DELETE)
+	assert_false(fs.has_file("/prog/novoe.txt"), "удалён")
+	assert_string_contains((desktop.find_children("*", "TerminalView", true, false)[0] as TerminalView).output_text(),
+		"rm", "действия мышью видны в консоли")
+
+
+func test_copy_in_the_session_and_paste_on_own_desktop_downloads() -> void:
+	var setup: Array = await _explorer_in_home()
+	var desktop: Desktop = setup[0] as Desktop
+	var browser: FileBrowser = setup[1] as FileBrowser
+	browser.act(_row(browser, "spisok_pokupok.txt"), FileBrowser.MENU_COPY)
+	desktop.paste_to_own_desktop()
+	assert_true(desktop.terminal.home_fs().has_file(Terminal.DUMP_DIR + "/spisok_pokupok.txt"), "скачан к себе")
+
+
+func test_dragging_a_file_onto_own_desktop_downloads_it() -> void:
+	var setup: Array = await _explorer_in_home()
+	var desktop: Desktop = setup[0] as Desktop
+	var browser: FileBrowser = setup[1] as FileBrowser
+	var data: Variant = browser.drag_data(_row(browser, "spisok_pokupok.txt"))
+	var zone: DesktopDropZone = desktop.find_child("Wallpaper", true, false) as DesktopDropZone
+	assert_true(zone._can_drop_data(Vector2.ZERO, data))
+	zone._drop_data(Vector2.ZERO, data)
+	assert_true(desktop.terminal.home_fs().has_file(Terminal.DUMP_DIR + "/spisok_pokupok.txt"))
+
+
+func test_open_shows_the_file_in_a_notepad() -> void:
+	var setup: Array = await _explorer_in_home()
+	var browser: FileBrowser = setup[1] as FileBrowser
+	var session: RemoteSession = setup[2] as RemoteSession
+	browser.act(_row(browser, "spisok_pokupok.txt"), FileBrowser.MENU_OPEN)
+	var viewer: DesktopWindow = null
+	for window: DesktopWindow in session.app_windows():
+		if window.app_id == "viewer":
+			viewer = window
+	assert_not_null(viewer, "открылся «Блокнот»")
+	var expected: String = str(Filesystem.for_node("node_training_pc").file_data("/home/spisok_pokupok.txt").get("text", ""))
+	assert_eq((viewer.body.get_child(0) as TextEdit).text, expected)
+
