@@ -163,6 +163,12 @@ func _apply_geometry(window: DesktopWindow, app: Dictionary) -> void:
 
 ## Содержимое окна. Терминал и остальное подключаются здесь, остальные приложения — заглушки M1.
 func _make_content(app_id: String) -> Control:
+	if app_id == "terminal":
+		var view := TerminalView.new()
+		view.setup(terminal)
+		view.puzzle_requested.connect(_on_puzzle_requested.bind(view))
+		view.ready.connect(view.focus_entry)
+		return view
 	var label := Label.new()
 	label.text = "Здесь будет приложение «%s».\nВ M1 это заглушка." % str(app_definition(app_id).get("title", app_id))
 	label.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -221,3 +227,8 @@ func _on_menu(action: String) -> void:
 			get_tree().change_scene_to_file(Screens.ROOM)
 		"main_menu":
 			get_tree().change_scene_to_file(Screens.MAIN_MENU)
+
+
+## Головоломка открывается отдельным модальным окном поверх терминала (шаг 7в).
+func _on_puzzle_requested(_request: Dictionary, _view: TerminalView) -> void:
+	pass
