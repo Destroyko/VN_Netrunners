@@ -727,3 +727,35 @@ func test_program_takes_a_port_number_not_a_service_name() -> void:
 	assert_eq(last.request["port"], 22)
 	assert_eq(last.request["service"], "svc_login", "внутри игра по-прежнему знает сервис по id")
 
+
+# --- Трейс в реальном времени -------------------------------------------------
+
+func _start_trace() -> void:
+	learn_programs()
+	GameState.set_flag(Programs.GATE_PRESSURE)
+	reveal("node_office_server")
+	run("connect 77.61.204.12")
+	run("passhound")  # трейс 60, программа отъела 3 → 57
+
+
+func test_trace_ticks_with_the_clock_without_commands() -> void:
+	_start_trace()
+	watch_signals(t)
+	Clock.advance(10)  # часы пошли сами: игрок думает над головоломкой
+	assert_eq(t.session.trace_left(), 47)
+	assert_signal_emitted(t, "ticked", "окну сказали сдвинуть полоску")
+
+
+func test_trace_can_end_while_the_player_does_nothing() -> void:
+	_start_trace()
+	Clock.advance(57)
+	assert_signal_emitted(EventBus, "trace_finished")
+	assert_null(t.current_puzzle(), "открытая головоломка сгорела вместе с сеансом")
+	assert_eq(t.prompt(), "home:/home$ ")
+
+
+func test_own_command_does_not_count_the_trace_twice() -> void:
+	_start_trace()
+	t.spend(1, TermResult.new())  # команда тратит минуту сама
+	assert_eq(t.session.trace_left(), 56)
+

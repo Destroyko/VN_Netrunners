@@ -323,3 +323,24 @@ func test_play_opens_a_puzzle_without_connection() -> void:
 	await wait_frames(2)
 	assert_false(desktop.has_puzzle_open())
 	assert_eq(got, [0])
+
+
+func test_trace_ending_by_itself_closes_the_puzzle_window() -> void:
+	# Трейс не замирает в головоломке (time.md, 15.11.2026): игрок думает — защита узла работает.
+	Clock.set_time(1, 10 * 60)
+	GameState.set_flag(Programs.flag_for("passhound"))
+	GameState.set_flag(Programs.GATE_PRESSURE)
+	Effects.apply_all([{"reveal_node": {"node": "node_office_server"}}])
+	var scene: PackedScene = load(Screens.DESKTOP) as PackedScene
+	var desktop: Desktop = scene.instantiate() as Desktop
+	add_child_autofree(desktop)
+	await wait_frames(2)
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	view.submit("connect 77.61.204.12")
+	view.submit("passhound 8080")
+	assert_true(desktop.has_puzzle_open())
+	Clock.advance(60)
+	await wait_frames(2)
+	assert_false(desktop.has_puzzle_open(), "сеанс оборван — головоломке не на что работать")
+	assert_string_contains(view.output_text(), "трейс дошёл до конца")
+

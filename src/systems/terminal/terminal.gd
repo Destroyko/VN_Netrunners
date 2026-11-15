@@ -30,6 +30,11 @@ const VAR_OS: String = "pc.os"
 const OS_OLD: String = "old"
 const OS_NORMAL: String = "normal"
 
+## Время прошло само (часы идут в реальном времени), и с сеансом что-то случилось: трейс
+## перевалил за половину, дошёл до конца, узел ушёл из сети. Окно печатает строки и
+## перечитывает состояние; игрок при этом мог ничего не набирать.
+signal ticked(result: TermResult)
+
 var net: Network
 var session: HackSession
 
@@ -52,6 +57,41 @@ func _init() -> void:
 	_network = NetCommands.new(self)
 	_programs = ProgramCommands.new(self)
 	_sync()
+	EventBus.time_advanced.connect(_on_time_advanced)
+
+
+## Пока какой-то терминал тратит минуты своей командой, он сам спрашивает сеанс о последствиях.
+## Общий флаг на класс: сеанс один на игру (в GameState), считать трейс дважды нельзя.
+static var _spending: bool = false
+## Какой сдвиг часов уже разобран и что из него вышло. Терминалов может быть несколько (окно,
+## аварийная консоль, тесты), а сеанс один: сдвиг разбирает первый, остальные берут готовый итог.
+static var _seen_advance: int = -1
+static var _seen_result: TermResult
+static var _seen_report: bool = false
+
+
+## Часы сдвинулись не командой, а сами: трейс тикает и в головоломке, и пока игрок читает файлы
+## (time.md, решено 15.11.2026). Пустой итог тоже отдаём, пока идёт трейс: окну нужно сдвинуть полоску.
+func _on_time_advanced(_minute: int, minutes_passed: int) -> void:
+	if _spending:
+		return
+	# Без _sync(): починка узлов ленивая, по команде игрока, а не по ходу часов.
+	net = Network.for_game()
+	session = HackSession.new(net)
+	if Clock.advance_count != _seen_advance:
+		_seen_advance = Clock.advance_count
+		_seen_result = TermResult.new()
+		_seen_report = false
+		if not session.target_id().is_empty():
+			_seen_report = session.is_tracing()
+			handle_events(session.advance(minutes_passed, now()), _seen_result)
+			_seen_report = _seen_report or not _seen_result.lines.is_empty()
+	# Сеанс мог оборваться: у этого терминала тоже нет больше ни головоломки, ни чужого каталога.
+	if session.target_id().is_empty():
+		_puzzle = {}
+		_cwd_remote = HOME_DIR
+	if _seen_report:
+		ticked.emit(_seen_result)
 
 
 ## Свежие обёртки над состоянием игры. Зовём в начале каждой публичной операции.
@@ -228,7 +268,9 @@ func minutes_of(key: String, fallback: int = 1) -> int:
 func spend(minutes: int, result: TermResult) -> void:
 	if minutes <= 0:
 		return
+	_spending = true
 	Clock.advance(minutes)
+	_spending = false
 	result.minutes += minutes
 	handle_events(session.advance(minutes, now()), result)
 

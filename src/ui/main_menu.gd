@@ -8,6 +8,8 @@ extends Control
 
 
 func _ready() -> void:
+	# В меню время не идёт: игра ещё не начата или поставлена на выход.
+	Clock.stop()
 	# Настройки применяем здесь: это первый экран, и дальше они нужны уже готовыми.
 	var settings := AppSettings.new()
 	settings.load_from()
@@ -28,6 +30,7 @@ func _ready() -> void:
 func _on_new_game() -> void:
 	GameState.reset()
 	Rng.randomize_seed()
+	Clock.start()
 	get_tree().change_scene_to_file(Screens.ROOM)
 
 

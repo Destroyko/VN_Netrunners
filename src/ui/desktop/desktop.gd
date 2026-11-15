@@ -50,6 +50,9 @@ var _opened_count: int = 0
 
 func _ready() -> void:
 	terminal = Terminal.new()
+	# Трейс может оборвать сеанс сам, пока окно терминала закрыто: окно головоломки и карта
+	# должны узнать об этом и без него.
+	terminal.ticked.connect(func(_result: TermResult) -> void: _on_result_shown())
 	_build()
 	_add_debug_console()
 	apply_mode()

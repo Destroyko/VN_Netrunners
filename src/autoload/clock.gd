@@ -10,6 +10,18 @@ extends Node
 const DEFAULT_MINUTES_PER_DAY: int = 1440
 
 var minutes_per_day: int = DEFAULT_MINUTES_PER_DAY
+## Сколько реальных секунд длится игровая минута (balance.json, clock.real_seconds_per_minute).
+var real_seconds_per_minute: float = 4.0
+## Идёт ли время само. Включает начало игры (главное меню → «Новая игра»), выключает главное
+## меню. Тесты и отладочные запуски сцен его не включают: там время двигают только действия.
+var running: bool = false
+
+## Причины паузы: время стоит, пока есть хоть одна. Решено 15.11.2026 — только диалоги и сюжетные
+## сцены (они могут сами перематывать время). Счётчик, а не флаг: пауз бывает несколько сразу.
+var _pauses: Dictionary = {}
+## Номер последнего сдвига часов: слушатели сверяют его, чтобы один сдвиг не обработать дважды.
+var advance_count: int = 0
+var _carry: float = 0.0
 ## Границы времени суток в минутах от начала дня: ночь → утро → день → вечер.
 var _bounds: Dictionary = {"morning": 360, "day": 660, "evening": 1080, "night": 1320}
 
@@ -26,10 +38,51 @@ func reload_config() -> void:
 
 func configure(cfg: Dictionary) -> void:
 	minutes_per_day = int(cfg.get("minutes_per_day", DEFAULT_MINUTES_PER_DAY))
+	real_seconds_per_minute = maxf(0.1, float(cfg.get("real_seconds_per_minute", 4.0)))
 	var bounds: Dictionary = cfg.get("time_of_day_bounds", {}) as Dictionary
 	for key: String in _bounds.keys():
 		if bounds.has(key):
 			_bounds[key] = int(bounds[key])
+
+
+# --- Ход в реальном времени ---------------------------------------------------
+
+func _process(delta: float) -> void:
+	tick(delta)
+
+
+## Прошло `seconds` реального времени. Отдельный метод, чтобы тест мог «прокрутить» секунды
+## без ожидания кадров. Каждая накопленная игровая минута — обычный `advance(1)`: все, кто
+## слушает `time_advanced` (трейс, панель задач), не отличают ход времени от действий.
+func tick(seconds: float) -> void:
+	if not running or is_paused():
+		return
+	_carry += seconds
+	while _carry >= real_seconds_per_minute:
+		_carry -= real_seconds_per_minute
+		advance(1)
+
+
+func start() -> void:
+	running = true
+	_carry = 0.0
+
+
+func stop() -> void:
+	running = false
+	_carry = 0.0
+
+
+func pause(reason: String) -> void:
+	_pauses[reason] = true
+
+
+func resume(reason: String) -> void:
+	_pauses.erase(reason)
+
+
+func is_paused() -> bool:
+	return not _pauses.is_empty()
 
 
 # --- Движение времени --------------------------------------------------------
@@ -38,6 +91,7 @@ func configure(cfg: Dictionary) -> void:
 func advance(minutes: int) -> void:
 	if minutes <= 0:
 		return
+	advance_count += 1
 	GameState.minute += minutes
 	# Цикл, а не if: действие может занять больше суток (брутфорс на несколько дней).
 	while GameState.minute >= minutes_per_day:

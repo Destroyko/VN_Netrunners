@@ -26,6 +26,7 @@ var _history_pos: int = -1
 func setup(shared_terminal: Terminal) -> void:
 	terminal = shared_terminal
 	_build()
+	terminal.ticked.connect(_on_ticked)
 	print_lines(terminal.banner())
 	_refresh()
 
@@ -182,6 +183,14 @@ func show_result(result: TermResult) -> void:
 			_print("[ %s: работает… ]" % str(request.get("title", "")))
 		"puzzle":
 			puzzle_requested.emit(request)
+	_refresh()
+	result_shown.emit()
+
+
+## Время прошло само: печатаем, что случилось с сеансом (если что-то), и двигаем полоску трейса.
+func _on_ticked(result: TermResult) -> void:
+	for line: String in result.lines:
+		_print(line)
 	_refresh()
 	result_shown.emit()
 

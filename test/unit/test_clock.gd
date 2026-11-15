@@ -15,6 +15,8 @@ func before_each() -> void:
 func after_each() -> void:
 	# Возвращаем настройки из balance.json, чтобы не влиять на другие тесты.
 	Clock.reload_config()
+	Clock.stop()
+	Clock.resume("dialog")
 
 
 func test_advance_moves_minutes() -> void:
@@ -89,3 +91,33 @@ func test_hours_and_format_use_real_day_length() -> void:
 	assert_eq(Clock.hour(), 14)
 	assert_eq(Clock.minute_of_hour(), 30)
 	assert_eq(Clock.format_time(), "День 3, 14:30")
+
+
+# --- Ход в реальном времени ---------------------------------------------------
+
+func test_time_does_not_run_until_the_game_starts() -> void:
+	Clock.tick(60.0)
+	assert_eq(GameState.minute, 0, "в меню и в тестах часы стоят")
+
+
+func test_running_clock_counts_real_seconds() -> void:
+	Clock.configure({"minutes_per_day": TEST_DAY, "real_seconds_per_minute": 4})
+	Clock.start()
+	Clock.tick(3.0)
+	assert_eq(GameState.minute, 0, "минута ещё не набежала")
+	Clock.tick(1.0)
+	assert_eq(GameState.minute, 1)
+	Clock.tick(8.5)
+	assert_eq(GameState.minute, 3, "остаток секунд не теряется")
+
+
+func test_dialog_pauses_the_clock() -> void:
+	Clock.configure({"minutes_per_day": TEST_DAY, "real_seconds_per_minute": 4})
+	Clock.start()
+	Clock.pause("dialog")
+	Clock.tick(40.0)
+	assert_eq(GameState.minute, 0)
+	Clock.resume("dialog")
+	Clock.tick(4.0)
+	assert_eq(GameState.minute, 1)
+
