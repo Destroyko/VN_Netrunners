@@ -125,6 +125,17 @@ func prompt() -> String:
 	return "%s:%s%s " % [where, cwd(), "#" if is_remote() and admin() else "$"]
 
 
+## Заставка при открытии окна: версия ОС и ядра, как у настоящего терминала. Текст — в
+## data/terminal.json по уровню ОС (`pc.os`), правил здесь нет.
+func banner() -> PackedStringArray:
+	var os_level: String = str(GameState.get_var_or(VAR_OS, OS_NORMAL))
+	var all: Dictionary = DataLoader.terminal().get("banner", {}) as Dictionary
+	var lines: PackedStringArray = []
+	for line: Variant in all.get(os_level, all.get(OS_NORMAL, [])) as Array:
+		lines.append(str(line))
+	return lines
+
+
 func history() -> PackedStringArray:
 	return _history.duplicate()
 

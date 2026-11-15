@@ -77,6 +77,12 @@ static func programs() -> Dictionary:
 
 
 ## Предметы инвентаря (docs/gameplay/hacking.md). Пустой словарь, если файла нет.
+## Оформление терминала: заставка по уровню ОС. Нет файла — пустой словарь, терминал не ломается.
+static func terminal() -> Dictionary:
+	var data: Variant = load_json("res://data/terminal.json")
+	return data as Dictionary if data is Dictionary else {}
+
+
 static func items() -> Dictionary:
 	var path: String = DATA_ROOT.path_join("items.json")
 	var data: Variant = load_json(path) if FileAccess.file_exists(path) else null

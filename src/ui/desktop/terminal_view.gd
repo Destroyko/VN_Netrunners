@@ -1,97 +1,101 @@
 class_name TerminalView
-extends HSplitContainer
-## Окно терминала: панели файлов и программ слева, вывод, строка ввода и индикатор трейса справа
-## (docs/tech/desktop-layout.md, «Окно терминала»). Только показывает: команды выполняет `Terminal`.
-##
-## Клик по файлу или программе вставляет имя в строку ввода — «клик как альтернатива набору»
-## (hacking-loop.md). Головоломка открывается отдельным окном: вид отдаёт запрос через
+extends VBoxContainer
+## Окно терминала (docs/tech/desktop-layout.md, «Окно терминала»): один экран, как у настоящей
+## консоли. Сверху заставка ОС, дальше вывод, строка ввода идёт сразу за последней строкой.
+## Без боковых панелей и без контекстного меню у поля ввода. Только показывает: команды
+## выполняет `Terminal`. Головоломка открывается отдельным окном: вид отдаёт запрос через
 ## `puzzle_requested` и принимает итог через `show_result`.
 
 signal puzzle_requested(request: Dictionary)
 ## Команда выполнена: карта сети и режим стола перечитывают состояние.
 signal result_shown
 
+const BACKGROUND: Color = Color(0.03, 0.04, 0.05)
+const TEXT_COLOR: Color = Color(0.82, 0.86, 0.84)
+
 var terminal: Terminal
 
+var _scroll: ScrollContainer
 var _output: RichTextLabel
 var _entry: LineEdit
 var _prompt: Label
 var _trace: ProgressBar
-var _trace_label: Label
-var _files: ItemList
-var _programs: ItemList
 var _history_pos: int = -1
 
 
 func setup(shared_terminal: Terminal) -> void:
 	terminal = shared_terminal
 	_build()
-	_print("Терминал. help — список команд.")
+	print_lines(terminal.banner())
 	_refresh()
 
 
 func _build() -> void:
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
-	split_offset = 150
-
-	var side := VSplitContainer.new()
-	side.custom_minimum_size = Vector2(130, 0)
-	add_child(side)
-	_files = _make_panel(side, "Файлы")
-	_programs = _make_panel(side, "Программы")
-	_files.item_selected.connect(_on_file_selected)
-	_programs.item_selected.connect(_on_program_selected)
-
-	var main := VBoxContainer.new()
-	main.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	add_child(main)
+	add_theme_constant_override("separation", 0)
 
 	var trace_row := HBoxContainer.new()
-	main.add_child(trace_row)
-	_trace_label = Label.new()
-	_trace_label.text = "трейс"
-	trace_row.add_child(_trace_label)
+	trace_row.name = "TraceRow"
+	trace_row.visible = false
+	add_child(trace_row)
+	var trace_label := Label.new()
+	trace_label.text = "трейс"
+	trace_row.add_child(trace_label)
 	_trace = ProgressBar.new()
 	_trace.show_percentage = false
 	_trace.max_value = 1.0
 	_trace.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_trace.custom_minimum_size = Vector2(0, 14)
 	trace_row.add_child(_trace)
-	trace_row.visible = false
-	trace_row.name = "TraceRow"
+
+	# Экран консоли: тёмный фон, вывод и строка ввода в одном прокручиваемом столбце.
+	var screen := PanelContainer.new()
+	screen.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var style := StyleBoxFlat.new()
+	style.bg_color = BACKGROUND
+	style.set_content_margin_all(8)
+	screen.add_theme_stylebox_override("panel", style)
+	screen.gui_input.connect(_on_screen_input)
+	add_child(screen)
+
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	screen.add_child(_scroll)
+	var column := VBoxContainer.new()
+	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_theme_constant_override("separation", 0)
+	_scroll.add_child(column)
 
 	_output = RichTextLabel.new()
-	_output.scroll_following = true
+	_output.fit_content = true
+	_output.scroll_active = false
 	_output.selection_enabled = true
-	_output.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_output.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_output.add_theme_font_override("normal_font", _mono_font())
-	main.add_child(_output)
+	_output.add_theme_color_override("default_color", TEXT_COLOR)
+	column.add_child(_output)
 
 	var input_row := HBoxContainer.new()
-	main.add_child(input_row)
+	input_row.add_theme_constant_override("separation", 0)
+	column.add_child(input_row)
 	_prompt = Label.new()
 	_prompt.add_theme_font_override("font", _mono_font())
+	_prompt.add_theme_color_override("font_color", TEXT_COLOR)
 	input_row.add_child(_prompt)
 	_entry = LineEdit.new()
 	_entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_entry.add_theme_font_override("font", _mono_font())
+	_entry.add_theme_color_override("font_color", TEXT_COLOR)
+	# Строка ввода — часть экрана, а не поле формы: без рамки, меню по правой кнопке и эмодзи.
+	_entry.flat = true
+	_entry.context_menu_enabled = false
+	if "emoji_menu_enabled" in _entry:
+		_entry.set("emoji_menu_enabled", false)
+	_entry.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	_entry.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	_entry.text_submitted.connect(_on_submitted)
 	_entry.gui_input.connect(_on_entry_input)
 	input_row.add_child(_entry)
-
-
-func _make_panel(parent: Control, title: String) -> ItemList:
-	var box := VBoxContainer.new()
-	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var label := Label.new()
-	label.text = title
-	box.add_child(label)
-	var list := ItemList.new()
-	list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	list.allow_reselect = true
-	box.add_child(list)
-	parent.add_child(box)
-	return list
 
 
 static func _mono_font() -> Font:
@@ -102,6 +106,13 @@ static func _mono_font() -> Font:
 
 func focus_entry() -> void:
 	_entry.grab_focus()
+
+
+## Клик в любом месте экрана ставит курсор в строку ввода, как в настоящей консоли.
+func _on_screen_input(event: InputEvent) -> void:
+	var click: InputEventMouseButton = event as InputEventMouseButton
+	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
+		_entry.grab_focus()
 
 
 # --- Ввод ----------------------------------------------------------------------
@@ -138,6 +149,7 @@ func _complete() -> void:
 	var report: Dictionary = terminal.complete(_entry.text)
 	var options: PackedStringArray = report["options"] as PackedStringArray
 	if options.size() > 1:
+		_print(_prompt.text + _entry.text)
 		_print("  ".join(options))
 	_entry.text = str(report["line"])
 	_entry.caret_column = _entry.text.length()
@@ -176,9 +188,19 @@ func show_result(result: TermResult) -> void:
 
 func _print(text: String) -> void:
 	_output.add_text(text + "\n")
+	_scroll_to_end.call_deferred()
 
 
-## Напечатать строки от себя (приветствие, ошибки загрузки).
+## Строка ввода всегда видна: после вывода прокручиваем к концу, когда раскладка пересчитана.
+func _scroll_to_end() -> void:
+	if not is_inside_tree():
+		return
+	await get_tree().process_frame
+	if is_instance_valid(_scroll):
+		_scroll.scroll_vertical = int(_scroll.get_v_scroll_bar().max_value)
+
+
+## Напечатать строки от себя (заставка, ошибки загрузки).
 func print_lines(lines: PackedStringArray) -> void:
 	for line: String in lines:
 		_print(line)
@@ -188,35 +210,14 @@ func output_text() -> String:
 	return _output.get_parsed_text()
 
 
-## Приглашение, панели и индикатор трейса после каждой команды.
+## Приглашение и индикатор трейса после каждой команды.
 func _refresh() -> void:
 	_prompt.text = terminal.prompt()
-	_refresh_files()
-	_refresh_programs()
 	_refresh_trace()
 
 
-func _refresh_files() -> void:
-	_files.clear()
-	for entry: Dictionary in terminal.fs().list(terminal.cwd(), terminal.admin()):
-		var name: String = str(entry["name"]) + ("/" if bool(entry["is_dir"]) else "")
-		if bool(entry.get("locked", false)):
-			name += " 🔒"
-		var index: int = _files.add_item(name)
-		_files.set_item_metadata(index, entry)
-
-
-func _refresh_programs() -> void:
-	_programs.clear()
-	for id: String in Programs.installed():
-		var index: int = _programs.add_item(id)
-		_programs.set_item_tooltip(index, Programs.about(id))
-	if _programs.item_count == 0:
-		_programs.add_item("(нет)", null, false)
-
-
 func _refresh_trace() -> void:
-	var row: Control = find_child("TraceRow", true, false) as Control
+	var row: Control = find_child("TraceRow", false, false) as Control
 	var session: HackSession = terminal.session
 	var tracing: bool = session != null and session.is_tracing()
 	row.visible = tracing
@@ -225,32 +226,16 @@ func _refresh_trace() -> void:
 
 
 func trace_visible() -> bool:
-	return (find_child("TraceRow", true, false) as Control).visible
+	return (find_child("TraceRow", false, false) as Control).visible
 
 
 func trace_fraction() -> float:
 	return _trace.value
 
 
-func _on_file_selected(index: int) -> void:
-	var entry: Dictionary = _files.get_item_metadata(index) as Dictionary
-	_insert(str(entry["name"]))
-
-
-func _on_program_selected(index: int) -> void:
-	if _programs.is_item_selectable(index):
-		_insert(_programs.get_item_text(index))
-
-
-## Вставить имя в строку ввода после уже набранного.
-func _insert(name: String) -> void:
-	var text: String = _entry.text
-	if not text.is_empty() and not text.ends_with(" "):
-		text += " "
-	_entry.text = text + name
-	_entry.caret_column = _entry.text.length()
-	_entry.grab_focus()
-
-
 func entry_text() -> String:
 	return _entry.text
+
+
+func entry() -> LineEdit:
+	return _entry

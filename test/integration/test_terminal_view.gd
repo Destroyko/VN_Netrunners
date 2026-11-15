@@ -1,5 +1,5 @@
 extends GutTest
-## Окно терминала: ввод, вывод, панели, история, автодополнение, трейс.
+## Окно терминала: заставка, ввод, вывод, история, автодополнение, трейс.
 ## Правила терминала проверяют свои тесты; здесь — что окно их показывает и передаёт команды.
 
 var desktop: Desktop
@@ -17,9 +17,10 @@ func before_each() -> void:
 	await wait_frames(1)
 
 
-func test_terminal_opens_with_a_prompt() -> void:
+func test_terminal_opens_with_the_os_banner() -> void:
 	assert_not_null(view)
-	assert_string_contains(view.output_text(), "help")
+	assert_string_contains(view.output_text(), "ядро", "заставка с версией ОС, как у настоящей консоли")
+	assert_false(view.output_text().contains("help"), "без подсказок")
 
 
 func test_command_is_echoed_and_answered() -> void:
@@ -34,23 +35,18 @@ func test_unknown_command_is_reported() -> void:
 	assert_string_contains(view.output_text(), "abracadabra")
 
 
-func test_file_panel_lists_the_current_directory() -> void:
-	var files: ItemList = view.find_children("*", "ItemList", true, false)[0] as ItemList
-	assert_gt(files.item_count, 0, "в /home что-то лежит")
+func test_terminal_is_a_single_screen_without_side_panels() -> void:
+	assert_eq(view.find_children("*", "ItemList", true, false).size(), 0)
 
 
-func test_clicking_a_file_inserts_its_name() -> void:
-	var files: ItemList = view.find_children("*", "ItemList", true, false)[0] as ItemList
-	files.item_selected.emit(0)
-	assert_false(view.entry_text().is_empty())
+func test_entry_has_no_context_menu() -> void:
+	assert_false(view.entry().context_menu_enabled)
 
 
-func test_programs_panel_follows_installed_programs() -> void:
-	var programs: ItemList = view.find_children("*", "ItemList", true, false)[1] as ItemList
-	assert_eq(programs.item_count, 1, "пока ничего не установлено: одна строка «нет»")
-	GameState.set_flag(Programs.flag_for("passhound"))
-	view.submit("progs")
-	assert_eq(programs.get_item_text(0), "passhound")
+func test_banner_follows_the_os_level() -> void:
+	GameState.set_var(Terminal.VAR_OS, Terminal.OS_OLD)
+	assert_string_contains("
+".join(desktop.terminal.banner()), "i686")
 
 
 func test_question_is_shown_and_answered() -> void:
