@@ -4,6 +4,7 @@ extends RefCounted
 ## и при переименовании файла ломается навигация.
 
 const MAIN_MENU: String = "res://src/ui/main_menu.tscn"
+## Выбор сложности; из меню сейчас не открывается (см. new_game.gd).
 const NEW_GAME: String = "res://src/ui/new_game.tscn"
 const SETTINGS: String = "res://src/ui/settings_screen.tscn"
 const ABOUT: String = "res://src/ui/about.tscn"

@@ -23,8 +23,12 @@ func _ready() -> void:
 	$Rows/NewGame.grab_focus()
 
 
+## Глобальных уровней сложности пока нет (docs/gameplay/difficulty.md): новая игра начинается сразу.
+## Экран выбора (Screens.NEW_GAME) лежит нетронутым и вернётся вместе с уровнями.
 func _on_new_game() -> void:
-	get_tree().change_scene_to_file(Screens.NEW_GAME)
+	GameState.reset()
+	Rng.randomize_seed()
+	get_tree().change_scene_to_file(Screens.DESKTOP)
 
 
 func _on_settings() -> void:
