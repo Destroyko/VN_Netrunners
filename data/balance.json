@@ -121,12 +121,12 @@
       }
     },
     "dump": {
-      "_note": "«Перехват в дампе» (docs/tech/puzzles-spec.md, раздел 3). width/rows — размер экрана дампа, length — длина куска хэша (3 или 6: удобно глазу; сложность растёт числом кусков), pieces — сколько кусков собрать, match_every — раз в сколько строк в дампе появляется нужный кусок, decoy_chance — доля строк с ловушкой (почти совпадение), scroll_seconds — сколько реальных секунд одна строка (дамп ползёт плавно). lens — подсветка клетки и соседей при наведении мыши (true/false), на пробу. Пока только для пробы: play dump в консоли F1.",
+      "_note": "«Перехват в дампе» (docs/tech/puzzles-spec.md, раздел 3). width/rows — размер экрана дампа, length — длина куска хэша (3 или 5: нечётная, чтобы лупа была симметрична вокруг курсора; сложность растёт числом кусков), pieces — сколько кусков собрать, match_every — раз в сколько строк в дампе появляется нужный кусок, decoy_chance — доля строк с ловушкой (почти совпадение), scroll_seconds — сколько реальных секунд одна строка (дамп ползёт плавно). lens — подсветка клетки и соседей при наведении мыши (true/false), на пробу. Пока только для пробы: play dump в консоли F1.",
       "lens": true,
       "levels": {
         "2": { "width": 8, "rows": 8, "length": 3, "pieces": 2, "match_every": 4, "decoy_chance": 0.2, "scroll_seconds": 1.8 },
         "3": { "width": 8, "rows": 8, "length": 3, "pieces": 4, "match_every": 5, "decoy_chance": 0.35, "scroll_seconds": 1.35 },
-        "4": { "width": 12, "rows": 8, "length": 6, "pieces": 3, "match_every": 6, "decoy_chance": 0.5, "scroll_seconds": 1.05 }
+        "4": { "width": 10, "rows": 8, "length": 5, "pieces": 3, "match_every": 6, "decoy_chance": 0.5, "scroll_seconds": 1.05 }
       }
     }
   },

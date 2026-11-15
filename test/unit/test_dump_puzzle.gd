@@ -108,50 +108,42 @@ func _puzzle_with_row(symbols: Array, target: Array) -> DumpPuzzle:
 	return puzzle
 
 
-func test_lens_covers_the_whole_piece_aligned_by_the_hovered_byte() -> void:
-	# Цель: 14 5 1 (C4 55 1C). Строка: … 15(FF) 14(C4) 2(2F) 0(00) …
-	var puzzle: DumpPuzzle = _puzzle_with_row([0, 0, 0, 15, 14, 2, 0, 0], [14, 5, 1])
-	var lens: Dictionary = puzzle.lens(0, 4)
-	assert_eq(lens.keys().size(), 3, "лупа длиной с кусок")
-	assert_eq(lens[4], DumpPuzzle.LENS_MATCH, "C4 есть в куске")
-	assert_eq(lens[5], DumpPuzzle.LENS_WRONG, "после C4 должно быть 55")
-	assert_eq(lens[6], DumpPuzzle.LENS_WRONG, "дальше должно быть 1C")
-	assert_false(lens.has(3), "перед C4 в куске ничего нет — клетка не накрыта")
-
-
-func test_lens_grows_with_a_longer_piece() -> void:
-	var puzzle: DumpPuzzle = _puzzle_with_row([0, 7, 14, 2, 1, 0, 0, 0], [7, 14, 2, 1])
+func test_lens_is_symmetric_around_the_cursor() -> void:
+	# Цель: 14 5 1 (C4 55 1C). Курсор на 55 посередине правильного куска — вся лупа зелёная.
+	var puzzle: DumpPuzzle = _puzzle_with_row([0, 0, 14, 5, 1, 0, 0, 0], [14, 5, 1])
 	var lens: Dictionary = puzzle.lens(0, 3)
-	assert_eq(lens.keys().size(), 4)
-	for col: int in [1, 2, 3, 4]:
+	assert_eq(lens.keys(), [2, 3, 4], "по одной клетке слева и справа")
+	for col: int in [2, 3, 4]:
 		assert_eq(lens[col], DumpPuzzle.LENS_MATCH)
 
 
-func test_lens_on_the_right_spot_is_all_green() -> void:
-	var puzzle: DumpPuzzle = _puzzle_with_row([0, 14, 5, 1, 0, 0, 0, 0], [14, 5, 1])
+func test_lens_on_the_edge_of_a_right_piece_is_not_all_green() -> void:
+	# Курсор на первом байте правильного куска: лупа смещена, совпадает не всё.
+	var puzzle: DumpPuzzle = _puzzle_with_row([0, 0, 14, 5, 1, 0, 0, 0], [14, 5, 1])
 	var lens: Dictionary = puzzle.lens(0, 2)
-	assert_eq([lens[1], lens[2], lens[3]], [DumpPuzzle.LENS_MATCH, DumpPuzzle.LENS_MATCH, DumpPuzzle.LENS_MATCH])
+	assert_eq(lens.keys(), [1, 2, 3])
+	assert_eq(lens[2], DumpPuzzle.LENS_WRONG, "на месте середины куска стоит не 55")
 
 
-func test_lens_on_a_foreign_byte_is_red_with_plain_neighbours() -> void:
-	var puzzle: DumpPuzzle = _puzzle_with_row([0, 3, 7, 9, 0, 0, 0, 0], [14, 5, 1])
-	var lens: Dictionary = puzzle.lens(0, 2)
-	assert_eq(lens[2], DumpPuzzle.LENS_WRONG)
-	assert_eq(lens[1], DumpPuzzle.LENS_NEAR)
-	assert_eq(lens[3], DumpPuzzle.LENS_NEAR)
+func test_five_byte_lens_takes_two_cells_on_each_side() -> void:
+	var puzzle: DumpPuzzle = _puzzle_with_row([0, 7, 14, 2, 1, 9, 0, 0], [7, 14, 2, 1, 9])
+	var lens: Dictionary = puzzle.lens(0, 3)
+	assert_eq(lens.keys(), [1, 2, 3, 4, 5])
+	for col: int in [1, 2, 3, 4, 5]:
+		assert_eq(lens[col], DumpPuzzle.LENS_MATCH)
 
 
-func test_piece_that_would_stick_out_of_the_row_is_not_green() -> void:
-	# Наводимся на 1C в первой клетке: начало куска оказалось бы за левым краем — кусок тут
-	# стоять не может, и лупа не должна гореть зелёным (клик был бы промахом).
-	var puzzle: DumpPuzzle = _puzzle_with_row([1, 5, 0, 0, 0, 0, 0, 0], [14, 5, 1])
-	var lens: Dictionary = puzzle.lens(0, 0)
-	assert_eq(lens[0], DumpPuzzle.LENS_WRONG)
-	assert_eq(puzzle.pick(0, 0)["result"], DumpPuzzle.PICK_MISS, "и клик тут действительно промах")
+func test_lens_at_the_right_edge_is_cut_but_still_shown() -> void:
+	# Кусок 5 байт, курсор на последней клетке: подсвечены она и две слева, даже если кусок
+	# здесь не поместился бы (разработчик: «ложная» подсветка допустима).
+	var puzzle: DumpPuzzle = _puzzle_with_row([0, 0, 0, 0, 0, 7, 14, 2], [7, 14, 2, 1, 9])
+	var lens: Dictionary = puzzle.lens(0, 7)
+	assert_eq(lens.keys(), [5, 6, 7])
+	assert_eq([lens[5], lens[6], lens[7]], [DumpPuzzle.LENS_MATCH, DumpPuzzle.LENS_MATCH, DumpPuzzle.LENS_MATCH])
 
 
 func test_all_green_lens_always_means_a_catch() -> void:
-	# Главное обещание лупы: если она вся зелёная — клик ловит кусок. Проверяем на потоке.
+	# Главное обещание лупы: если она полная (не обрезана краем) и вся зелёная — клик ловит кусок.
 	for seed_value: int in 15:
 		var puzzle: DumpPuzzle = DumpPuzzle.generate(4, seed_value)
 		for row: int in puzzle.visible_rows():
@@ -163,4 +155,13 @@ func test_all_green_lens_always_means_a_catch() -> void:
 				if all_green:
 					var copy: DumpPuzzle = DumpPuzzle.generate(4, seed_value)
 					assert_ne(copy.pick(row, col)["result"], DumpPuzzle.PICK_MISS, "сид %d, %d:%d" % [seed_value, row, col])
+
+
+func test_lens_tells_misplaced_bytes_from_foreign_ones() -> void:
+	# Цель 14 5 1. Окно вокруг столбца 3: [1, 0, 14] — 1C есть в куске (не там), 00 нет, C4 есть (не там).
+	var puzzle: DumpPuzzle = _puzzle_with_row([0, 0, 1, 0, 14, 0, 0, 0], [14, 5, 1])
+	var lens: Dictionary = puzzle.lens(0, 3)
+	assert_eq(lens[2], DumpPuzzle.LENS_WRONG, "байт из куска не на своём месте — красный")
+	assert_eq(lens[3], DumpPuzzle.LENS_EMPTY, "байта в куске нет — серый")
+	assert_eq(lens[4], DumpPuzzle.LENS_WRONG)
 

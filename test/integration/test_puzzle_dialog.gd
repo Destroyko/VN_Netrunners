@@ -456,6 +456,6 @@ func test_puzzle_window_is_not_smaller_than_the_wide_dump() -> void:
 	await wait_frames(2)
 	var window: DesktopWindow = desktop.window_of("puzzle")
 	var dialog: PuzzleDialog = desktop.find_children("*", "PuzzleDialog", true, false)[0] as PuzzleDialog
-	assert_gte(window.size.x, dialog.get_combined_minimum_size().x, "сетка 12 в ряд не обрезана")
-	assert_eq((dialog.panel as DumpPanel).puzzle.current_target().size(), 6)
+	assert_gte(window.size.x, dialog.get_combined_minimum_size().x, "широкая сетка не обрезана")
+	assert_eq((dialog.panel as DumpPanel).puzzle.current_target().size(), 5)
 

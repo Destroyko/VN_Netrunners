@@ -19,7 +19,7 @@ const MIN_CELL_WIDTH: float = 30.0
 const SMALL_FONT_SIZE: int = 13
 const GAP: int = 2
 const CELL_IDLE: Color = Color(0.1, 0.12, 0.15)
-const CELL_NEAR: Color = Color(0.2, 0.23, 0.29)
+const CELL_LENS: Color = Color(0.22, 0.25, 0.3)
 const CELL_MATCH: Color = Color(0.15, 0.33, 0.2)
 const CELL_WRONG: Color = Color(0.35, 0.14, 0.14)
 const TEXT_DUMP: Color = Color(0.62, 0.68, 0.72)
@@ -312,6 +312,6 @@ func _paint_lens() -> void:
 				DumpPuzzle.LENS_WRONG:
 					color = CELL_WRONG
 				_:
-					color = CELL_NEAR
+					color = CELL_LENS
 		var cell: Button = _grid.get_child(index) as Button
 		(cell.get_theme_stylebox("normal") as StyleBoxFlat).bg_color = color

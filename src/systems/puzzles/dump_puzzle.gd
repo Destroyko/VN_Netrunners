@@ -19,10 +19,11 @@ const PICK_HIT: String = "hit"
 const PICK_MISS: String = "miss"
 const PICK_DONE: String = "done"
 
-## Состояния клеток под «лупой» (наведение мыши): подходит, не подходит, просто рядом.
+## Состояния клеток под «лупой» (наведение мыши): нужный байт на месте, байт из куска не на
+## своём месте, байта в куске нет вовсе (серый — видно, что лупа просматривает весь кусок).
 const LENS_MATCH: String = "match"
 const LENS_WRONG: String = "wrong"
-const LENS_NEAR: String = "near"
+const LENS_EMPTY: String = "empty"
 
 var level: int = 2
 var puzzle_seed: int = 0
@@ -144,43 +145,28 @@ func _put_decoy(symbols: PackedInt32Array, target: PackedInt32Array, taken: int)
 
 # --- Лупа ----------------------------------------------------------------------
 
-## Подсказка при наведении на клетку (решено 15.11.2026, на пробу). Клетка с байтом из текущего
-## куска — «подходит», и тогда лупа накрывает весь кусок по длине: столько клеток, сколько в куске,
-## выровненных по месту этого байта в куске. Каждая сверяется со своим байтом куска: совпал —
-## «подходит», нет — «не подходит». Байт встречается в куске дважды — берём место, где сходится
-## больше клеток. Чужой байт — «не подходит», соседи слева и справа — просто «рядом».
-## Возвращает {столбец: состояние}; клетки за краем строки пропускаются.
+## Подсказка при наведении на клетку (решено 15.11.2026, на пробу). Лупа **симметрична вокруг
+## курсора**: длина куска нечётная (3 или 5), поэтому слева и справа от курсора одинаково клеток.
+## Каждая клетка лупы сверяется с байтом куска на том же месте: совпал — «подходит» (зелёный);
+## байт из куска, но не на своём месте — «не подходит» (красный); байта в куске нет — «пусто»
+## (серый). Вся зелёная — курсор стоит на среднем байте нужного куска.
+## У края строки лупа просто обрезается — даже там, где кусок не поместился бы («ложная»
+## подсветка, так решил разработчик: лупа помогает смотреть, а не решает за игрока).
+## Возвращает {столбец: состояние}.
 func lens(row: int, col: int) -> Dictionary:
 	var result: Dictionary = {}
 	var symbols: PackedInt32Array = row_symbols(row)
 	var target: PackedInt32Array = current_target()
-	var best: int = -1
-	var best_score: int = -1
-	for index: int in target.size():
-		if target[index] != symbols[col]:
-			continue
-		# Кусок, вылезающий за край строки, здесь стоять не может: такое место не считаем,
-		# иначе обрезанная лупа горела бы зелёным там, где клик — промах.
-		if col - index < 0 or col - index + target.size() > width:
-			continue
-		var score: int = 0
-		for offset: int in target.size():
-			var at: int = col - index + offset
-			if at >= 0 and at < width and symbols[at] == target[offset]:
-				score += 1
-		if score > best_score:
-			best = index
-			best_score = score
-	if best < 0:
-		result[col] = LENS_WRONG
-		for neighbour: int in [col - 1, col + 1]:
-			if neighbour >= 0 and neighbour < width:
-				result[neighbour] = LENS_NEAR
-		return result
+	var half: int = target.size() / 2
 	for offset: int in target.size():
-		var at: int = col - best + offset
+		var at: int = col - half + offset
 		if at >= 0 and at < width:
-			result[at] = LENS_MATCH if symbols[at] == target[offset] else LENS_WRONG
+			if symbols[at] == target[offset]:
+				result[at] = LENS_MATCH
+			elif target.has(symbols[at]):
+				result[at] = LENS_WRONG
+			else:
+				result[at] = LENS_EMPTY
 	return result
 
 
