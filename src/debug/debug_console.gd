@@ -59,7 +59,7 @@ func _on_submitted(text: String) -> void:
 		return
 	_remember(text)
 	_print_line("> " + text)
-	var output: String = DebugCommands.run(text)
+	var output: String = _play(text) if text.strip_edges().to_lower().begins_with("play") else DebugCommands.run(text)
 	if not output.is_empty():
 		_print_line(output)
 
@@ -84,3 +84,28 @@ func _step_history(delta: int) -> void:
 	else:
 		_entry.text = _history[_history_pos]
 		_entry.caret_column = _entry.text.length()
+
+
+## `play` нужен рабочий стол, а не чистая логика, поэтому команда обрабатывается здесь:
+## консоль — ребёнок стола и просит его открыть окно головоломки.
+func _play(text: String) -> String:
+	var desktop: Desktop = get_parent() as Desktop
+	if desktop == null:
+		return "play работает только на рабочем столе"
+	var args: PackedStringArray = text.split(" ", false).slice(1)
+	var kind: String = args[0].to_lower() if args.size() > 0 else "password"
+	if kind != "password" and kind != "matrix":
+		return str(DebugCommands.HELP["play"])
+	var level: int = int(args[1]) if args.size() > 1 and args[1].is_valid_int() else 2
+	level = clampi(level, PuzzleLevels.MIN_LEVEL, PuzzleLevels.MAX_LEVEL)
+	var seed_value: int = int(args[2]) if args.size() > 2 and args[2].is_valid_int() else randi()
+	if not desktop.play_puzzle(kind, level, seed_value):
+		return "головоломка уже открыта"
+	if not desktop.practice_finished.is_connected(_on_practice_finished):
+		desktop.practice_finished.connect(_on_practice_finished)
+	_toggle()
+	return "%s, уровень %d, сид %d" % [kind, level, seed_value]
+
+
+func _on_practice_finished(gained: int) -> void:
+	_print_line("тренировка закончена: слоёв %d" % gained)

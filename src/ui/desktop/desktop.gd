@@ -41,6 +41,8 @@ var _taskbar: Taskbar
 var _open: Dictionary = {}
 var _dialog: PuzzleDialog
 var _puzzle_window: DesktopWindow
+## Тренировочная головоломка из консоли разработчика: терминал о ней не знает.
+var _practice: bool = false
 var _rows: VBoxContainer
 var _emergency: Control
 var _opened_count: int = 0
@@ -247,8 +249,36 @@ func _on_menu(action: String) -> void:
 ## Закрытие — это «выйти»: засчитывается то, что успели собрать. Игровое время при этом стоит
 ## (time.md). Итог уходит в терминал, а его ответ — в вывод окна терминала.
 func _on_puzzle_requested(request: Dictionary, view: TerminalView) -> void:
+	_show_puzzle(request, view)
+
+
+## Отладка: головоломка без взлома и без подключения (команда `play` в консоли F1).
+## Итог в игру не попадает, возвращается числом слоёв через `practice_finished`.
+signal practice_finished(gained: int)
+
+
+func play_puzzle(kind: String, level: int, seed_value: int) -> bool:
+	if has_puzzle_open():
+		return false
+	var puzzle: RefCounted
+	var layers_total: int = 1
+	if kind == "password":
+		puzzle = PasswordPuzzle.generate(level, seed_value, 0)
+	else:
+		var params: Dictionary = PuzzleLevels.matrix(level)
+		layers_total = int(params["sequences"])
+		puzzle = MatrixPuzzle.generate(level, seed_value, params)
+	_show_puzzle({
+		"type": "puzzle", "kind": kind, "node": "тренировка", "service": kind,
+		"layers_done": 0, "layers_total": layers_total, "puzzle": puzzle,
+	}, null)
+	return true
+
+
+func _show_puzzle(request: Dictionary, view: TerminalView) -> void:
 	if has_puzzle_open():
 		return
+	_practice = view == null
 	var window := DesktopWindow.new()
 	window.app_id = PUZZLE_APP
 	window.title = "Взлом"
@@ -271,7 +301,10 @@ func _on_puzzle_requested(request: Dictionary, view: TerminalView) -> void:
 		var done_window: DesktopWindow = _puzzle_window
 		_dialog = null
 		_puzzle_window = null
-		view.show_result(terminal.finish_puzzle(gained))
+		if view != null:
+			view.show_result(terminal.finish_puzzle(gained))
+		else:
+			practice_finished.emit(gained)
 		if is_instance_valid(done_window):
 			done_window.close())
 	_puzzle_window = window
@@ -286,7 +319,7 @@ func has_puzzle_open() -> bool:
 
 ## Сеанс оборвали (`dc`, трейс), пока головоломка открыта: окну больше нечего решать.
 func _close_stale_puzzle() -> void:
-	if has_puzzle_open() and terminal.current_puzzle() == null:
+	if has_puzzle_open() and not _practice and terminal.current_puzzle() == null:
 		var stale: DesktopWindow = _puzzle_window
 		_dialog = null
 		_puzzle_window = null

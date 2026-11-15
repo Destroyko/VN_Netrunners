@@ -20,6 +20,7 @@ const HELP: Dictionary = {
 	"effect": "effect <json> — применить эффект, например: effect {\"money\": 500}",
 	"cond": "cond <json> — проверить условие, например: cond {\"flag\": \"story.x\"}",
 	"quest": "quest <id> <этап> — перевести квест на этап",
+	"play": "play <password|matrix> [уровень 2-4] [сид] — открыть головоломку окном без взлома (на рабочем столе)",
 	"puzzle": "puzzle <password|matrix> <уровень 2-4> <сид> — сгенерировать головоломку: метрики и эталонное решение",
 }
 
@@ -63,6 +64,8 @@ static func run(line: String) -> String:
 			return _quest(args)
 		"puzzle":
 			return _puzzle(args)
+		"play":
+			return "play работает только на рабочем столе (консоль F1 в окне стола)"
 		_:
 			return "неизвестная команда '%s'. help — список команд" % command
 

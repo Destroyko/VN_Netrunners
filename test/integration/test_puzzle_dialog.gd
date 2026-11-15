@@ -255,3 +255,18 @@ func test_unknown_word_returns_letters_to_the_pool() -> void:
 	if panel.puzzle.attempts_left() < panel.puzzle.max_attempts:
 		return
 	assert_eq(panel.pool_letters().size(), before, "слова не из словаря вернулись в пул")
+
+
+func test_play_opens_a_puzzle_without_connection() -> void:
+	var scene: PackedScene = load(Screens.DESKTOP) as PackedScene
+	var desktop: Desktop = scene.instantiate() as Desktop
+	add_child_autofree(desktop)
+	await wait_frames(2)
+	assert_true(desktop.play_puzzle("password", 2, 5))
+	assert_true(desktop.has_puzzle_open())
+	var got: Array = []
+	desktop.practice_finished.connect(func(gained: int) -> void: got.append(gained))
+	(desktop.find_child("Exit", true, false) as Button).pressed.emit()
+	await wait_frames(2)
+	assert_false(desktop.has_puzzle_open())
+	assert_eq(got, [0])
