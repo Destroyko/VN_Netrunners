@@ -40,7 +40,7 @@ src/
   core/          — общая логика: Conditions, Effects, DataLoader, Validator
   systems/       — игровые системы (чистая логика): terminal, filesystem, network, puzzles, economy, needs, heat
   ui/            — сцены и скрипты интерфейса: desktop, windows, apps
-  debug/         — консоль разработчика и отладочные инструменты
+  debug/         — консоль разработчика (F1), журнал сессии и снимок «здесь баг» (F9, SessionLog)
 data/            — контент в JSON: quests, triggers, nodes, news, programs.json, puzzles/, balance.json
 assets/          — графика, шрифты, звук
 test/
@@ -64,7 +64,7 @@ tools/           — скрипты: валидатор данных, отчёт
 - Фреймворк: **GUT**. Запуск:
   `godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://test -gexit`
 - Любая новая логика в `systems/` или `core/` — с unit-тестами.
-- Исправляешь баг — сначала тест, который его воспроизводит.
+- Исправляешь баг — сначала тест, который его воспроизводит. Разработчик сообщает о баге снимком по F9: бери **последнюю** папку в `bugreports/` (`session.log`, `state.json`, `screenshot.png`, `note.txt`).
 - После изменения данных — запусти валидатор (`tools/`).
 - Генераторы головоломок проверяются солвером и отчётом по сложности (`docs/tech/testing.md`).
 

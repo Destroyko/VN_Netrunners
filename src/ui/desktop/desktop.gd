@@ -283,6 +283,13 @@ func play_puzzle(kind: String, level: int, seed_value: int) -> bool:
 func _show_puzzle(request: Dictionary, view: TerminalView) -> void:
 	if has_puzzle_open():
 		return
+	# Головоломка воспроизводится по виду, ступени и сиду — их и пишем в журнал.
+	var puzzle_obj: Object = request.get("puzzle") as Object
+	SessionLog.write("puzzle", "открыта: %s, ступень %s, сид %s, узел %s, порт %s" % [
+		request.get("kind", ""), request.get("difficulty", request.get("level", "?")),
+		puzzle_obj.get("puzzle_seed") if puzzle_obj != null else "?",
+		request.get("node", ""), request.get("port", "-"),
+	])
 	_practice = view == null
 	var window := DesktopWindow.new()
 	window.app_id = PUZZLE_APP

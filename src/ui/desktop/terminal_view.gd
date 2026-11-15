@@ -121,6 +121,7 @@ func _on_screen_input(event: InputEvent) -> void:
 func submit(line: String) -> void:
 	_history_pos = -1
 	_print(_prompt.text + line)
+	SessionLog.write("term", _prompt.text + line)
 	show_result(terminal.execute(line))
 
 

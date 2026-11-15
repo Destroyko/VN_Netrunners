@@ -163,6 +163,7 @@ func _evaluate() -> void:
 
 ## Итог проверки: верные буквы закрепляются, лишние исчезают, «не там» уходят в пул.
 func _apply(result: Dictionary) -> void:
+	SessionLog.write("puzzle", "пароль: %s → %s" % ["".join(_slots), JSON.stringify(result.get("marks", result.get("reason", "")))])
 	if not bool(result["valid"]):
 		# Слово не подошло и не из словаря: буквы возвращаются в пул, попытка не тратится.
 		for index: int in puzzle.length:

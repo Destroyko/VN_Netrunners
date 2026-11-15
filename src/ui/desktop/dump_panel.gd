@@ -128,6 +128,8 @@ func click(row: int, col: int) -> Dictionary:
 	if _done:
 		return {}
 	var result: Dictionary = puzzle.pick(puzzle.top + row, col)
+	SessionLog.write("puzzle", "дамп: строка потока %d, столбец %d → %s (поймано %d)" % [
+		puzzle.top + row, col, result["result"], int(result["stage"])])
 	# После клика лупа гаснет: подсвеченный кусок либо пойман, либо уже не нужен.
 	# Загорится снова, когда мышь перейдёт на другую клетку.
 	_hovered = -1

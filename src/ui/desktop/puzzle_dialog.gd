@@ -72,4 +72,5 @@ func _on_finished(gained: int) -> void:
 	if _done:
 		return
 	_done = true
+	SessionLog.write("puzzle", "итог: слоёв %d" % gained)
 	finished.emit(gained)

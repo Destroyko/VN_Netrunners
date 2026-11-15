@@ -59,7 +59,8 @@ func _on_submitted(text: String) -> void:
 		return
 	_remember(text)
 	_print_line("> " + text)
-	var output: String = _play(text) if text.strip_edges().to_lower().begins_with("play") else DebugCommands.run(text)
+	SessionLog.write("f1", text)
+	var output: String = _run(text)
 	if not output.is_empty():
 		_print_line(output)
 
@@ -105,6 +106,17 @@ func _play(text: String) -> String:
 		desktop.practice_finished.connect(_on_practice_finished)
 	_toggle()
 	return "%s, уровень %d, сид %d" % [kind, level, seed_value]
+
+
+## Команды, которым нужен не чистый разбор, а живая игра: окно на столе, снимок экрана.
+func _run(text: String) -> String:
+	var command: String = text.strip_edges().to_lower()
+	if command.begins_with("play"):
+		return _play(text)
+	if command == "bug" or command.begins_with("bug "):
+		var folder: String = SessionLog.snapshot(text.strip_edges().substr(3).strip_edges())
+		return "снимок: %s" % folder if not folder.is_empty() else "журнал выключен (не отладочная сборка)"
+	return DebugCommands.run(text)
 
 
 func _on_practice_finished(gained: int) -> void:

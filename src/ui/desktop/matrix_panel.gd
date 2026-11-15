@@ -103,6 +103,7 @@ func pick(cell: int) -> Dictionary:
 	if _done or _round_over or _busy:
 		return {}
 	var result: Dictionary = puzzle.pick(cell)
+	SessionLog.write("puzzle", "матрица: клетка %d → %s" % [cell, "ход" if bool(result["ok"]) else "нельзя"])
 	if not bool(result["ok"]):
 		_note.text = "Сюда нельзя: следующий ход — в той же строке или в том же столбце, что и прошлый."
 	elif bool(result["finished"]):
