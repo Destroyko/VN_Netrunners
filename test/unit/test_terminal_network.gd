@@ -33,25 +33,27 @@ func test_probe_describes_the_node_and_reveals_its_name() -> void:
 	run("scan")
 	var text: String = run("probe 10.0.0.1")
 	assert_string_contains(text, "Роутер (дом)")
-	assert_string_contains(text, "трейс: нет")
-	assert_string_contains(text, "круглосуточно")
+	assert_string_contains(text, "обнаружен мониторинг подключений: нет")
 	assert_string_contains(run("nodes"), "Роутер (дом)")
 
 
-func test_probe_shows_services_and_hints() -> void:
+func test_probe_shows_services_without_game_internals() -> void:
 	reach_training_pc()
 	var text: String = run("probe 10.0.0.7")
 	assert_string_contains(text, "svc_login")
-	assert_string_contains(text, "passhound")
+	assert_string_contains(text, "закрыт")
+	assert_string_contains(text, "для входа требуется сервисов: 1")
+	assert_false(text.contains("passhound"), "какой программой ломать — знание игрока, не сканера")
+	assert_false(text.contains("сложность"))
+	assert_false(text.contains("вскрыто"))
 	assert_false(text.contains("подсказка"), "консоль не подсказывает: подсказки — в блокноте")
 
 
-func test_probe_shows_trace_and_prime_time() -> void:
+func test_probe_reports_monitoring_but_not_the_schedule() -> void:
 	reveal("node_office_server")
 	var text: String = run("probe 77.61.204.12")
-	assert_string_contains(text, "трейс: 60 мин")
-	assert_string_contains(text, "08:00–18:00")
-	assert_string_contains(text, "сейчас в сети")
+	assert_string_contains(text, "обнаружен мониторинг подключений: да")
+	assert_false(text.contains("08:00"), "расписание узнаётся отдельной механикой, не сканером")
 
 
 func test_probe_of_unknown_address_is_refused() -> void:
@@ -129,7 +131,7 @@ func test_probe_without_an_address_examines_the_target() -> void:
 	run("connect 10.0.0.7")
 	var text: String = run("probe")
 	assert_string_contains(text, "svc_login")
-	assert_string_contains(text, "passhound")
+	assert_string_contains(text, "сканирование 10.0.0.7")
 
 
 func test_connect_outside_prime_time() -> void:

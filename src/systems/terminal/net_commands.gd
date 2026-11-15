@@ -5,7 +5,7 @@ extends RefCounted
 
 const NO_NETWORK: String = "сети нет: на этом ПК нет /sys/net.sys"
 
-const PUZZLE_NAMES: Dictionary = {"password": "пароль", "matrix": "матрица"}
+const PROBE_RULE: String = "----------------------------------------"
 
 var _t: Terminal
 
@@ -33,7 +33,7 @@ func nodes(result: TermResult) -> void:
 		result.add(_book_line(entry))
 
 
-## `probe`: сервисы, защита, трейс и расписание. Трейс не запускает.
+## `probe`: сервисы узла и их состояние, сколько нужно для входа, есть ли мониторинг. Трейс не запускает.
 func probe(args: PackedStringArray, result: TermResult) -> void:
 	if not _t.has_network():
 		result.add(NO_NETWORK)
@@ -48,26 +48,19 @@ func probe(args: PackedStringArray, result: TermResult) -> void:
 		result.add(seen.message())
 		return
 
+	# Вывод как у настоящей утилиты (по образцу Hacknet): что открыто и что стоит на узле.
+	# Ни программ, ни сложности, ни расписания — этого сканер знать не может (terminal-spec.md).
 	var info: Dictionary = seen.info
-	result.add("%s — %s (%s)" % [info["address"], info["title"], info["device"]])
-	result.add("нужно вскрыть сервисов: %d из %d (вскрыто %d)" % [
-		int(info["required_services"]), (info["services"] as Array).size(), int(info["cracked_services"])
-	])
+	result.add("сканирование %s .........." % info["address"])
+	result.add("узел: %s (%s)" % [info["title"], info["device"]])
+	result.add(PROBE_RULE)
 	for service: Dictionary in info["services"] as Array:
-		result.add("  %s — %s [%s, %s, сложность %d]%s" % [
-			service["id"], service["name"], PUZZLE_NAMES.get(service["puzzle"], service["puzzle"]),
-			service["program"], int(service["difficulty"]), "  вскрыт" if bool(service["cracked"]) else ""
+		result.add("  %-12s %-24s %s" % [
+			service["id"], service["name"], "открыт" if bool(service["cracked"]) else "закрыт"
 		])
-
-	var minutes: int = int(info["trace_minutes"])
-	result.add("трейс: %s" % (("%d мин" % minutes) if minutes > 0 else "нет"))
-	var window: Dictionary = info["online"] as Dictionary
-	if window.is_empty():
-		result.add("в сети: круглосуточно")
-	else:
-		result.add("в сети: %s–%s, сейчас %s" % [
-			window["from"], window["to"], "в сети" if bool(info["online_now"]) else "не в сети"
-		])
+	result.add(PROBE_RULE)
+	result.add("для входа требуется сервисов: %d" % int(info["required_services"]))
+	result.add("обнаружен мониторинг подключений: %s" % ("да" if int(info["trace_minutes"]) > 0 else "нет"))
 	_t.spend(_t.minutes_of("probe", 2), result)
 
 
