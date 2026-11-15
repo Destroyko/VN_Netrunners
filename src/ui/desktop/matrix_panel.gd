@@ -89,6 +89,11 @@ func _finish(layers: int) -> void:
 	add_child(button)
 
 
+## Игрок закрыл окно или нажал «Выйти»: засчитывается то, что успел собрать.
+func abandon_gained() -> int:
+	return puzzle.layers()
+
+
 func is_done() -> bool:
 	return _done
 

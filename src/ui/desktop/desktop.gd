@@ -7,6 +7,8 @@ extends Control
 ## `GameState` и в `Terminal`, который держит стол, а не окно.
 
 const DEBUG_CONSOLE: String = "res://src/debug/debug_console.tscn"
+## Окно головоломки: не приложение, иконки у него нет.
+const PUZZLE_APP: String = "puzzle"
 const ICON_SIZE: Vector2 = Vector2(96, 72)
 
 ## Приложения: порядок = порядок иконок. `requires` — условие доступности на общем языке;
@@ -38,6 +40,7 @@ var _windows: Control
 var _taskbar: Taskbar
 var _open: Dictionary = {}
 var _dialog: PuzzleDialog
+var _puzzle_window: DesktopWindow
 var _rows: VBoxContainer
 var _emergency: Control
 var _opened_count: int = 0
@@ -240,25 +243,59 @@ func _on_menu(action: String) -> void:
 			get_tree().change_scene_to_file(Screens.MAIN_MENU)
 
 
-## Головоломка открывается модальным окном поверх стола и терминала: игровое время при этом
-## стоит (time.md). Итог уходит в терминал, а его ответ — в вывод окна терминала.
+## Головоломка открывается обычным окном поверх терминала: его можно свернуть и закрыть.
+## Закрытие — это «выйти»: засчитывается то, что успели собрать. Игровое время при этом стоит
+## (time.md). Итог уходит в терминал, а его ответ — в вывод окна терминала.
 func _on_puzzle_requested(request: Dictionary, view: TerminalView) -> void:
-	if _dialog != null:
+	if has_puzzle_open():
 		return
+	var window := DesktopWindow.new()
+	window.app_id = PUZZLE_APP
+	window.title = "Взлом"
+	window.set_minimum(Vector2(420, 460))
+	window.closed.connect(_on_window_closed)
+	window.closed.connect(func(_w: DesktopWindow) -> void:
+		# Окно уже закрывается: итог отдаём, а второй раз закрывать не надо.
+		_puzzle_window = null
+		if _dialog != null and is_instance_valid(_dialog):
+			_dialog.abandon())
+	window.focus_requested.connect(focus)
+	window.state_changed.connect(func(_w: DesktopWindow) -> void: _sync_taskbar())
+	_windows.add_child(window)
+	window.size = Vector2(440, 480)
+	window.position = WindowRules.cascade(_opened_count, window.size, _windows.size)
 	_dialog = PuzzleDialog.new()
-	add_child(_dialog)
+	window.body.add_child(_dialog)
 	_dialog.setup(request)
 	_dialog.finished.connect(func(gained: int) -> void:
+		var done_window: DesktopWindow = _puzzle_window
 		_dialog = null
-		view.show_result(terminal.finish_puzzle(gained)))
+		_puzzle_window = null
+		view.show_result(terminal.finish_puzzle(gained))
+		if is_instance_valid(done_window):
+			done_window.close())
+	_puzzle_window = window
+	_open[PUZZLE_APP] = window
+	_opened_count += 1
+	focus(window)
 
 
 func has_puzzle_open() -> bool:
-	return _dialog != null and is_instance_valid(_dialog)
+	return _puzzle_window != null and is_instance_valid(_puzzle_window)
+
+
+## Сеанс оборвали (`dc`, трейс), пока головоломка открыта: окну больше нечего решать.
+func _close_stale_puzzle() -> void:
+	if has_puzzle_open() and terminal.current_puzzle() == null:
+		var stale: DesktopWindow = _puzzle_window
+		_dialog = null
+		_puzzle_window = null
+		stale.close()
 
 
 ## Команда выполнена: карта и режим стола перечитывают состояние.
 func _on_result_shown() -> void:
+	_close_stale_puzzle()
 	var map: DesktopWindow = window_of("map")
 	if map != null:
 		(map.body.get_child(0) as MapView).refresh()

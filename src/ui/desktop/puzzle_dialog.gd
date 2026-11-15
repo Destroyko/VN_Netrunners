@@ -1,40 +1,21 @@
 class_name PuzzleDialog
-extends Control
-## Модальное окно головоломки поверх рабочего стола (docs/tech/desktop-layout.md): затемняет
-## всё остальное, пока партия не закончена. Сам головоломку не решает — выбирает панель по виду
-## и отдаёт итог: сколько слоёв вскрыто (`Terminal.finish_puzzle`).
+extends VBoxContainer
+## Содержимое окна головоломки на рабочем столе (docs/tech/desktop-layout.md): выбирает панель
+## по виду головоломки, отдаёт итог — сколько слоёв вскрыто (`Terminal.finish_puzzle`) — и даёт
+## выйти. Само окно (свернуть, закрыть) — обычный `DesktopWindow`, его создаёт стол.
 
 signal finished(gained: int)
 
 var panel: Control
 
+var _done: bool = false
+
 
 func setup(request: Dictionary) -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	mouse_filter = Control.MOUSE_FILTER_STOP
-
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.6)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(dim)
-
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
-
-	var frame := PanelContainer.new()
-	# Своя непрозрачная заливка: иначе иконки стола просвечивают сквозь окно.
-	var backdrop := StyleBoxFlat.new()
-	backdrop.bg_color = Color(0.09, 0.1, 0.13)
-	backdrop.set_content_margin_all(14)
-	frame.add_theme_stylebox_override("panel", backdrop)
-	center.add_child(frame)
-	var rows := VBoxContainer.new()
-	frame.add_child(rows)
-
+	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var header := Label.new()
 	header.text = _header(request)
-	rows.add_child(header)
+	add_child(header)
 
 	var puzzle: RefCounted = request.get("puzzle") as RefCounted
 	if puzzle is PasswordPuzzle:
@@ -49,9 +30,16 @@ func setup(request: Dictionary) -> void:
 		panel = matrix
 	else:
 		push_error("PuzzleDialog: неизвестный вид головоломки: %s" % [request.get("kind")])
-		finished.emit(0)
+		_on_finished(0)
 		return
-	rows.add_child(panel)
+	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	add_child(panel)
+
+	var exit := Button.new()
+	exit.name = "Exit"
+	exit.text = "Выйти"
+	exit.pressed.connect(abandon)
+	add_child(exit)
 
 
 static func _header(request: Dictionary) -> String:
@@ -62,6 +50,19 @@ static func _header(request: Dictionary) -> String:
 	return text
 
 
+## Выйти, не доиграв (кнопка или закрытие окна): засчитывается то, что успел собрать.
+func abandon() -> void:
+	if _done or panel == null:
+		return
+	_on_finished(int(panel.call("abandon_gained")))
+
+
+func is_done() -> bool:
+	return _done
+
+
 func _on_finished(gained: int) -> void:
+	if _done:
+		return
+	_done = true
 	finished.emit(gained)
-	queue_free()
