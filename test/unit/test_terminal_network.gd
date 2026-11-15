@@ -114,13 +114,21 @@ func test_scan_on_a_remote_node_shows_its_neighbours() -> void:
 	assert_string_contains(text, "localhost")
 
 
-func test_denied_connect_names_what_is_left() -> void:
+func test_denied_connect_leaves_the_player_at_the_door() -> void:
 	reach_training_pc()
 	var text: String = run("connect 10.0.0.7")
-	assert_string_contains(text, "вскрыто 0 из 1 сервисов")
+	assert_string_contains(text, "вход закрыт")
+	assert_string_contains(text, "вскрыто 0 из 1")
+	assert_false(text.contains("svc_login"), "защиту показывает probe, а не connect")
+	assert_eq(t.prompt(), "10.0.0.7 [дверь]$ ", "не дома и ещё не внутри")
+
+
+func test_probe_without_an_address_examines_the_door() -> void:
+	reach_training_pc()
+	run("connect 10.0.0.7")
+	var text: String = run("probe")
 	assert_string_contains(text, "svc_login")
 	assert_string_contains(text, "passhound")
-	assert_eq(t.prompt(), "home:/home$ ", "внутрь не пустили")
 
 
 func test_connect_outside_prime_time() -> void:
@@ -231,14 +239,17 @@ func test_run_form_is_the_same_as_the_short_one() -> void:
 	assert_eq(last.request["service"], "svc_login")
 
 
-func test_solved_puzzle_opens_the_service_and_connect_lets_in() -> void:
+func test_solved_puzzle_opens_the_service_and_lets_in_by_itself() -> void:
 	learn_programs()
 	reach_training_pc()
 	run("connect 10.0.0.7")
 	run("passhound")
-	assert_string_contains(solve_puzzle().text(), "сервис вскрыт: svc_login (1 из 1)")
+	var text: String = solve_puzzle().text()
+	assert_string_contains(text, "сервис вскрыт: svc_login (1 из 1)")
+	assert_string_contains(text, "подключено")
 	assert_signal_emitted(EventBus, "puzzle_solved")
-	assert_string_contains(run("connect 10.0.0.7"), "подключено")
+	assert_true(t.session.has_connection())
+	assert_eq(t.prompt().ends_with("$ ") or t.prompt().ends_with("# "), true)
 
 
 func test_failed_puzzle_keeps_the_service_closed_and_can_be_retried() -> void:

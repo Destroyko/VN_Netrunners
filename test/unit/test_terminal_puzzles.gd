@@ -36,8 +36,10 @@ func test_solving_the_password_opens_the_service() -> void:
 	run("passhound")
 	var puzzle: PasswordPuzzle = last.request["puzzle"] as PasswordPuzzle
 	assert_true(bool(puzzle.guess(puzzle.word)["solved"]))
-	assert_string_contains(t.finish_puzzle(1).text(), "сервис вскрыт")
-	assert_string_contains(run("connect 10.0.0.7"), "подключено")
+	var text: String = t.finish_puzzle(1).text()
+	assert_string_contains(text, "сервис вскрыт")
+	assert_string_contains(text, "подключено", "всё вскрыто — дверь открылась сама")
+	assert_true(t.session.has_connection())
 
 
 func test_matrix_request_is_a_matrix() -> void:
@@ -120,8 +122,9 @@ func test_finishing_the_remaining_layers_opens_the_service() -> void:
 	run("gridrunner")
 	t.finish_puzzle(1)
 	run("gridrunner")
-	assert_string_contains(t.finish_puzzle(1).text(), "сервис вскрыт")
-	assert_string_contains(run("connect 92.44.18.3"), "подключено")
+	var text: String = t.finish_puzzle(1).text()
+	assert_string_contains(text, "сервис вскрыт")
+	assert_true(t.session.has_connection(), "вскрыто всё нужное — вошли без лишнего connect")
 
 
 func test_solving_every_layer_at_once_opens_the_service() -> void:

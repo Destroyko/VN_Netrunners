@@ -38,10 +38,12 @@ func probe(args: PackedStringArray, result: TermResult) -> void:
 	if not _t.has_network():
 		result.add(NO_NETWORK)
 		return
-	if args.is_empty():
-		result.add("использование: probe <адрес>")
+	# Без адреса — осматриваем «дверь», у которой стоим (после connect).
+	var address: String = args[0] if not args.is_empty() else _t.session.target_address()
+	if address.is_empty():
+		result.add("использование: probe <адрес> — или подойди к узлу: connect <адрес>, потом probe")
 		return
-	var seen: NetResult = _t.net.probe(args[0], _t.now())
+	var seen: NetResult = _t.net.probe(address, _t.now())
 	if not seen.is_ok():
 		result.add(seen.message())
 		return
@@ -88,8 +90,10 @@ func connect_to(args: PackedStringArray, result: TermResult) -> void:
 		_t.hung_up(before_node, true)
 
 	if tried.code == NetResult.Code.SERVICES_LEFT:
-		result.add(tried.message())
-		_list_closed_services(tried.node_id, result)
+		# Игрок не «отброшен домой», а стоит у двери: защиты он ещё не видел (её показывает probe).
+		var door: Dictionary = _t.net.definition(tried.node_id)
+		result.add("%s — вход закрыт. Ты у двери: вскрыто %d из %d." % [door.get("address", tried.node_id), tried.cracked, tried.required])
+		result.add("probe — осмотреть защиту, потом программа под неё, dc — уйти.")
 		_t.spend(_t.minutes_of("terminal_command"), result)
 		return
 	if not tried.is_ok():

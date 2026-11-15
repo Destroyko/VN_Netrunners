@@ -38,6 +38,12 @@ func has_connection() -> bool:
 
 
 ## Где сейчас терминал: на удалённом узле после `connect` или у себя дома.
+## Адрес узла, у двери которого стоим или в котором сидим; пусто — цели нет.
+func target_address() -> String:
+	var node_id: String = target_id()
+	return "" if node_id.is_empty() else str(_net.definition(node_id).get("address", ""))
+
+
 func current_id() -> String:
 	return target_id() if has_connection() else Network.HOME_ID
 
