@@ -18,6 +18,7 @@
   "services": [
     {
       "id": "svc_firewall",
+      "port": 443,
       "name": "Фаервол роутера",
       "puzzle": "matrix",
       "difficulty": 2,

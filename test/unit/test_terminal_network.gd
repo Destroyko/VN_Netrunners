@@ -40,7 +40,7 @@ func test_probe_describes_the_node_and_reveals_its_name() -> void:
 func test_probe_shows_services_without_game_internals() -> void:
 	reach_training_pc()
 	var text: String = run("probe 10.0.0.7")
-	assert_string_contains(text, "svc_login")
+	assert_string_contains(text, "порт 22")
 	assert_string_contains(text, "закрыт")
 	assert_string_contains(text, "для входа требуется сервисов: 1")
 	assert_false(text.contains("passhound"), "какой программой ломать — знание игрока, не сканера")
@@ -130,7 +130,7 @@ func test_probe_without_an_address_examines_the_target() -> void:
 	reach_training_pc()
 	run("connect 10.0.0.7")
 	var text: String = run("probe")
-	assert_string_contains(text, "svc_login")
+	assert_string_contains(text, "порт 22")
 	assert_string_contains(text, "сканирование 10.0.0.7")
 
 
@@ -238,7 +238,7 @@ func test_run_form_is_the_same_as_the_short_one() -> void:
 	learn_programs()
 	reach_training_pc()
 	run("connect 10.0.0.7")
-	run("run passhound svc_login")
+	run("run passhound 22")
 	assert_eq(last.request["service"], "svc_login")
 
 
@@ -248,7 +248,7 @@ func test_solved_puzzle_opens_the_service_and_lets_in_by_itself() -> void:
 	run("connect 10.0.0.7")
 	run("passhound")
 	var text: String = solve_puzzle().text()
-	assert_string_contains(text, "сервис вскрыт: svc_login (1 из 1)")
+	assert_string_contains(text, "порт 22: доступ получен (1 из 1)")
 	assert_string_contains(text, "подключено")
 	assert_signal_emitted(EventBus, "puzzle_solved")
 	assert_true(t.session.has_connection())
@@ -275,7 +275,7 @@ func test_wrong_program_for_the_defence() -> void:
 	learn_programs()
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
-	assert_eq(run("passhound svc_vpn"), "passhound не работает против этой защиты")
+	assert_eq(run("passhound 1194"), "passhound не работает против этой защиты")
 
 
 func test_cracker_picks_the_only_fitting_service() -> void:
@@ -290,7 +290,7 @@ func test_unknown_service_is_refused() -> void:
 	learn_programs()
 	reach_training_pc()
 	run("connect 10.0.0.7")
-	assert_string_contains(run("passhound svc_nope"), "нет такого сервиса")
+	assert_string_contains(run("passhound 9999"), "порт 9999: нет сервиса")
 
 
 func test_no_trace_before_the_group_era() -> void:
@@ -485,9 +485,9 @@ func test_deepscan_opens_one_more_symbol() -> void:
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
 	var before: int = minute()
-	assert_string_contains(run("deepscan svc_admin_login"), "ещё один символ")
+	assert_string_contains(run("deepscan 8080"), "ещё один символ")
 	assert_eq(int(GameState.get_var_or("deepscan.node_office_server.svc_admin_login", 0)), 1)
-	run("deepscan svc_admin_login")
+	run("deepscan 8080")
 	assert_eq(int(GameState.get_var_or("deepscan.node_office_server.svc_admin_login", 0)), 2)
 	assert_eq(minute(), before + 10, "две пятиминутки")
 	assert_false(t.session.is_tracing(), "разведка трейс не запускает")
@@ -509,7 +509,7 @@ func test_deepscan_works_only_against_a_password() -> void:
 	reveal("node_husband_pc")
 	Clock.set_time(1, 19 * 60)
 	run("connect 92.44.18.3")
-	assert_string_contains(run("deepscan svc_firewall"), "только против пароля")
+	assert_string_contains(run("deepscan 443"), "только против пароля")
 
 
 # --- Скачивание и загрузка ---------------------------------------------------
@@ -699,7 +699,7 @@ func test_complete_service_of_the_target() -> void:
 	learn_programs()
 	reach_training_pc()
 	run("connect 10.0.0.7")
-	assert_eq(t.complete("passhound svc_")["line"], "passhound svc_login ")
+	assert_eq(t.complete("passhound 2")["line"], "passhound 22 ")
 
 
 func test_complete_put_takes_files_from_own_pc() -> void:
@@ -716,3 +716,14 @@ func test_old_os_has_no_autocomplete() -> void:
 func test_complete_quotes_a_path_with_spaces() -> void:
 	t.home_fs().put_file("/home/мои файлы/заметка.txt", {"text": "секрет"})
 	assert_eq(t.complete("cd мо")["line"], "cd \"мои файлы/\"")
+
+
+func test_program_takes_a_port_number_not_a_service_name() -> void:
+	learn_programs()
+	reach_training_pc()
+	run("connect 10.0.0.7")
+	assert_string_contains(run("passhound svc_login"), "порт — это число")
+	run("passhound 22")
+	assert_eq(last.request["port"], 22)
+	assert_eq(last.request["service"], "svc_login", "внутри игра по-прежнему знает сервис по id")
+

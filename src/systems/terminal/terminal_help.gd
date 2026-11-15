@@ -18,12 +18,12 @@ const COMMANDS: Dictionary = {
 	"rm": ["rm <файл или маска>", "удалить; маска * работает: rm * в каталоге логов"],
 	"mkdir": ["mkdir <путь>", "создать каталог (только в /home)"],
 	"scan": ["scan", "узлы, подключённые к текущему"],
-	"probe": ["probe <адрес>", "разведка: сервисы, защита, трейс, расписание"],
+	"probe": ["probe [адрес]", "разведка: открытые порты и защита узла"],
 	"connect": ["connect <адрес>", "подключиться к узлу"],
 	"dc": ["dc", "отключиться и прервать взлом"],
 	"nodes": ["nodes", "все узлы, которые ты уже знаешь"],
 	"progs": ["progs", "установленные программы"],
-	"run": ["run <программа> [сервис]", "запустить программу (можно просто имя программы)"],
+	"run": ["run <программа> [порт]", "запустить программу (можно просто имя программы)"],
 	"reboot": ["reboot", "перезагрузить свой ПК"],
 	"history": ["history", "последние 50 команд"],
 	"clear": ["clear", "очистить экран"],
@@ -45,7 +45,7 @@ static func show(args: PackedStringArray, result: TermResult) -> void:
 		result.add("использование: %s" % entry[0])
 		result.add(str(entry[1]))
 	elif Programs.is_program(name):
-		result.add("использование: %s [сервис]" % name)
+		result.add("использование: %s [порт]" % name)
 		result.add(Programs.about(name))
 	else:
 		result.add("команда не найдена: %s" % args[0])

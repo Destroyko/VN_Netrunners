@@ -176,6 +176,7 @@ func describe(node_id: String, now: int) -> Dictionary:
 		var service_id: String = str(service_def.get("id", ""))
 		services.append({
 			"id": service_id,
+			"port": int(service_def.get("port", 0)),
 			"name": str(service_def.get("name", "")),
 			"puzzle": str(service_def.get("puzzle", "")),
 			"program": str(service_def.get("program", "")),
@@ -258,6 +259,20 @@ func mark_repaired(node_id: String) -> void:
 
 func required_services(node_id: String) -> int:
 	return int(definition(node_id).get("required_services", 0))
+
+
+## Порт сервиса: так сервис видит и называет игрок. Внутри игры (сейв, прогресс) — по id.
+func port_of(node_id: String, service_id: String) -> int:
+	return int(service(node_id, service_id).get("port", 0))
+
+
+## Сервис на порту; пусто — на этом порту ничего нет.
+func service_at_port(node_id: String, port: int) -> String:
+	for service_variant: Variant in definition(node_id).get("services", []) as Array:
+		var candidate: Dictionary = service_variant as Dictionary
+		if int(candidate.get("port", 0)) == port:
+			return str(candidate.get("id", ""))
+	return ""
 
 
 func service(node_id: String, service_id: String) -> Dictionary:

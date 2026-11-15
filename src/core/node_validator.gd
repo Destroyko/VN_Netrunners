@@ -177,6 +177,7 @@ func _parse_time(value: String) -> int:
 
 func _validate_services(where: String, services: Array) -> void:
 	var seen: Dictionary = {}
+	var seen_ports: Dictionary = {}
 	for service_variant: Variant in services:
 		var service: Dictionary = service_variant as Dictionary
 		if service == null:
@@ -185,7 +186,15 @@ func _validate_services(where: String, services: Array) -> void:
 
 		var service_id: String = str(service.get("id", ""))
 		var service_where: String = "%s, сервис %s" % [where, service_id if not service_id.is_empty() else "?"]
-		_require_fields(service_where, service, ["id", "name", "puzzle", "program"])
+		_require_fields(service_where, service, ["id", "port", "name", "puzzle", "program"])
+		# Порт — то, что видит и набирает игрок (`passhound 22`): целый, в пределах и без повторов.
+		if service.has("port"):
+			var port: int = int(service["port"])
+			if typeof(service["port"]) != TYPE_FLOAT and typeof(service["port"]) != TYPE_INT or port < 1 or port > 65535:
+				errors.append("%s: порт должен быть числом от 1 до 65535" % service_where)
+			elif seen_ports.has(port):
+				errors.append("%s: порт %d уже занят другим сервисом" % [where, port])
+			seen_ports[port] = true
 
 		if service_id.is_empty():
 			continue

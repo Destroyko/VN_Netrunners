@@ -318,22 +318,23 @@ func apply_outcome(
 	progress.record(node, service, now_minute, layers_gained)
 	var layers_now: int = progress.layers(node, service, now_minute)
 
+	var port: int = net.port_of(node, service)
 	if layers_now >= layers_total:
 		var done: NetResult = session.crack(service, now_minute)
 		progress.clear_service(node, service)
 		GameState.set_var(ProgramCommands.VAR_DEEPSCAN_PREFIX + node + "." + service, 0)
 		EventBus.puzzle_solved.emit(kind, level, node, service)
-		result.add("сервис вскрыт: %s (%d из %d)" % [service, done.cracked, done.required])
+		result.add("порт %d: доступ получен (%d из %d)" % [port, done.cracked, done.required])
 		# Вскрыто всё нужное — вход происходит сам: игрок входит без лишнего connect.
 		if done.cracked >= done.required and not session.has_connection():
 			_network.connect_to(PackedStringArray([session.target_address()]), result)
 	elif layers_gained > 0:
 		# Частичный успех: слои остались, добить можно позже (даже после `dc`).
 		EventBus.puzzle_solved.emit(kind, level, node, service)
-		result.add("слой вскрыт: %d из %d. сервис %s ещё держится" % [layers_now, layers_total, service])
+		result.add("слой вскрыт: %d из %d. порт %d ещё закрыт" % [layers_now, layers_total, port])
 	else:
 		EventBus.puzzle_failed.emit(kind, level, node, service, attempt)
-		result.add("провал: сервис %s не поддался" % service)
+		result.add("провал: порт %d не поддался" % port)
 
 
 # --- Остальные команды -------------------------------------------------------

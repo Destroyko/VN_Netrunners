@@ -85,7 +85,7 @@
 │ │   notes.txt      │ │ сервисы: вход по паролю       │ │
 │ │   photos/        │ │ трейс: нет                   │ │
 │ │  /sys     [sys]  │ │                              │ │
-│ │   log/           │ │ $ passhound svc_login        │ │
+│ │   log/           │ │ $ passhound 22        │ │
 │ ├─ Программы ──────┤ │ ...                          │ │
 │ │ passhound        │ │                              │ │
 │ │ gridrunner       │ │                              │ │

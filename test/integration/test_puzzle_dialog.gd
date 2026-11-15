@@ -255,7 +255,7 @@ func test_full_hack_through_the_desktop() -> void:
 	add_child_autofree(desktop)
 	await wait_frames(2)
 	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
-	for line: String in ["scan", "connect 10.0.0.1", "scan", "dc", "connect 10.0.0.7", "passhound svc_login"]:
+	for line: String in ["scan", "connect 10.0.0.1", "scan", "dc", "connect 10.0.0.7", "passhound 22"]:
 		view.submit(line)
 	assert_true(desktop.has_puzzle_open(), "программа открыла головоломку поверх стола")
 
@@ -267,7 +267,7 @@ func test_full_hack_through_the_desktop() -> void:
 	button.pressed.emit()
 	await wait_frames(2)
 	assert_false(desktop.has_puzzle_open())
-	assert_string_contains(view.output_text(), "вскрыт")
+	assert_string_contains(view.output_text(), "доступ получен")
 
 
 func _open_puzzle_on_desktop() -> Array:
@@ -278,7 +278,7 @@ func _open_puzzle_on_desktop() -> Array:
 	add_child_autofree(desktop)
 	await wait_frames(2)
 	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
-	for line: String in ["scan", "connect 10.0.0.1", "scan", "dc", "connect 10.0.0.7", "passhound svc_login"]:
+	for line: String in ["scan", "connect 10.0.0.1", "scan", "dc", "connect 10.0.0.7", "passhound 22"]:
 		view.submit(line)
 	return [desktop, view]
 

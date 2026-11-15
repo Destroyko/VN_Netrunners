@@ -21,6 +21,7 @@
   "services": [
     {
       "id": "svc_admin_login",
+      "port": 8080,
       "name": "Панель администратора",
       "puzzle": "password",
       "difficulty": 3,
@@ -31,6 +32,7 @@
     },
     {
       "id": "svc_vpn",
+      "port": 1194,
       "name": "Шифрованный канал",
       "puzzle": "matrix",
       "difficulty": 3,

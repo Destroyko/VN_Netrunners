@@ -27,6 +27,8 @@ var code: Code = Code.OK
 var node_id: String = ""
 var address: String = ""
 var service_id: String = ""
+## Порт сервиса для сообщений игроку (id сервиса он не видит).
+var port: int = 0
 var program: String = ""
 
 ## Для SERVICES_LEFT: сколько сервисов вскрыто и сколько нужно.
@@ -82,9 +84,9 @@ func message() -> String:
 		Code.NO_TARGET:
 			return "цель не выбрана"
 		Code.NO_SUCH_SERVICE:
-			return "нет такого сервиса: %s" % service_id
+			return "порт %d: нет сервиса" % port
 		Code.ALREADY_CRACKED:
-			return "сервис уже вскрыт: %s" % service_id
+			return "порт %d: уже открыт" % port
 		Code.WRONG_PROGRAM:
 			return "%s не работает против этой защиты" % program
 		_:

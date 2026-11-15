@@ -55,8 +55,8 @@ func probe(args: PackedStringArray, result: TermResult) -> void:
 	result.add("узел: %s (%s)" % [info["title"], info["device"]])
 	result.add(PROBE_RULE)
 	for service: Dictionary in info["services"] as Array:
-		result.add("  %-12s %-24s %s" % [
-			service["id"], service["name"], "открыт" if bool(service["cracked"]) else "закрыт"
+		result.add("  порт %-6d %-24s %s" % [
+			int(service["port"]), service["name"], "открыт" if bool(service["cracked"]) else "закрыт"
 		])
 	result.add(PROBE_RULE)
 	result.add("для входа требуется сервисов: %d" % int(info["required_services"]))

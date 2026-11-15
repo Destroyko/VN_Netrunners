@@ -21,7 +21,7 @@ func _good_node() -> Dictionary:
 		"logs_path": "/log",
 		"services": [
 			{
-				"id": "svc_login",
+				"id": "svc_login", "port": 22,
 				"name": "Вход по паролю",
 				"puzzle": "password",
 				"difficulty": 1,
@@ -88,10 +88,26 @@ func test_both_mvp_puzzles_are_allowed() -> void:
 		assert_true(_check(node), puzzle + ": " + _text())
 
 
+func test_service_without_a_port_is_error() -> void:
+	var node: Dictionary = _good_node()
+	(node["services"][0] as Dictionary).erase("port")
+	assert_false(_check(node))
+	assert_string_contains(_text(), "port")
+
+
+func test_two_services_on_one_port_is_error() -> void:
+	var node: Dictionary = _good_node()
+	node["services"].append({
+		"id": "svc_other", "port": 22, "name": "Ещё один", "puzzle": "matrix", "program": "gridrunner",
+	})
+	assert_false(_check(node))
+	assert_string_contains(_text(), "порт 22 уже занят")
+
+
 func test_duplicate_service_id_is_error() -> void:
 	var node: Dictionary = _good_node()
 	node["services"].append({
-		"id": "svc_login", "name": "Ещё один", "puzzle": "matrix", "program": "gridrunner",
+		"id": "svc_login", "port": 23, "name": "Ещё один", "puzzle": "matrix", "program": "gridrunner",
 	})
 	node["required_services"] = 2
 	assert_false(_check(node))

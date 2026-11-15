@@ -15,6 +15,7 @@
   "services": [
     {
       "id": "svc_login",
+      "port": 22,
       "name": "Вход по паролю",
       "puzzle": "password",
       "difficulty": 1,

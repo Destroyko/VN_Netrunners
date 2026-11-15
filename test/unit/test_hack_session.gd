@@ -190,7 +190,7 @@ func test_cracker_rejects_unknown_service() -> void:
 	session.connect_to("10.0.0.7", _at(1, 9))
 	var result: NetResult = session.begin_cracking("svc_nope", "passhound", _at(1, 9), true)
 	assert_eq(result.code, NetResult.Code.NO_SUCH_SERVICE)
-	assert_string_contains(result.message(), "svc_nope")
+	assert_string_contains(result.message(), "нет сервиса")
 
 
 func test_cracker_must_match_the_defence() -> void:

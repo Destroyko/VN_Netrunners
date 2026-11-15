@@ -139,6 +139,7 @@ func begin_cracking(service_id: String, program: String, now: int, trace_enabled
 	if _net.is_cracked(node_id, service_id, now):
 		var done := NetResult.fail(NetResult.Code.ALREADY_CRACKED, node_id)
 		done.service_id = service_id
+		done.port = _net.port_of(node_id, service_id)
 		return done
 
 	var result := NetResult.ok(node_id)

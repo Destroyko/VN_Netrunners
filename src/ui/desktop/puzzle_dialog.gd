@@ -47,7 +47,9 @@ func setup(request: Dictionary) -> void:
 
 
 static func _header(request: Dictionary) -> String:
-	return "%s · сервис %s" % [str(request.get("node", "")), str(request.get("service", ""))]
+	if request.has("port"):
+		return "%s · порт %d" % [str(request.get("address", request.get("node", ""))), int(request["port"])]
+	return str(request.get("node", ""))
 
 
 ## Выйти, не доиграв (кнопка или закрытие окна): засчитывается то, что успел собрать.

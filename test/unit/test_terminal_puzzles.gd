@@ -37,7 +37,7 @@ func test_solving_the_password_opens_the_service() -> void:
 	var puzzle: PasswordPuzzle = last.request["puzzle"] as PasswordPuzzle
 	assert_true(bool(puzzle.guess(puzzle.word)["solved"]))
 	var text: String = t.finish_puzzle(1).text()
-	assert_string_contains(text, "сервис вскрыт")
+	assert_string_contains(text, "доступ получен")
 	assert_string_contains(text, "подключено", "всё вскрыто — дверь открылась сама")
 	assert_true(t.session.has_connection())
 
@@ -77,7 +77,7 @@ func test_deepscan_opens_an_extra_letter_in_the_next_puzzle() -> void:
 	run("connect 77.61.204.12")
 	run("passhound")
 	assert_eq((last.request["puzzle"] as PasswordPuzzle).known.size(), 0)
-	run("deepscan svc_admin_login")
+	run("deepscan 8080")
 	run("passhound")
 	assert_eq((last.request["puzzle"] as PasswordPuzzle).known.size(), 1, "deepscan открыл ещё один символ")
 
@@ -88,8 +88,8 @@ func test_deepscan_can_fill_up_to_the_rule_and_no_further() -> void:
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
 	for _step: int in 4:
-		assert_string_contains(run("deepscan svc_admin_login"), "ещё один символ")
-	assert_string_contains(run("deepscan svc_admin_login"), "больше символов здесь не открыть")
+		assert_string_contains(run("deepscan 8080"), "ещё один символ")
+	assert_string_contains(run("deepscan 8080"), "больше символов здесь не открыть")
 	run("passhound")
 	var puzzle: PasswordPuzzle = last.request["puzzle"] as PasswordPuzzle
 	assert_eq(puzzle.length - puzzle.known.size(), 3)
@@ -123,14 +123,14 @@ func test_finishing_the_remaining_layers_opens_the_service() -> void:
 	t.finish_puzzle(1)
 	run("gridrunner")
 	var text: String = t.finish_puzzle(1).text()
-	assert_string_contains(text, "сервис вскрыт")
+	assert_string_contains(text, "доступ получен")
 	assert_true(t.session.has_connection(), "вскрыто всё нужное — вошли без лишнего connect")
 
 
 func test_solving_every_layer_at_once_opens_the_service() -> void:
 	_start_husband()
 	run("gridrunner")
-	assert_string_contains(solve_puzzle().text(), "сервис вскрыт")
+	assert_string_contains(solve_puzzle().text(), "доступ получен")
 
 
 func test_opened_service_forgets_its_progress() -> void:
@@ -164,7 +164,7 @@ func test_finished_trace_drops_the_deepscan_symbols() -> void:
 	learn_programs()
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
-	run("deepscan svc_admin_login")
+	run("deepscan 8080")
 	run("passhound")
 	t.spend(60, TermResult.new())
 	assert_eq(int(GameState.get_var_or("deepscan.node_office_server.svc_admin_login", 0)), 0)

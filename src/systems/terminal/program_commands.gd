@@ -39,7 +39,7 @@ func list_installed(result: TermResult) -> void:
 ## `run <программа> [сервис]` — то же, что короткая запись `<программа> [сервис]`.
 func run(args: PackedStringArray, result: TermResult) -> void:
 	if args.is_empty():
-		result.add("использование: run <программа> [сервис]")
+		result.add("использование: run <программа> [порт]")
 		return
 	launch(args[0].to_lower(), args.slice(1), result)
 
@@ -79,7 +79,7 @@ func _crack(program: String, args: PackedStringArray, result: TermResult) -> voi
 		result.add("трейс запущен: %d мин" % left)
 		EventBus.trace_started.emit(target)
 
-	result.add("%s: запущен против %s" % [program, service])
+	result.add("%s: запущен, порт %d" % [program, _t.net.port_of(target, service)])
 	_t.spend(Programs.minutes_for(program), result)
 	# За время запуска трейс или конец прайм-тайма мог оборвать взлом: тогда головоломки не будет.
 	if _t.session.target_id() != target:
@@ -118,6 +118,7 @@ func _open_puzzle(target: String, service: String, program: String, result: Term
 	})
 	result.request = {
 		"type": "puzzle", "kind": kind, "node": target, "service": service,
+		"port": _t.net.port_of(target, service), "address": str(_t.net.definition(target).get("address", "")),
 		"difficulty": level, "alert": alert, "attempt": attempt,
 		"layers_done": layers_done, "layers_total": layers_total, "puzzle": puzzle,
 		"rounds": layers_total - layers_done, "seed": seed_value,
@@ -130,20 +131,29 @@ func _puzzle_level(target: String, service: String) -> int:
 	return PuzzleLevels.level_for_service(_t.net.effective_difficulty(target, base))
 
 
-## Какой сервис брать, если игрок не указал: единственный подходящий невскрытый.
+## Какой сервис брать. Игрок называет порт (`passhound 22`); не назвал — единственный
+## подходящий невскрытый. Возвращает внутренний id сервиса или пусто, если выбрать не из чего.
 func _pick_service(target: String, program: String, args: PackedStringArray, result: TermResult) -> String:
 	if not args.is_empty():
-		return args[0]
-	var fitting: PackedStringArray = []
+		if not args[0].is_valid_int():
+			result.add("порт — это число: %s" % args[0])
+			return ""
+		var by_port: String = _t.net.service_at_port(target, int(args[0]))
+		if by_port.is_empty():
+			result.add("порт %s: нет сервиса" % args[0])
+		return by_port
+	var fitting: Array[String] = []
+	var ports: PackedStringArray = []
 	for service: Dictionary in _t.net.describe(target, _t.now())["services"] as Array:
 		if str(service["program"]) == program and not bool(service["cracked"]):
 			fitting.append(str(service["id"]))
+			ports.append(str(service["port"]))
 	if fitting.size() == 1:
 		return fitting[0]
 	if fitting.is_empty():
 		result.add("%s не работает против этой защиты" % program)
 	else:
-		result.add("не указан сервис (подходят: %s)" % ", ".join(fitting))
+		result.add("не указан порт (подходят: %s)" % ", ".join(ports))
 	return ""
 
 
@@ -170,7 +180,7 @@ func _deepscan(program: String, args: PackedStringArray, result: TermResult) -> 
 		return
 
 	GameState.set_var(key, opened + 1)
-	result.add("%s: открыт ещё один символ пароля (сервис %s)" % [program, service])
+	result.add("%s: открыт ещё один символ пароля (порт %d)" % [program, _t.net.port_of(target, service)])
 	# Разведка трейс не запускает, но время идёт, а если трейс уже идёт — он тикает.
 	_t.spend(Programs.minutes_for(program), result)
 

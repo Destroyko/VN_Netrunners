@@ -82,7 +82,7 @@ static func _services(terminal: Terminal) -> PackedStringArray:
 	if target.is_empty():
 		return result
 	for service: Dictionary in terminal.net.describe(target, terminal.now())["services"] as Array:
-		result.append(str(service["id"]))
+		result.append(str(service["port"]))
 	return result
 
 
