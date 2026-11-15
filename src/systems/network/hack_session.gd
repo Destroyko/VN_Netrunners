@@ -115,7 +115,7 @@ func disconnect_now() -> NetResult:
 # --- Взлом -------------------------------------------------------------------
 
 ## Игрок запустил программу-взломщик против сервиса. Здесь стартует трейс: на узле, где он
-## есть, и только в эпоху группы (`trace_enabled`, флаг story.group_joined).
+## есть, и только когда открыты ворота давления (`trace_enabled`, флаг gate.pressure).
 func begin_cracking(service_id: String, program: String, now: int, trace_enabled: bool) -> NetResult:
 	var node_id: String = target_id()
 	if node_id.is_empty():

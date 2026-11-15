@@ -59,6 +59,17 @@ func validate_data(
 	errors.append_array(node_validator.errors)
 	warnings.append_array(node_validator.warnings)
 
+	# Словарь головоломок и их параметры — тоже отдельный класс.
+	var puzzle_validator := PuzzleValidator.new()
+	puzzle_validator.validate(DataLoader.puzzle_words(), DataLoader.balance())
+	errors.append_array(puzzle_validator.errors)
+	warnings.append_array(puzzle_validator.warnings)
+
+	var program_validator := ProgramValidator.new()
+	program_validator.validate(DataLoader.programs(), DataLoader.balance())
+	errors.append_array(program_validator.errors)
+	warnings.append_array(program_validator.warnings)
+
 	for id: String in news.keys():
 		_validate_news(id, news[id] as Dictionary)
 	for id: String in quests.keys():

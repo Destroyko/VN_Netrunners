@@ -62,6 +62,20 @@ static func balance() -> Dictionary:
 	return (data as Dictionary) if data is Dictionary else {}
 
 
+## Словарь головоломки «пароль» (docs/tech/puzzles-spec.md). Пустой словарь, если файла нет.
+static func puzzle_words() -> Dictionary:
+	var path: String = DATA_ROOT.path_join("puzzles").path_join("words_ru.json")
+	var data: Variant = load_json(path) if FileAccess.file_exists(path) else null
+	return (data as Dictionary) if data is Dictionary else {}
+
+
+## Программы героя (docs/tech/terminal-spec.md). Пустой словарь, если файла нет.
+static func programs() -> Dictionary:
+	var path: String = DATA_ROOT.path_join("programs.json")
+	var data: Variant = load_json(path) if FileAccess.file_exists(path) else null
+	return (data as Dictionary) if data is Dictionary else {}
+
+
 static func quests() -> Dictionary:
 	var all: Dictionary = {}
 	for sub: String in ["main", "side", "radiant"]:

@@ -95,7 +95,30 @@
     "services_reset_days": 7,
     "_note_services": "Через столько дней цель перенастраивает защиту и полностью вскрытые сервисы закрываются — иначе взломанный узел открыт навсегда.",
     "alert_difficulty_step": 1,
-    "_note_alert": "Доведённый трейс делает цель осторожнее: +1 к сложности сервисов (не выше 4) и новый пароль."
+    "_note_alert": "Доведённый трейс делает цель осторожнее: +1 к сложности сервисов (не выше 4) и новый пароль.",
+
+    "password": {
+      "_note": "«Пароль» по уровням: 2 — лёгкий, 3 — средний, 4 — нетраннер (docs/tech/puzzles-spec.md). length — длина слова, tiers — градации частоты, из которых берётся слово, known — сколько символов открыто сразу, candidates — допустимое число слов, подходящих под открытые буквы. Диапазоны калибруем отчётом tools/puzzle_report.gd на плейтесте.",
+      "min_unknown": 3,
+      "max_tries": 40,
+      "levels": {
+        "2": { "length": 5, "tiers": ["common"], "attempts": 6, "known": 2, "candidates": [5, 40] },
+        "3": { "length": 5, "tiers": ["common", "regular"], "attempts": 5, "known": 1, "candidates": [20, 150] },
+        "4": { "length": 7, "tiers": ["common", "regular", "rare"], "attempts": 4, "known": 0, "candidates": [100, 600] }
+      }
+    },
+
+    "matrix": {
+      "_note": "«Матрица» по уровням (docs/tech/puzzles-spec.md). size — сторона сетки, buffer — клеток в буфере, sequences — сколько последовательностей собрать, seq_min/seq_max — их длина, noise — шумных ячеек, slack — допустимый запас B - min_moves. Калибруем отчётом на плейтесте.",
+      "max_tries": 60,
+      "solutions_cap": 200,
+      "nodes_cap": 20000,
+      "levels": {
+        "2": { "size": 5, "buffer": 8, "sequences": 2, "seq_min": 2, "seq_max": 3, "noise": 0, "slack": [3, 4] },
+        "3": { "size": 6, "buffer": 8, "sequences": 2, "seq_min": 3, "seq_max": 3, "noise": 1, "slack": [2, 2] },
+        "4": { "size": 7, "buffer": 7, "sequences": 3, "seq_min": 3, "seq_max": 4, "noise": 3, "slack": [0, 1] }
+      }
+    }
   },
 
   "nodes": {

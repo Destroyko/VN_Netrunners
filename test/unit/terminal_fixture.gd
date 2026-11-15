@@ -62,3 +62,10 @@ func minute() -> int:
 
 func logbook(node_id: String) -> Logbook:
 	return Logbook.for_node(node_id)
+
+
+## Довести открытую головоломку до победы: собрать все оставшиеся слои. Берёт данные из
+## запроса последней команды, поэтому звать сразу после запуска программы.
+func solve_puzzle() -> TermResult:
+	var request: Dictionary = last.request
+	return t.finish_puzzle(int(request["layers_total"]) - int(request["layers_done"]))

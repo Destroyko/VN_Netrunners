@@ -60,7 +60,7 @@ func test_probe_of_unknown_address_is_refused() -> void:
 
 
 func test_probe_does_not_start_the_trace() -> void:
-	GameState.set_flag(Programs.FLAG_GROUP_JOINED)
+	GameState.set_flag(Programs.GATE_PRESSURE)
 	reveal("node_office_server")
 	run("probe 77.61.204.12")
 	assert_false(t.session.is_tracing())
@@ -236,7 +236,7 @@ func test_solved_puzzle_opens_the_service_and_connect_lets_in() -> void:
 	reach_training_pc()
 	run("connect 10.0.0.7")
 	run("passhound")
-	assert_string_contains(t.finish_puzzle(true).text(), "сервис вскрыт: svc_login (1 из 1)")
+	assert_string_contains(solve_puzzle().text(), "сервис вскрыт: svc_login (1 из 1)")
 	assert_signal_emitted(EventBus, "puzzle_solved")
 	assert_string_contains(run("connect 10.0.0.7"), "подключено")
 
@@ -246,7 +246,7 @@ func test_failed_puzzle_keeps_the_service_closed_and_can_be_retried() -> void:
 	reach_training_pc()
 	run("connect 10.0.0.7")
 	run("passhound")
-	assert_string_contains(t.finish_puzzle(false).text(), "провал")
+	assert_string_contains(t.finish_puzzle(0).text(), "провал")
 	assert_signal_emitted(EventBus, "puzzle_failed")
 	assert_string_contains(run("connect 10.0.0.7"), "вскрыто 0 из 1")
 	run("passhound")
@@ -254,7 +254,7 @@ func test_failed_puzzle_keeps_the_service_closed_and_can_be_retried() -> void:
 
 
 func test_finish_puzzle_without_one_open() -> void:
-	assert_string_contains(t.finish_puzzle(true).text(), "нет открытой головоломки")
+	assert_string_contains(t.finish_puzzle(1).text(), "нет открытой головоломки")
 
 
 func test_wrong_program_for_the_defence() -> void:
@@ -289,7 +289,7 @@ func test_no_trace_before_the_group_era() -> void:
 
 func test_first_cracker_starts_the_trace_in_the_group_era() -> void:
 	learn_programs()
-	GameState.set_flag(Programs.FLAG_GROUP_JOINED)
+	GameState.set_flag(Programs.GATE_PRESSURE)
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
 	assert_string_contains(run("passhound"), "трейс запущен: 60 мин")
@@ -299,7 +299,7 @@ func test_first_cracker_starts_the_trace_in_the_group_era() -> void:
 
 func test_trace_warns_and_then_breaks_the_connection() -> void:
 	learn_programs()
-	GameState.set_flag(Programs.FLAG_GROUP_JOINED)
+	GameState.set_flag(Programs.GATE_PRESSURE)
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
 	run("passhound")  # трейс стартует: 60, программа отъедает 3 → 57
@@ -317,11 +317,11 @@ func test_trace_warns_and_then_breaks_the_connection() -> void:
 
 func test_finished_trace_resets_services_and_makes_target_wary() -> void:
 	learn_programs()
-	GameState.set_flag(Programs.FLAG_GROUP_JOINED)
+	GameState.set_flag(Programs.GATE_PRESSURE)
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
 	run("passhound")
-	t.finish_puzzle(true)
+	solve_puzzle()
 	t.spend(60, TermResult.new())
 	var net: Network = Network.for_game()
 	assert_eq(net.cracked_count("node_office_server", t.now()), 0)
@@ -466,16 +466,28 @@ func test_logwipe_needs_a_connection() -> void:
 
 
 func test_deepscan_opens_one_more_symbol() -> void:
+	# Узел фирмы: пароль сложности 3 → «нетраннер», открытых букв нет, есть куда открывать.
+	learn_programs()
+	reveal("node_office_server")
+	run("connect 77.61.204.12")
+	var before: int = minute()
+	assert_string_contains(run("deepscan svc_admin_login"), "ещё один символ")
+	assert_eq(int(GameState.get_var_or("deepscan.node_office_server.svc_admin_login", 0)), 1)
+	run("deepscan svc_admin_login")
+	assert_eq(int(GameState.get_var_or("deepscan.node_office_server.svc_admin_login", 0)), 2)
+	assert_eq(minute(), before + 10, "две пятиминутки")
+	assert_false(t.session.is_tracing(), "разведка трейс не запускает")
+
+
+func test_deepscan_refuses_when_nothing_more_can_be_opened() -> void:
+	# На лёгком уровне открыто уже всё, что можно: три буквы остаются неизвестными.
 	learn_programs()
 	reach_training_pc()
 	run("connect 10.0.0.7")
 	var before: int = minute()
-	assert_string_contains(run("deepscan"), "ещё один символ")
-	assert_eq(int(GameState.get_var_or("deepscan.node_training_pc.svc_login", 0)), 1)
-	run("deepscan")
-	assert_eq(int(GameState.get_var_or("deepscan.node_training_pc.svc_login", 0)), 2)
-	assert_eq(minute(), before + 10, "две пятиминутки")
-	assert_false(t.session.is_tracing(), "разведка трейс не запускает")
+	assert_string_contains(run("deepscan"), "больше символов здесь не открыть")
+	assert_eq(minute(), before, "за несуществующий символ время не берём")
+	assert_eq(int(GameState.get_var_or("deepscan.node_training_pc.svc_login", 0)), 0)
 
 
 func test_deepscan_works_only_against_a_password() -> void:
@@ -537,12 +549,12 @@ func test_guest_cannot_download_from_sys() -> void:
 func test_download_that_does_not_fit_the_trace_is_cut() -> void:
 	# Не влез в трейс — файла нет, время потрачено (hacking-loop.md).
 	learn_programs()
-	GameState.set_flag(Programs.FLAG_GROUP_JOINED)
+	GameState.set_flag(Programs.GATE_PRESSURE)
 	reveal("node_husband_pc")
 	Clock.set_time(1, 19 * 60)
 	run("connect 92.44.18.3")
 	run("gridrunner")
-	t.finish_puzzle(true)
+	solve_puzzle()
 	run("connect 92.44.18.3")
 	t.spend(t.session.trace_left() - 3, TermResult.new())
 
@@ -555,12 +567,12 @@ func test_download_that_does_not_fit_the_trace_is_cut() -> void:
 
 func test_small_download_fits_the_trace() -> void:
 	learn_programs()
-	GameState.set_flag(Programs.FLAG_GROUP_JOINED)
+	GameState.set_flag(Programs.GATE_PRESSURE)
 	reveal("node_husband_pc")
 	Clock.set_time(1, 19 * 60)
 	run("connect 92.44.18.3")
 	run("gridrunner")
-	t.finish_puzzle(true)
+	solve_puzzle()
 	run("connect 92.44.18.3")
 	run("cp photos/hotel.jpg")
 	assert_true(t.home_fs().has_file("/home/dump/hotel.jpg"), "5 минут при 41 остававшихся — укладывается")

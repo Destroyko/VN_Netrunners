@@ -14,7 +14,7 @@ const FILE_X_SERVER: String = "/sys/x-server.sys"
 const FILE_NET: String = "/sys/net.sys"
 const FILE_THEME: String = "/sys/theme.sys"
 
-## Что восстанавливает флешка соседки. Только /sys: пользовательские файлы она не трогает
+## Что восстанавливает резервный носитель. Только /sys: пользовательские файлы она не трогает
 ## (docs/gameplay/hacking.md). Тема сюда не входит — она косметика, не система.
 const RESTORABLE: PackedStringArray = [FILE_X_SERVER, FILE_NET]
 
@@ -101,7 +101,7 @@ static func reboot(filesystem: Filesystem) -> Dictionary:
 
 # --- Восстановление ----------------------------------------------------------
 
-## Флешка соседки: возвращает недостающие системные файлы. Пользовательские не трогает.
+## Резервный носитель: возвращает недостающие системные файлы. Пользовательские не трогает.
 ## Возвращает, что именно восстановила — пусто, если всё было на месте.
 static func restore_system(filesystem: Filesystem) -> PackedStringArray:
 	var restored: PackedStringArray = []

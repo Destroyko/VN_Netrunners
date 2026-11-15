@@ -1,0 +1,37 @@
+{
+  "_note": "Программы героя (docs/tech/terminal-spec.md, «Программы»). id — имя команды. kind: cracker (головоломка против сервиса, стартует трейс), auto (работает сама, полоска прогресса), recon (разведка). puzzle — тип головоломки у cracker. minutes — ключ в balance.json, раздел action_minutes. about — строка для help и progs.",
+  "_note_requires": "requires — требования на общем языке условий (docs/tech/quest-format.md): программа становится доступной, когда выполнены все. Так новая программа сразу ставится на нужный этап игры, без правок кода. Примеры: [{\"skill_at_least\": [\"hacking\", 6]}, {\"rank_at_least\": 3}]. Пустой список — требований нет, программу выдаёт только флаг prog.<id> (набор ОС, награда). Программа доступна, если стоит флаг ИЛИ выполнены непустые requires. Значения подбирает прогрессия, а не механика.",
+
+  "passhound": {
+    "kind": "cracker",
+    "puzzle": "password",
+    "minutes": "hack_step",
+    "about": "подбор пароля сервиса: головоломка «пароль»",
+    "requires": []
+  },
+  "gridrunner": {
+    "kind": "cracker",
+    "puzzle": "matrix",
+    "minutes": "hack_step",
+    "about": "пробивает шифрованный канал и фаервол: головоломка «матрица»",
+    "requires": []
+  },
+  "rootstep": {
+    "kind": "auto",
+    "minutes": "rootstep",
+    "about": "повышает права на узле до администратора",
+    "requires": []
+  },
+  "logwipe": {
+    "kind": "auto",
+    "minutes": "logwipe",
+    "about": "чистит каталог логов узла одной командой",
+    "requires": []
+  },
+  "deepscan": {
+    "kind": "recon",
+    "minutes": "deepscan",
+    "about": "расширенная разведка: открывает ещё один символ пароля",
+    "requires": []
+  }
+}

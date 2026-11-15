@@ -233,8 +233,18 @@ func handle_events(events: Array[Dictionary], result: TermResult) -> void:
 				hung_up(node, bool(event["was_connected"]))
 			"trace_finished":
 				result.add("трейс дошёл до конца: соединение оборвано")
+				_forget_progress(node)
 				EventBus.trace_finished.emit(node)
 				hung_up(node, bool(event["was_connected"]))
+
+
+## Цель перенастроила защиту: частичные слои и счётчики попыток узла обнуляются, а символы,
+## открытые `deepscan`, были про старое слово и теряются вместе с ним.
+func _forget_progress(node: String) -> void:
+	PuzzleProgress.for_game().reset_node(node)
+	for service: Variant in net.definition(node).get("services", []) as Array:
+		var key: String = ProgramCommands.VAR_DEEPSCAN_PREFIX + node + "." + str((service as Dictionary).get("id", ""))
+		GameState.set_var(key, 0)
 
 
 ## Сеанс с узлом закончился — по `dc`, обрыву или трейсу. Запись о выходе пишется всегда и
@@ -264,33 +274,60 @@ func has_network() -> bool:
 
 # --- Головоломка -------------------------------------------------------------
 
-## Интерфейс закончил головоломку, которую просил терминал. Решена — сервис вскрыт.
-## Время на неё уже потрачено в момент запуска программы: головоломка его не тянет.
-func finish_puzzle(solved: bool) -> TermResult:
+## Живая головоломка, которую просил терминал (PasswordPuzzle или MatrixPuzzle), или null.
+## Интерфейс играет прямо в ней: `guess()` у пароля, `pick()` у матрицы.
+func current_puzzle() -> RefCounted:
+	return _puzzle.get("puzzle") as RefCounted
+
+
+func set_puzzle(data: Dictionary) -> void:
+	_puzzle = data
+
+
+## Интерфейс закончил головоломку. `gained` — сколько слоёв вскрыто за эту попытку: у «пароля»
+## 1 или 0, у «матрицы» столько целей собрано. Время на головоломку уже потрачено при запуске
+## программы: пока она открыта, игровое время стоит (time.md).
+func finish_puzzle(gained: int) -> TermResult:
 	_sync()
 	var result := TermResult.new()
 	if _puzzle.is_empty():
 		result.add("сейчас нет открытой головоломки")
 		return result
 
-	var service: String = str(_puzzle["service"])
-	var kind: String = str(_puzzle["kind"])
-	var difficulty: int = int(_puzzle["difficulty"])
+	var data: Dictionary = _puzzle
 	_puzzle = {}
-
-	if not solved:
-		EventBus.puzzle_failed.emit(kind, difficulty)
-		result.add("провал: сервис %s не поддался. можно попробовать ещё раз" % service)
-		return result
-
-	var done: NetResult = session.crack(service, now())
-	EventBus.puzzle_solved.emit(kind, difficulty)
-	result.add("сервис вскрыт: %s (%d из %d)" % [service, done.cracked, done.required])
+	apply_outcome(
+		str(data["node"]), str(data["service"]), str(data["kind"]), int(data["level"]),
+		gained, result, int(data["layers_total"])
+	)
 	return result
 
 
-func set_puzzle(data: Dictionary) -> void:
-	_puzzle = data
+## Итог попытки: слои в прогресс, сервис вскрыт целиком, частичный успех или провал.
+func apply_outcome(
+	node: String, service: String, kind: String, level: int, gained: int, result: TermResult,
+	layers_total: int = 1
+) -> void:
+	var now_minute: int = now()
+	var progress: PuzzleProgress = PuzzleProgress.for_game()
+	var layers_gained: int = gained
+	var attempt: int = progress.attempts(node, service, now_minute) + 1
+	progress.record(node, service, now_minute, layers_gained)
+	var layers_now: int = progress.layers(node, service, now_minute)
+
+	if layers_now >= layers_total:
+		var done: NetResult = session.crack(service, now_minute)
+		progress.clear_service(node, service)
+		GameState.set_var(ProgramCommands.VAR_DEEPSCAN_PREFIX + node + "." + service, 0)
+		EventBus.puzzle_solved.emit(kind, level, node, service)
+		result.add("сервис вскрыт: %s (%d из %d)" % [service, done.cracked, done.required])
+	elif layers_gained > 0:
+		# Частичный успех: слои остались, добить можно позже (даже после `dc`).
+		EventBus.puzzle_solved.emit(kind, level, node, service)
+		result.add("слой вскрыт: %d из %d. сервис %s ещё держится" % [layers_now, layers_total, service])
+	else:
+		EventBus.puzzle_failed.emit(kind, level, node, service, attempt)
+		result.add("провал: сервис %s не поддался. можно попробовать ещё раз" % service)
 
 
 # --- Остальные команды -------------------------------------------------------

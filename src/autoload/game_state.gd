@@ -32,6 +32,10 @@ var _filesystems: Dictionary = {}
 ## мира, а не сессии: после загрузки узел должен помнить, что его уже вскрывали, и сколько
 ## осталось до конца трейса (docs/gameplay/network.md).
 var _network: Dictionary = {}
+## Прогресс головоломок: вскрытые слои и счётчик попыток по сервисам. Состояние мира, а не
+## сессии: после загрузки сейва сервис должен помнить, что он наполовину вскрыт
+## (docs/tech/puzzles-spec.md).
+var _puzzles: Dictionary = {}
 
 
 ## Новая игра. Сложность задаётся здесь, потому что менять её потом нельзя.
@@ -46,6 +50,7 @@ func reset(new_difficulty: Difficulty = Difficulty.NORMAL) -> void:
 	_quests.clear()
 	_filesystems.clear()
 	_network.clear()
+	_puzzles.clear()
 
 
 # --- Флаги -------------------------------------------------------------------
@@ -180,6 +185,15 @@ func set_network_state(state: Dictionary) -> void:
 	_network = state
 
 
+## Как и с сетью: отдаётся сам словарь, PuzzleProgress меняет его на месте.
+func puzzle_state() -> Dictionary:
+	return _puzzles
+
+
+func set_puzzle_state(state: Dictionary) -> void:
+	_puzzles = state
+
+
 # --- Сейв --------------------------------------------------------------------
 
 func to_dict() -> Dictionary:
@@ -195,6 +209,7 @@ func to_dict() -> Dictionary:
 		"quests": _quests.duplicate(true),
 		"filesystems": _filesystems.duplicate(true),
 		"network": _network.duplicate(true),
+		"puzzles": _puzzles.duplicate(true),
 	}
 
 
@@ -210,6 +225,7 @@ func from_dict(data: Dictionary) -> void:
 	_quests = (data.get("quests", {}) as Dictionary).duplicate(true)
 	_filesystems = (data.get("filesystems", {}) as Dictionary).duplicate(true)
 	_network = (data.get("network", {}) as Dictionary).duplicate(true)
+	_puzzles = (data.get("puzzles", {}) as Dictionary).duplicate(true)
 
 
 # --- Внутреннее --------------------------------------------------------------

@@ -19,6 +19,7 @@ const HELP: Dictionary = {
 	"effect": "effect <json> — применить эффект, например: effect {\"money\": 500}",
 	"cond": "cond <json> — проверить условие, например: cond {\"flag\": \"story.x\"}",
 	"quest": "quest <id> <этап> — перевести квест на этап",
+	"puzzle": "puzzle <password|matrix> <уровень 2-4> <сид> — сгенерировать головоломку: метрики и эталонное решение",
 }
 
 
@@ -57,6 +58,8 @@ static func run(line: String) -> String:
 			return _cond(rest)
 		"quest":
 			return _quest(args)
+		"puzzle":
+			return _puzzle(args)
 		_:
 			return "неизвестная команда '%s'. help — список команд" % command
 
@@ -206,3 +209,19 @@ static func _quest(args: PackedStringArray) -> String:
 		return str(HELP["quest"])
 	GameState.set_quest_stage(args[0], args[1])
 	return "%s: этап %s" % [args[0], args[1]]
+
+
+## Песочница головоломок (docs/tech/puzzles-spec.md): тип, уровень, сид → описание, метрики и
+## эталонное решение. Играть в неё тут нельзя, зато видно, что получилось и почему.
+static func _puzzle(args: PackedStringArray) -> String:
+	if args.size() < 3:
+		return "нужно: " + str(HELP["puzzle"])
+	var kind: String = args[0].to_lower()
+	if kind != "password" and kind != "matrix":
+		return "тип — password или matrix, получено '%s'" % args[0]
+	if not args[1].is_valid_int() or not args[2].is_valid_int():
+		return "уровень и сид — числа: " + str(HELP["puzzle"])
+	var level: int = int(args[1])
+	if level < PuzzleLevels.MIN_LEVEL or level > PuzzleLevels.MAX_LEVEL:
+		return "уровень от %d до %d (первый — сюжетный, там головоломок нет)" % [PuzzleLevels.MIN_LEVEL, PuzzleLevels.MAX_LEVEL]
+	return PuzzleReport.describe(kind, level, int(args[2]))

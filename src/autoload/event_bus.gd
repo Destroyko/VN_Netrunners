@@ -39,5 +39,7 @@ signal file_deleted(node_id: String, path: String)
 
 # --- Головоломки (M1) --------------------------------------------------------
 
-signal puzzle_solved(kind: String, difficulty: int)
-signal puzzle_failed(kind: String, difficulty: int)
+## `difficulty` — реально сыгранный уровень (2–4). `attempt` — номер неудачной попытки на этом
+## сервисе: по нему система заметности считает растущую цену провала (heat.md).
+signal puzzle_solved(kind: String, difficulty: int, node_id: String, service_id: String)
+signal puzzle_failed(kind: String, difficulty: int, node_id: String, service_id: String, attempt: int)

@@ -85,15 +85,50 @@ func _crack(program: String, args: PackedStringArray, result: TermResult) -> voi
 	if _t.session.target_id() != target:
 		return
 
-	var definition: Dictionary = _t.net.service(target, service)
-	var difficulty: int = _t.net.effective_difficulty(target, int(definition.get("difficulty", 1)))
+	_open_puzzle(target, service, program, result)
+
+
+## Собрать головоломку и попросить интерфейс её открыть. Ступень задаёт сложность сервиса
+## (PuzzleLevels); сид — по узлу, сервису, осторожности цели и номеру
+## попытки, так что после загрузки сейва игрок получает ту же головоломку.
+func _open_puzzle(target: String, service: String, program: String, result: TermResult) -> void:
+	var now: int = _t.now()
+	var progress: PuzzleProgress = PuzzleProgress.for_game()
+	var level: int = _puzzle_level(target, service)
+	var attempt: int = progress.attempts(target, service, now)
+	var alert: int = _t.net.alert_level(target)
+	var seed_value: int = PuzzleProgress.seed_for(Rng.get_seed(), target, service, alert, attempt)
 	var kind: String = Programs.puzzle_of(program)
-	_t.set_puzzle({"service": service, "kind": kind, "difficulty": difficulty, "node": target})
+
+	var puzzle: RefCounted
+	var layers_total: int = 1
+	var layers_done: int = 0
+	if kind == "password":
+		var extra: int = int(GameState.get_var_or(VAR_DEEPSCAN_PREFIX + target + "." + service, 0))
+		puzzle = PasswordPuzzle.generate(level, seed_value, extra)
+	else:
+		var params: Dictionary = PuzzleLevels.matrix(level)
+		layers_total = int(params["sequences"])
+		layers_done = mini(progress.layers(target, service, now), layers_total - 1)
+		# Вскрытые слои остаются: собирать надо только оставшиеся цели.
+		params["sequences"] = layers_total - layers_done
+		puzzle = MatrixPuzzle.generate(level, seed_value, params)
+
+	_t.set_puzzle({
+		"node": target, "service": service, "kind": kind, "level": level,
+		"layers_total": layers_total, "puzzle": puzzle,
+	})
 	result.request = {
 		"type": "puzzle", "kind": kind, "node": target, "service": service,
-		"difficulty": difficulty, "alert": _t.net.alert_level(target),
-		"extra_symbols": int(GameState.get_var_or(VAR_DEEPSCAN_PREFIX + target + "." + service, 0)),
+		"difficulty": level, "alert": alert, "attempt": attempt,
+		"layers_done": layers_done, "layers_total": layers_total, "puzzle": puzzle,
 	}
+
+
+## Какая ступень сыграется против этого сервиса: по его сложности с учётом осторожности цели.
+func _puzzle_level(target: String, service: String) -> int:
+	var base: int = int(_t.net.service(target, service).get("difficulty", 1))
+	return PuzzleLevels.level_for_service(_t.net.effective_difficulty(target, base))
 
 
 ## Какой сервис брать, если игрок не указал: единственный подходящий невскрытый.
@@ -125,8 +160,17 @@ func _deepscan(program: String, args: PackedStringArray, result: TermResult) -> 
 		result.add("%s работает только против пароля" % program)
 		return
 
+	# Три буквы остаются неизвестными всегда (puzzles-spec.md). Если открыто всё, что можно,
+	# честно говорим об этом и не тратим время: иначе игрок платил бы за символ, которого нет.
 	var key: String = VAR_DEEPSCAN_PREFIX + target + "." + service
-	GameState.set_var(key, int(GameState.get_var_or(key, 0)) + 1)
+	var opened: int = int(GameState.get_var_or(key, 0))
+	var config: Dictionary = PuzzleLevels.password(_puzzle_level(target, service))
+	var most: int = int(config["length"]) - int(config.get("min_unknown", 3))
+	if int(config["known"]) + opened >= most:
+		result.add("%s: больше символов здесь не открыть, три останутся неизвестными" % program)
+		return
+
+	GameState.set_var(key, opened + 1)
 	result.add("%s: открыт ещё один символ пароля (сервис %s)" % [program, service])
 	# Разведка трейс не запускает, но время идёт, а если трейс уже идёт — он тикает.
 	_t.spend(Programs.minutes_for(program), result)

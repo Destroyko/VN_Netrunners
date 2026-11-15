@@ -247,7 +247,7 @@ func test_second_cracker_does_not_restart_the_trace() -> void:
 
 
 func test_no_trace_before_the_group_era() -> void:
-	# Флаг story.group_joined выключен: узлы с трейсом тоже безопасны (heat.md).
+	# Ворота давления закрыты: узлы с трейсом тоже безопасны (heat.md).
 	session.connect_to("77.0.0.12", _at(1, 9))
 	var result: NetResult = session.begin_cracking("svc_login", "passhound", _at(1, 9), false)
 	assert_false(result.trace_started)

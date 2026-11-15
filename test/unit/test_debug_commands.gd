@@ -130,3 +130,41 @@ func test_state_shows_key_numbers() -> void:
 	var output: String = DebugCommands.run("state")
 	assert_string_contains(output, "123")
 	assert_string_contains(output, "7")
+
+
+# --- puzzle: песочница головоломок --------------------------------------------
+
+func test_puzzle_command_describes_a_password() -> void:
+	var text: String = DebugCommands.run("puzzle password 3 7")
+	assert_string_contains(text, "«пароль», уровень 3")
+	assert_string_contains(text, "загадано:")
+	assert_string_contains(text, "candidates_after_hints")
+
+
+func test_puzzle_command_describes_a_matrix_with_the_reference_solution() -> void:
+	var text: String = DebugCommands.run("puzzle matrix 2 7")
+	assert_string_contains(text, "«матрица», уровень 2")
+	assert_string_contains(text, "цели:")
+	assert_string_contains(text, "эталонное решение")
+	assert_string_contains(text, "slack")
+
+
+func test_puzzle_command_is_deterministic() -> void:
+	assert_eq(DebugCommands.run("puzzle password 4 99"), DebugCommands.run("puzzle password 4 99"))
+
+
+func test_puzzle_command_checks_its_arguments() -> void:
+	assert_string_contains(DebugCommands.run("puzzle"), "нужно")
+	assert_string_contains(DebugCommands.run("puzzle sudoku 2 1"), "password или matrix")
+	assert_string_contains(DebugCommands.run("puzzle password 1 1"), "от 2 до 4")
+	assert_string_contains(DebugCommands.run("puzzle password два 1"), "числа")
+
+
+func test_puzzle_report_has_one_csv_row_per_puzzle() -> void:
+	var report: Dictionary = PuzzleReport.run(2, 1)
+	var rows: PackedStringArray = str(report["csv"]).strip_edges().split("
+")
+	assert_eq(rows.size(), 1 + 2 * 3 * 2, "заголовок + 2 типа × 3 уровня × 2 сида")
+	assert_string_contains(rows[0], "kind,level,seed,accepted")
+	assert_eq((report["summary"] as PackedStringArray).size() > 6, true)
+
