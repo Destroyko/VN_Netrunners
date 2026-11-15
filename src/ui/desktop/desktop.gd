@@ -9,7 +9,7 @@ extends Control
 const DEBUG_CONSOLE: String = "res://src/debug/debug_console.tscn"
 ## Окно головоломки: не приложение, иконки у него нет.
 const PUZZLE_APP: String = "puzzle"
-## Окно удалённого узла: вход по паролю, после входа — проводник. Без иконки.
+## Удалённый сеанс: трансляция рабочего стола цели (экран блокировки, потом стол). Без иконки.
 const REMOTE_APP: String = "remote"
 const ICON_SIZE: Vector2 = Vector2(96, 72)
 
@@ -187,7 +187,7 @@ func _make_content(app_id: String) -> Control:
 		var view := TerminalView.new()
 		view.setup(terminal)
 		view.puzzle_requested.connect(_on_puzzle_requested.bind(view))
-		view.login_requested.connect(_on_login_requested.bind(view))
+		view.remote_requested.connect(_on_remote_requested.bind(view))
 		view.result_shown.connect(_on_result_shown)
 		view.ready.connect(view.focus_entry)
 		return view
@@ -254,34 +254,38 @@ func _on_menu(action: String) -> void:
 ## Головоломка открывается обычным окном поверх терминала: его можно свернуть и закрыть.
 ## Закрытие — это «выйти»: засчитывается то, что успели собрать. Игровое время при этом стоит
 ## (time.md). Итог уходит в терминал, а его ответ — в вывод окна терминала.
-## Сервер спросил пароль: рядом с консолью открывается окно удалённого узла — «тонкий клиент».
-## Сначала в нём форма входа; после входа (из окна или из консоли — путь один) тот же экран
-## становится проводником узла. Соединение закрылось — окно закрывается.
-func _on_login_requested(request: Dictionary, view: TerminalView) -> void:
+## Подключились к ПК или он спросил пароль: рядом с консолью — трансляция его рабочего стола,
+## как в Radmin (desktop-layout.md, «Удалённый сеанс»). Пароль не введён — экран блокировки;
+## ввести можно там или в консоли, путь один. Соединение закрылось — окно закрывается.
+func _on_remote_requested(request: Dictionary, view: TerminalView) -> void:
+	var node: String = str(request.get("node", ""))
 	var old: DesktopWindow = window_of(REMOTE_APP)
 	if old != null:
+		if str(old.get_meta("node", "")) == node:
+			focus(old)
+			return
 		old.close()
-	var node: String = str(request.get("node", ""))
 	var address: String = str(request.get("address", ""))
 	var window := DesktopWindow.new()
 	window.app_id = REMOTE_APP
-	window.title = "Вход — %s" % address
+	window.title = "Удалённый сеанс — %s" % address
 	window.set_meta("node", node)
-	window.set_meta("address", address)
-	window.set_minimum(Vector2(320, 200))
+	window.set_minimum(Vector2(420, 300))
 	window.closed.connect(_on_window_closed)
 	window.closed.connect(func(_w: DesktopWindow) -> void:
-		# Закрыли окно, не войдя, — это отказ от входа, как пустая строка в консоли.
+		# Закрыли трансляцию у экрана блокировки — это отказ от входа, как пустая строка в консоли.
 		if terminal.login_pending() and is_instance_valid(view):
 			view.submit(""))
 	window.focus_requested.connect(focus)
 	window.state_changed.connect(func(_w: DesktopWindow) -> void: _sync_taskbar())
 	_windows.add_child(window)
-	window.body.add_child(LoginForm.create(address, func(text: String) -> String:
-		view.submit(text)
-		return "" if not terminal.login_pending() else "доступ запрещён"))
-	window.size = Vector2(380, 320)
+	window.size = Vector2(560, 400)
 	window.position = WindowRules.cascade(_opened_count, window.size, _windows.size)
+	var session := RemoteSession.new()
+	window.body.add_child(session)
+	session.setup(terminal, node, address, terminal.net.remote_desktop(node), func(text: String) -> String:
+		view.submit(text)
+		return "" if not terminal.login_pending() else "доступ запрещён")
 	_open[REMOTE_APP] = window
 	_opened_count += 1
 	focus(window)
@@ -300,16 +304,11 @@ func _sync_remote_window() -> void:
 	if not inside:
 		window.close()
 		return
-	var content: Node = window.body.get_child(0)
-	if content is LoginForm:
-		window.body.remove_child(content)
-		content.queue_free()
-		var browser := FileBrowser.new()
-		browser.setup(terminal, node)
-		window.body.add_child(browser)
-		window.title = "Проводник — %s" % str(window.get_meta("address", ""))
-	elif content is FileBrowser:
-		(content as FileBrowser).refresh()
+	var session: RemoteSession = window.body.get_child(0) as RemoteSession
+	if session.is_locked():
+		session.unlock()
+	else:
+		session.refresh()
 
 
 func _on_puzzle_requested(request: Dictionary, view: TerminalView) -> void:
@@ -454,7 +453,7 @@ func _make_emergency(lines: PackedStringArray) -> Control:
 	view.print_lines(lines)
 	view.result_shown.connect(_on_result_shown)
 	view.puzzle_requested.connect(_on_puzzle_requested.bind(view))
-	view.login_requested.connect(_on_login_requested.bind(view))
+	view.remote_requested.connect(_on_remote_requested.bind(view))
 	view.ready.connect(view.focus_entry)
 	box.add_child(view)
 	return root

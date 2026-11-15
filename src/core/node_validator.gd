@@ -60,6 +60,16 @@ func _validate_node(id: String, node: Dictionary) -> void:
 			_addresses[address] = id
 
 	_check_difficulty(where, node)
+	if node.has("desktop"):
+		var desk: Dictionary = node["desktop"] as Dictionary
+		if desk == null:
+			errors.append("%s: desktop должен быть объектом" % where)
+		else:
+			for app: Variant in desk.get("apps", []) as Array:
+				if not Network.REMOTE_APPS.has(str(app)):
+					errors.append("%s: на столе неизвестное приложение '%s' (есть: %s)" % [where, app, ", ".join(Network.REMOTE_APPS)])
+			if str(node.get("device", Network.DEFAULT_DEVICE)) != "pc":
+				warnings.append("%s: стол описан, но у устройства нет графического сеанса" % where)
 	if node.has("device") and not DEVICE_TYPES.has(str(node["device"])):
 		errors.append(
 			"%s: неизвестный тип устройства '%s' (допустимо: %s)"

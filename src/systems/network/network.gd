@@ -175,6 +175,28 @@ func has_ids(node_id: String) -> bool:
 	return bool(definition(node_id).get("ids", false))
 
 
+## Устройства с графическим сеансом: у цели обычная ОС с рабочим столом, и после входа рядом
+## с консолью открывается её трансляция (docs/tech/desktop-layout.md, «Удалённый сеанс»).
+## У роутера и сервера стола нет — только консоль.
+const GRAPHICAL_DEVICES: PackedStringArray = ["pc"]
+## Что может стоять на столе цели. Пока только проводник.
+const REMOTE_APPS: PackedStringArray = ["files"]
+
+
+func has_graphical_session(node_id: String) -> bool:
+	return GRAPHICAL_DEVICES.has(device_of(node_id))
+
+
+## Стол цели из данных узла (`desktop`): имя пользователя, обои, иконки. Чего нет — по умолчанию.
+func remote_desktop(node_id: String) -> Dictionary:
+	var def: Dictionary = definition(node_id).get("desktop", {}) as Dictionary
+	return {
+		"user": str(def.get("user", "user")),
+		"wallpaper": str(def.get("wallpaper", "#24476b")),
+		"apps": (def.get("apps", ["files"]) as Array).duplicate(),
+	}
+
+
 ## Устройства, с которых работает `deepscan`: у них таблицы маршрутов на всю сеть.
 const DEEPSCAN_DEVICES: PackedStringArray = ["router", "server"]
 

@@ -86,10 +86,9 @@ func connect_to(args: PackedStringArray, result: TermResult) -> void:
 		var host: Dictionary = _t.net.definition(tried.node_id)
 		result.add("соединение с %s установлено" % host.get("address", tried.node_id))
 		_t.begin_login(tried.node_id, tried.service_id)
-		result.request = {
-			"type": "login", "node": tried.node_id, "address": str(host.get("address", "")),
-			"port": _t.net.port_of(tried.node_id, tried.service_id),
-		}
+		# У ПК рядом открывается трансляция с экраном блокировки; у роутера и сервера — только консоль.
+		if _t.net.has_graphical_session(tried.node_id):
+			result.request = {"type": "remote", "node": tried.node_id, "address": str(host.get("address", ""))}
 		_t.spend(_t.minutes_of("terminal_command"), result)
 		return
 	if tried.code == NetResult.Code.SERVICES_LEFT:
@@ -109,6 +108,8 @@ func connect_to(args: PackedStringArray, result: TermResult) -> void:
 	_t.set_cwd(Terminal.HOME_DIR)
 	var definition: Dictionary = _t.net.definition(tried.node_id)
 	result.add("подключено: %s (%s)" % [definition.get("title", tried.node_id), definition.get("address", "")])
+	if _t.net.has_graphical_session(tried.node_id) and result.request.is_empty():
+		result.request = {"type": "remote", "node": tried.node_id, "address": str(definition.get("address", ""))}
 	_t.note(Logbook.CATEGORY_SESSION, "вход с неизвестного адреса", "login")
 	EventBus.node_connected.emit(tried.node_id)
 	if tried.first_hack:

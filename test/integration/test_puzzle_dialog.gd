@@ -495,8 +495,9 @@ func test_login_window_opens_and_lets_in_with_the_password() -> void:
 	await wait_frames(2)
 
 	var login: DesktopWindow = desktop.window_of("remote")
-	assert_not_null(login, "открылось окно входа")
-	var form: LoginForm = login.body.get_child(0) as LoginForm
+	assert_not_null(login, "открылась трансляция")
+	var form: LoginForm = (login.body.get_child(0) as RemoteSession).lock_form()
+	assert_not_null(form, "сначала экран блокировки")
 	form.field().text = "неверно"
 	form.try_login()
 	assert_eq(form.note_text(), "доступ запрещён")
@@ -507,9 +508,8 @@ func test_login_window_opens_and_lets_in_with_the_password() -> void:
 	assert_string_contains(view.output_text(), "подключено", "консоль тоже вошла")
 	assert_false(view.output_text().contains(word), "пароль, набранный в окне, не печатается в консоли")
 	var remote: DesktopWindow = desktop.window_of("remote")
-	assert_not_null(remote, "окно осталось — теперь это проводник")
-	assert_true(remote.body.get_child(0) is FileBrowser)
-	assert_string_contains(remote.title, "Проводник")
+	assert_not_null(remote, "трансляция осталась")
+	assert_false((remote.body.get_child(0) as RemoteSession).is_locked(), "экран блокировки снят — виден стол цели")
 
 
 func _desktop_at_the_training_password() -> Array:
@@ -538,31 +538,58 @@ func _desktop_at_the_training_password() -> Array:
 	return [desktop, view, word]
 
 
-func test_password_typed_in_the_console_also_logs_the_window_in() -> void:
+func test_password_typed_in_the_console_also_unlocks_the_session() -> void:
 	var setup: Array = await _desktop_at_the_training_password()
 	var desktop: Desktop = setup[0] as Desktop
 	var view: TerminalView = setup[1] as TerminalView
-	assert_true(desktop.window_of("remote").body.get_child(0) is LoginForm)
+	var session: RemoteSession = desktop.window_of("remote").body.get_child(0) as RemoteSession
+	assert_true(session.is_locked())
 	view.submit(str(setup[2]))
 	await wait_frames(2)
-	var remote: DesktopWindow = desktop.window_of("remote")
-	assert_not_null(remote, "окно не закрылось, а вошло")
-	var browser: FileBrowser = remote.body.get_child(0) as FileBrowser
-	assert_not_null(browser, "в окне проводник")
+	assert_false(session.is_locked(), "вошли в консоли — трансляция тоже вошла")
+
+
+func test_explorer_opens_inside_the_session_and_closes_with_it() -> void:
+	var setup: Array = await _desktop_at_the_training_password()
+	var desktop: Desktop = setup[0] as Desktop
+	var view: TerminalView = setup[1] as TerminalView
+	view.submit(str(setup[2]))
+	await wait_frames(2)
+	var session: RemoteSession = desktop.window_of("remote").body.get_child(0) as RemoteSession
+	var explorer: DesktopWindow = session.open_app("files")
+	var browser: FileBrowser = explorer.body.get_child(0) as FileBrowser
 	assert_true(browser.item_names().has("home/"), "видны каталоги узла")
-
-
-func test_browser_opens_folders_and_closes_on_disconnect() -> void:
-	var setup: Array = await _desktop_at_the_training_password()
-	var desktop: Desktop = setup[0] as Desktop
-	var view: TerminalView = setup[1] as TerminalView
-	view.submit(str(setup[2]))
-	await wait_frames(2)
-	var browser: FileBrowser = desktop.window_of("remote").body.get_child(0) as FileBrowser
 	browser.open_item(browser.item_names().find("home/"))
 	assert_eq(browser.path, "/home")
-	assert_eq(browser.item_names()[0], "..")
+	assert_same(session.open_app("files"), explorer, "второй раз — то же окно")
 	view.submit("dc")
 	await wait_frames(2)
-	assert_null(desktop.window_of("remote"), "соединение закрыто — окно закрылось")
+	assert_null(desktop.window_of("remote"), "соединение закрыто — трансляция закрылась")
 
+
+func test_router_has_no_graphical_session() -> void:
+	var scene: PackedScene = load(Screens.DESKTOP) as PackedScene
+	var desktop: Desktop = scene.instantiate() as Desktop
+	add_child_autofree(desktop)
+	await wait_frames(2)
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	view.submit("scan")
+	view.submit("connect 10.0.0.1")
+	await wait_frames(2)
+	assert_true(desktop.terminal.session.has_connection())
+	assert_null(desktop.window_of("remote"), "у роутера стола нет — только консоль")
+
+
+func test_entry_by_a_client_login_opens_the_desktop_unlocked() -> void:
+	# Заказ дал логин: пароль не спрашивают, трансляция сразу показывает стол.
+	Effects.apply({"reveal_node": {"node": "node_training_pc", "open": ["svc_login"]}})
+	var scene: PackedScene = load(Screens.DESKTOP) as PackedScene
+	var desktop: Desktop = scene.instantiate() as Desktop
+	add_child_autofree(desktop)
+	await wait_frames(2)
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	view.submit("connect 10.0.0.7")
+	await wait_frames(2)
+	var remote: DesktopWindow = desktop.window_of("remote")
+	assert_not_null(remote)
+	assert_false((remote.body.get_child(0) as RemoteSession).is_locked())

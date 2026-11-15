@@ -349,3 +349,10 @@ func test_unknown_wall_is_error() -> void:
 	assert_false(_check(node))
 	assert_string_contains(_text(), "неизвестная стена")
 
+
+func test_unknown_app_on_the_target_desktop_is_error() -> void:
+	var node: Dictionary = _good_node()
+	node["desktop"] = {"user": "u", "apps": ["files", "minesweeper"]}
+	assert_false(_check(node))
+	assert_string_contains(_text(), "неизвестное приложение")
+

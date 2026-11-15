@@ -7,8 +7,8 @@ extends VBoxContainer
 ## `puzzle_requested` и принимает итог через `show_result`.
 
 signal puzzle_requested(request: Dictionary)
-## Сервер спросил пароль: стол открывает окно входа (ввести можно и здесь, в строке).
-signal login_requested(request: Dictionary)
+## Подключились к ПК (или он спросил пароль): стол открывает трансляцию его рабочего стола.
+signal remote_requested(request: Dictionary)
 ## Команда выполнена: карта сети и режим стола перечитывают состояние.
 signal result_shown
 
@@ -188,8 +188,8 @@ func show_result(result: TermResult) -> void:
 			_print("[ %s: работает… ]" % str(request.get("title", "")))
 		"puzzle":
 			puzzle_requested.emit(request)
-		"login":
-			login_requested.emit(request)
+		"remote":
+			remote_requested.emit(request)
 	_refresh()
 	result_shown.emit()
 
