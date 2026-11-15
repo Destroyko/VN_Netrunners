@@ -180,8 +180,8 @@ func test_same_seed_gives_the_same_puzzle() -> void:
 func test_levels_match_the_spec_table() -> void:
 	var expected: Dictionary = {
 		2: [5, 8, 2, 0],
-		3: [6, 8, 2, 1],
-		4: [7, 7, 3, 3],
+		3: [6, 8, 2, 0],
+		4: [7, 7, 3, 0],
 	}
 	for level: int in expected.keys():
 		var puzzle: MatrixPuzzle = MatrixPuzzle.generate(level, 5)

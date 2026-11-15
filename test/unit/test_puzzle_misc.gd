@@ -35,7 +35,7 @@ func test_parameters_come_from_balance_json() -> void:
 	var password: Dictionary = PuzzleLevels.password(4)
 	assert_eq([int(password["length"]), int(password["attempts"]), int(password["known"])], [7, 4, 0])
 	var matrix: Dictionary = PuzzleLevels.matrix(4)
-	assert_eq([int(matrix["size"]), int(matrix["buffer"]), int(matrix["sequences"]), int(matrix["noise"])], [7, 7, 3, 3])
+	assert_eq([int(matrix["size"]), int(matrix["buffer"]), int(matrix["sequences"]), int(matrix["noise"])], [7, 7, 3, 0])
 
 
 func test_general_settings_of_a_section_reach_every_level() -> void:

@@ -13,6 +13,10 @@ const COLOR_USED: Color = Color(0.1, 0.11, 0.14)
 const TINT_FAIL: Color = Color(1.0, 0.4, 0.4)
 const TINT_WIN: Color = Color(0.45, 1.0, 0.55)
 const DEFAULT_TRIES: int = 3
+## Базовый размер шрифта 16; цель крупнее на ~25%.
+const TARGET_FONT_SIZE: int = 20
+const COLOR_TARGET_DONE: String = "#5fd27a"
+const COLOR_TARGET_TODO: String = "#c8ccd6"
 
 ## Выключатель анимаций: тесты гоняют партию мгновенно.
 static var animate: bool = true
@@ -20,9 +24,8 @@ static var animate: bool = true
 var puzzle: MatrixPuzzle
 
 var _round_label: Label
-var _targets: Label
+var _targets: RichTextLabel
 var _grid: GridContainer
-var _chain: Label
 var _note: Label
 var _next_button: Button
 var _done: bool = false
@@ -50,8 +53,13 @@ func setup(game: MatrixPuzzle, rounds: int = 1, next_round: Callable = Callable(
 
 	_round_label = Label.new()
 	add_child(_round_label)
-	_targets = Label.new()
-	_targets.add_theme_font_override("font", PasswordPanel._mono())
+	# Цель — крупно и по центру над сеткой; набранная часть окрашивается по ходу выбора.
+	_targets = RichTextLabel.new()
+	_targets.bbcode_enabled = true
+	_targets.fit_content = true
+	_targets.scroll_active = false
+	_targets.add_theme_font_override("normal_font", PasswordPanel._mono())
+	_targets.add_theme_font_size_override("normal_font_size", TARGET_FONT_SIZE)
 	add_child(_targets)
 
 	var center := CenterContainer.new()
@@ -59,10 +67,6 @@ func setup(game: MatrixPuzzle, rounds: int = 1, next_round: Callable = Callable(
 	_grid = GridContainer.new()
 	center.add_child(_grid)
 
-	_chain = Label.new()
-	_chain.add_theme_font_override("font", PasswordPanel._mono())
-	_chain.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	add_child(_chain)
 	_note = Label.new()
 	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -218,19 +222,23 @@ func _refresh() -> void:
 		button.add_theme_stylebox_override("disabled", style)
 
 	var lines: PackedStringArray = []
-	var done: Array[bool] = puzzle.collected()
 	for index: int in puzzle.targets.size():
+		var target: PackedInt32Array = puzzle.targets[index] as PackedInt32Array
+		var matched: int = _matched_prefix(target)
 		var names: PackedStringArray = []
-		for value: int in puzzle.targets[index] as PackedInt32Array:
-			names.append(MatrixPuzzle.SYMBOLS[value])
-		lines.append("%s %s" % ["✓" if done[index] else "Цель:", " ".join(names)])
-	_targets.text = "\n".join(lines)
+		for position: int in target.size():
+			var color: String = COLOR_TARGET_DONE if position < matched else COLOR_TARGET_TODO
+			names.append("[color=%s]%s[/color]" % [color, MatrixPuzzle.SYMBOLS[target[position]]])
+		lines.append("[center]%s[/center]" % "  ".join(names))
+	_targets.text = "
+".join(lines)
 
-	var slots: PackedStringArray = []
-	for index: int in puzzle.capacity:
-		if index < puzzle.buffer.size():
-			var value: int = puzzle.buffer[index]
-			slots.append("░░" if value == MatrixPuzzle.JUNK else MatrixPuzzle.SYMBOLS[value])
-		else:
-			slots.append("__")
-	_chain.text = "Цепочка: %s\nХодов осталось: %d" % [" ".join(slots), puzzle.capacity - puzzle.buffer.size()]
+
+## Сколько первых символов цели уже набрано: окрашиваются по ходу выбора.
+func _matched_prefix(target: PackedInt32Array) -> int:
+	if puzzle.layers() > 0 and puzzle.contains_run(puzzle.buffer, target):
+		return target.size()
+	var count: int = 0
+	while count < target.size() and count < puzzle.buffer.size() and puzzle.buffer[count] == target[count]:
+		count += 1
+	return count
