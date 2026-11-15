@@ -72,30 +72,6 @@ func test_cautious_target_plays_harder() -> void:
 	assert_eq(last.request["alert"], 1)
 
 
-func test_deepscan_takes_one_piece_off_the_next_dump() -> void:
-	# Узел фирмы: пароль сложности 3 → ступень 4, кусков по умолчанию 3.
-	learn_programs()
-	reveal("node_office_server")
-	run("connect 77.61.204.12")
-	run("passhound")
-	var full: int = (last.request["puzzle"] as DumpPuzzle).targets.size()
-	run("deepscan 8080")
-	run("passhound")
-	assert_eq((last.request["puzzle"] as DumpPuzzle).targets.size(), full - 1, "один кусок восстановлен заранее")
-
-
-func test_deepscan_leaves_at_least_one_piece() -> void:
-	learn_programs()
-	reveal("node_office_server")
-	run("connect 77.61.204.12")
-	var pieces: int = int(PuzzleLevels.dump(4)["pieces"])
-	for _step: int in pieces - 1:
-		assert_string_contains(run("deepscan 8080"), "восстановлен кусок хэша")
-	assert_string_contains(run("deepscan 8080"), "больше здесь не восстановить")
-	run("passhound")
-	assert_eq((last.request["puzzle"] as DumpPuzzle).targets.size(), 1)
-
-
 # --- Слои «матрицы» ----------------------------------------------------------
 
 func test_partial_success_keeps_the_layers() -> void:
@@ -157,18 +133,6 @@ func test_finished_trace_resets_the_layers() -> void:
 	t.finish_puzzle(1)
 	t.spend(60, TermResult.new())
 	assert_eq(PuzzleProgress.for_game().layers("node_husband_pc", "svc_firewall", t.now()), 0, "цель перенастроила защиту")
-
-
-func test_finished_trace_drops_the_deepscan_symbols() -> void:
-	# Они были про старое слово: после трейса пароль новый.
-	GameState.set_flag(Programs.GATE_PRESSURE)
-	learn_programs()
-	reveal("node_office_server")
-	run("connect 77.61.204.12")
-	run("deepscan 8080")
-	run("passhound")
-	t.spend(60, TermResult.new())
-	assert_eq(int(GameState.get_var_or("deepscan.node_office_server.svc_admin_login", 0)), 0)
 
 
 # --- Провал ------------------------------------------------------------------

@@ -479,43 +479,31 @@ func test_logwipe_needs_a_connection() -> void:
 	assert_string_contains(run("logwipe"), "нет подключения")
 
 
-func test_deepscan_restores_a_piece_of_the_hash() -> void:
-	# Узел фирмы: пароль сложности 3 → ступень 4, кусков хэша 3 — есть что восстанавливать.
-	learn_programs()
-	reveal("node_office_server")
-	run("connect 77.61.204.12")
-	var before: int = minute()
-	assert_string_contains(run("deepscan 8080"), "восстановлен кусок хэша")
-	assert_eq(int(GameState.get_var_or("deepscan.node_office_server.svc_admin_login", 0)), 1)
-	run("deepscan 8080")
-	assert_eq(int(GameState.get_var_or("deepscan.node_office_server.svc_admin_login", 0)), 2)
-	assert_eq(minute(), before + 10, "две пятиминутки")
-	assert_false(t.session.is_tracing(), "разведка трейс не запускает")
-
-
-func test_deepscan_refuses_when_only_one_piece_is_left() -> void:
-	# Последний кусок хэша всегда ловит игрок: дальше разведка честно отказывает.
+func test_deepscan_needs_a_router_or_a_server() -> void:
 	learn_programs()
 	reach_training_pc()
+	assert_string_contains(run("deepscan"), "нет подключения", "со своего ПК — нельзя")
 	run("connect 10.0.0.7")
-	var pieces: int = int(PuzzleLevels.dump(2)["pieces"])
-	for _step: int in pieces - 1:
-		run("deepscan")
-	var before: int = minute()
-	assert_string_contains(run("deepscan"), "больше здесь не восстановить")
-	assert_eq(minute(), before, "за то, чего нет, время не берём")
-	assert_eq(int(GameState.get_var_or("deepscan.node_training_pc.svc_login", 0)), pieces - 1)
+	assert_string_contains(run("deepscan"), "нет подключения", "у двери закрытого узла — тоже")
 
 
-func test_deepscan_works_only_against_a_password() -> void:
+func test_deepscan_on_a_plain_pc_has_no_routes() -> void:
 	learn_programs()
-	reveal("node_husband_pc")
-	Clock.set_time(1, 19 * 60)
-	run("connect 92.44.18.3")
-	assert_string_contains(run("deepscan 443"), "только против пароля")
+	enter("node_training_pc")
+	assert_string_contains(run("deepscan"), "нет таблиц маршрутов")
 
 
-# --- Скачивание и загрузка ---------------------------------------------------
+func test_deepscan_on_the_router_lists_the_network_with_depth() -> void:
+	learn_programs()
+	enter("node_home_router")
+	var before: int = minute()
+	var text: String = run("deepscan")
+	assert_string_contains(text, "10.0.0.7")
+	assert_string_contains(text, "через 1")
+	assert_true(Network.for_game().is_known("node_training_pc"), "найденное — в адресной книге")
+	assert_eq(minute(), before + Programs.minutes_for("deepscan"), "работает дольше scan")
+	assert_false(t.session.is_tracing(), "разведка трейс не запускает")
+
 
 func _enter_husband() -> void:
 	Clock.set_time(1, 19 * 60)

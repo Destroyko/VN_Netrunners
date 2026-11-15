@@ -17,10 +17,6 @@ const LOGWIPE_LOG: Array[String] = [
 	"  удаление записей                 ok",
 ]
 
-## Счётчик «открытых символов» у сервиса: deepscan +1 за запуск. Головоломка «пароль»
-## читает его при генерации и не открывает больше, чем позволяет правило (puzzles-spec.md).
-const VAR_DEEPSCAN_PREFIX: String = "deepscan."
-
 var _t: Terminal
 
 
@@ -103,11 +99,10 @@ func _open_puzzle(target: String, service: String, program: String, result: Term
 	var puzzle: RefCounted
 	var layers_total: int = 1
 	var layers_done: int = 0
-	var extra: int = int(GameState.get_var_or(VAR_DEEPSCAN_PREFIX + target + "." + service, 0))
 	if kind == "password":
-		puzzle = PasswordPuzzle.generate(level, seed_value, extra)
+		puzzle = PasswordPuzzle.generate(level, seed_value, 0)
 	elif kind == "dump":
-		puzzle = DumpPuzzle.generate(level, seed_value, dump_params(level, extra))
+		puzzle = DumpPuzzle.generate(level, seed_value)
 	else:
 		layers_total = int(PuzzleLevels.matrix(level)["sequences"])
 		layers_done = mini(progress.layers(target, service, now), layers_total - 1)
@@ -125,13 +120,6 @@ func _open_puzzle(target: String, service: String, program: String, result: Term
 		"layers_done": layers_done, "layers_total": layers_total, "puzzle": puzzle,
 		"rounds": layers_total - layers_done, "seed": seed_value,
 	}
-
-
-## Параметры дампа с учётом разведки: каждый запуск deepscan снимает один кусок, но не последний.
-static func dump_params(level: int, scanned: int) -> Dictionary:
-	var params: Dictionary = PuzzleLevels.dump(level)
-	params["pieces"] = maxi(1, int(params["pieces"]) - scanned)
-	return params
 
 
 ## Какая ступень сыграется против этого сервиса: по его сложности с учётом осторожности цели.
@@ -166,41 +154,23 @@ func _pick_service(target: String, program: String, args: PackedStringArray, res
 	return ""
 
 
-func _deepscan(program: String, args: PackedStringArray, result: TermResult) -> void:
-	var target: String = _t.session.target_id()
-	if target.is_empty():
-		result.add(NetResult.fail(NetResult.Code.NO_TARGET).message())
+## `deepscan`: дольше `scan`, но видит всю сеть за роутером или сервером, а не только соседей.
+## Работает только изнутри роутера или сервера: у обычного ПК нет таблиц маршрутов (решено
+## 15.11.2026). Трейс не запускает, но время идёт.
+func _deepscan(program: String, _args: PackedStringArray, result: TermResult) -> void:
+	if not _t.session.has_connection():
+		result.add("нет подключения к узлу")
 		return
-	var service: String = _pick_service(target, "passhound", args, result)
-	if service.is_empty():
+	var here: String = _t.node_id()
+	if not Network.DEEPSCAN_DEVICES.has(_t.net.device_of(here)):
+		result.add("%s: на этом устройстве нет таблиц маршрутов" % program)
 		return
-	if str(_t.net.service(target, service).get("puzzle", "")) != "password":
-		result.add("%s работает только против пароля" % program)
-		return
-
-	# Что даёт разведка, зависит от того, какой головоломкой passhound ломает пароль.
-	# Если дать больше нечего, честно говорим об этом и не тратим время.
-	var key: String = VAR_DEEPSCAN_PREFIX + target + "." + service
-	var opened: int = int(GameState.get_var_or(key, 0))
-	var level: int = _puzzle_level(target, service)
-	var port: int = _t.net.port_of(target, service)
-	if Programs.puzzle_of("passhound") == "dump":
-		# Кусок хэша восстановлен заранее — ловить на один меньше; хотя бы один остаётся всегда.
-		if int(PuzzleLevels.dump(level)["pieces"]) - opened <= 1:
-			result.add("%s: больше здесь не восстановить, один кусок хэша останется" % program)
-			return
-		GameState.set_var(key, opened + 1)
-		result.add("%s: восстановлен кусок хэша пароля (порт %d)" % [program, port])
-	else:
-		# Три буквы остаются неизвестными всегда (puzzles-spec.md).
-		var config: Dictionary = PuzzleLevels.password(level)
-		var most: int = int(config["length"]) - int(config.get("min_unknown", 3))
-		if int(config["known"]) + opened >= most:
-			result.add("%s: больше символов здесь не открыть, три останутся неизвестными" % program)
-			return
-		GameState.set_var(key, opened + 1)
-		result.add("%s: открыт ещё один символ пароля (порт %d)" % [program, port])
-	# Разведка трейс не запускает, но время идёт, а если трейс уже идёт — он тикает.
+	result.add("%s: обход сети от %s .........." % [program, _t.net.definition(here).get("address", here)])
+	var found: Array[Dictionary] = _t.net.deep_scan(here)
+	if found.is_empty():
+		result.add("других узлов не найдено")
+	for entry: Dictionary in found:
+		result.add("  %s  через %d" % [NetCommands.book_line(entry), int(entry["depth"])])
 	_t.spend(Programs.minutes_for(program), result)
 
 

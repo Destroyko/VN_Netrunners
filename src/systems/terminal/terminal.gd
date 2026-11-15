@@ -294,13 +294,9 @@ func handle_events(events: Array[Dictionary], result: TermResult) -> void:
 				hung_up(node, bool(event["was_connected"]))
 
 
-## Цель перенастроила защиту: частичные слои и счётчики попыток узла обнуляются, а символы,
-## открытые `deepscan`, были про старое слово и теряются вместе с ним.
+## Цель перенастроила защиту: частичные слои и счётчики попыток узла обнуляются.
 func _forget_progress(node: String) -> void:
 	PuzzleProgress.for_game().reset_node(node)
-	for service: Variant in net.definition(node).get("services", []) as Array:
-		var key: String = ProgramCommands.VAR_DEEPSCAN_PREFIX + node + "." + str((service as Dictionary).get("id", ""))
-		GameState.set_var(key, 0)
 
 
 ## Сеанс с узлом закончился — по `dc`, обрыву или трейсу. Запись о выходе пишется всегда и
@@ -375,7 +371,6 @@ func apply_outcome(
 	if layers_now >= layers_total:
 		var done: NetResult = session.crack(service, now_minute)
 		progress.clear_service(node, service)
-		GameState.set_var(ProgramCommands.VAR_DEEPSCAN_PREFIX + node + "." + service, 0)
 		EventBus.puzzle_solved.emit(kind, level, node, service)
 		result.add("порт %d: доступ получен (%d из %d)" % [port, done.cracked, done.required])
 		# Вскрыто всё нужное — вход происходит сам: игрок входит без лишнего connect.

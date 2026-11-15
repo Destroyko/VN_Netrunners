@@ -24,7 +24,7 @@
     "hack_step": 3,
     "rootstep": 3,
     "probe": 2,
-    "deepscan": 5,
+    "deepscan": 10,
     "logwipe": 2,
     "archmask": 8,
     "terminal_command": 1,

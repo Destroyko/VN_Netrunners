@@ -153,6 +153,32 @@ func scan(from_id: String) -> Array[Dictionary]:
 	return found
 
 
+## Устройства, с которых работает `deepscan`: у них таблицы маршрутов на всю сеть.
+const DEEPSCAN_DEVICES: PackedStringArray = ["router", "server"]
+
+
+## `deepscan`: вся сеть, до которой можно дойти по связям от `from_id`, в максимальную глубину
+## (обход в ширину). У каждой находки — `depth`: сколько переходов от узла, где стоит игрок.
+## Найденные остаются в адресной книге навсегда, как после `scan`.
+func deep_scan(from_id: String) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	var depth: Dictionary = {from_id: 0}
+	var queue: Array[String] = [from_id]
+	while not queue.is_empty():
+		var current: String = queue.pop_front()
+		for link: Variant in definition(current).get("links", []) as Array:
+			var neighbour: String = str(link)
+			if not has_node_def(neighbour) or depth.has(neighbour):
+				continue
+			depth[neighbour] = int(depth[current]) + 1
+			queue.append(neighbour)
+			mark_known(neighbour)
+			var entry: Dictionary = book_entry(neighbour)
+			entry["depth"] = depth[neighbour]
+			found.append(entry)
+	return found
+
+
 ## `probe`: сервисы, защита, трейс и расписание. Трейс не запускает и ничего не стоит,
 ## кроме времени — смотреть можно сколько угодно (hacking.md).
 func probe(address: String, now: int) -> NetResult:

@@ -23,14 +23,14 @@ func scan(result: TermResult) -> void:
 	if found.is_empty():
 		result.add("соседей не видно")
 	for entry: Dictionary in found:
-		result.add(_book_line(entry))
+		result.add(book_line(entry))
 	_t.spend(_t.minutes_of("terminal_command"), result)
 
 
 ## `nodes`: всё, что игрок уже знает. Только чтение — сеть для этого не нужна.
 func nodes(result: TermResult) -> void:
 	for entry: Dictionary in _t.net.address_book():
-		result.add(_book_line(entry))
+		result.add(book_line(entry))
 
 
 ## `probe`: сервисы узла и их состояние, сколько нужно для входа, есть ли мониторинг. Трейс не запускает.
@@ -117,7 +117,8 @@ func disconnect_now(result: TermResult) -> void:
 
 # --- Общее -------------------------------------------------------------------
 
-func _book_line(entry: Dictionary) -> String:
+## Строка адресной книги: адрес, тип, имя (после probe), пометка о взломе. Её же печатает deepscan.
+static func book_line(entry: Dictionary) -> String:
 	var title: String = str(entry["title"])
 	var line: String = "%-16s %s" % [entry["address"], entry["device"]]
 	if not title.is_empty():

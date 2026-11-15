@@ -383,3 +383,24 @@ func test_peeking_does_not_bloat_the_save() -> void:
 	net.alert_level("node_lab")
 	net.has_hacked("node_lab")
 	assert_eq((state["nodes"] as Dictionary).size(), 0)
+
+
+# --- deepscan ------------------------------------------------------------------
+
+func test_deep_scan_goes_through_the_whole_network() -> void:
+	# С учебного ПК scan видит только роутер, deep_scan — всё, что за ним.
+	var found: Array[Dictionary] = net.deep_scan("node_lab")
+	var depth: Dictionary = {}
+	for entry: Dictionary in found:
+		depth[str(entry["id"])] = int(entry["depth"])
+	assert_eq(depth["node_router"], 1)
+	assert_eq(depth["node_office"], 2, "сервер — через роутер")
+	assert_eq(depth["node_home_pc"], 2)
+	assert_false(depth.has("node_night"), "узел без связей не находится")
+	assert_true(net.is_known("node_office"), "найденное остаётся в адресной книге")
+
+
+func test_plain_scan_still_sees_only_neighbours() -> void:
+	var found: Array[Dictionary] = net.scan("node_lab")
+	assert_eq(found.size(), 1)
+
