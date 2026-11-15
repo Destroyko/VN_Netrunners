@@ -48,10 +48,13 @@ var _done: bool = false
 var _lens_enabled: bool = true
 ## Клетка под мышью (номер ребёнка сетки) или -1.
 var _hovered: int = -1
+var _password: String = ""
 
 
-func setup(game: DumpPuzzle) -> void:
+## `password` — слово, которое откроется, когда хэш собран (пусто в тренировке).
+func setup(game: DumpPuzzle, password: String = "") -> void:
 	puzzle = game
+	_password = password
 	var config: Dictionary = PuzzleLevels.dump(puzzle.level)
 	_scroll_seconds = maxf(0.2, float(config.get("scroll_seconds", 1.0)))
 	_lens_enabled = bool(config.get("lens", true))
@@ -158,7 +161,10 @@ func click(row: int, col: int) -> Dictionary:
 		DumpPuzzle.PICK_DONE:
 			_done = true
 			_grid.modulate = Color(0.5, 1.0, 0.6)
-			_note.text = "Хэш собран."
+			_note.text = "Хэш собран." if _password.is_empty() else "Хэш собран. Пароль: %s" % _password.to_upper()
+			if not _password.is_empty():
+				_note.add_theme_font_override("font", PasswordPanel._mono())
+				_note.add_theme_font_size_override("font_size", TARGET_FONT_SIZE)
 			_next_button.visible = true
 	_refresh()
 	return result

@@ -7,6 +7,8 @@ extends VBoxContainer
 ## `puzzle_requested` и принимает итог через `show_result`.
 
 signal puzzle_requested(request: Dictionary)
+## Сервер спросил пароль: стол открывает окно входа (ввести можно и здесь, в строке).
+signal login_requested(request: Dictionary)
 ## Команда выполнена: карта сети и режим стола перечитывают состояние.
 signal result_shown
 
@@ -120,8 +122,10 @@ func _on_screen_input(event: InputEvent) -> void:
 
 func submit(line: String) -> void:
 	_history_pos = -1
-	_print(_prompt.text + line)
-	SessionLog.write("term", _prompt.text + line)
+	# Пароль не печатается и не пишется в журнал — как в настоящей консоли.
+	var shown: String = "" if terminal.login_pending() else line
+	_print(_prompt.text + shown)
+	SessionLog.write("term", _prompt.text + (shown if not terminal.login_pending() else "***"))
 	show_result(terminal.execute(line))
 
 
@@ -184,6 +188,8 @@ func show_result(result: TermResult) -> void:
 			_print("[ %s: работает… ]" % str(request.get("title", "")))
 		"puzzle":
 			puzzle_requested.emit(request)
+		"login":
+			login_requested.emit(request)
 	_refresh()
 	result_shown.emit()
 
@@ -223,6 +229,7 @@ func output_text() -> String:
 ## Приглашение и индикатор трейса после каждой команды.
 func _refresh() -> void:
 	_prompt.text = terminal.prompt()
+	_entry.secret = terminal.login_pending()
 	_refresh_trace()
 
 

@@ -46,6 +46,8 @@ var _pending: Dictionary = {}
 ## Головоломка, которую открыли программой: {"service", "kind", "difficulty", "node"}.
 var _puzzle: Dictionary = {}
 var _line: String = ""
+## Сервер спросил пароль (как ssh): {"node", "service", "address"}; пусто — не спрашивает.
+var _login: Dictionary = {}
 ## Лишние минуты трейса за «громкие» действия на узле с анализом действий; списываются в spend.
 var _ids_extra: int = 0
 
@@ -158,6 +160,8 @@ func now() -> int:
 ## Приглашение: `home:/home$`, `10.0.0.7:/home$` (гость), `10.0.0.7:/sys#` (администратор).
 func prompt() -> String:
 	_sync()
+	if not _login.is_empty():
+		return "пароль: "
 	var where: String = "home"
 	if is_remote():
 		where = str(net.definition(node_id()).get("address", node_id()))
@@ -192,6 +196,9 @@ func execute(line: String) -> TermResult:
 	_sync()
 	var result := TermResult.new()
 	var text: String = line.strip_edges()
+	# Сервер ждёт пароль: строка — это пароль, а не команда, и в историю она не идёт.
+	if not _login.is_empty():
+		return _attempt_login(text, result)
 	if text.is_empty():
 		return result
 
@@ -209,6 +216,39 @@ func execute(line: String) -> TermResult:
 
 	_remember(text)
 	return _dispatch(text, false, result)
+
+
+# --- Вход по паролю ------------------------------------------------------------
+
+func begin_login(node: String, service: String) -> void:
+	_login = {"node": node, "service": service, "address": str(net.definition(node).get("address", ""))}
+
+
+func login_pending() -> bool:
+	return not _login.is_empty()
+
+
+## Ответ на «пароль:». Пустая строка (или dc) — отказ от входа. Верное слово — вход, как после
+## connect. Неверное — «доступ запрещён», сервер спрашивает снова.
+func _attempt_login(text: String, result: TermResult) -> TermResult:
+	var node: String = str(_login["node"])
+	if text.is_empty() or text.to_lower() == "dc" or session.target_id() != node:
+		_login = {}
+		result.add("вход отменён")
+		if text.to_lower() == "dc":
+			return _dispatch("dc", false, result)
+		return result
+	var service: String = str(_login["service"])
+	var word: String = net.password_of(node, service)
+	if word.is_empty() or text.to_lower().replace("ё", "е") != word:
+		result.add("доступ запрещён")
+		spend(minutes_of("terminal_command"), result)
+		return result
+	net.enter_password(node, service)
+	var address: String = str(_login["address"])
+	_login = {}
+	_network.connect_to(PackedStringArray([address]), result)
+	return result
 
 
 func _remember(text: String) -> void:
@@ -308,6 +348,7 @@ func _forget_progress(node: String) -> void:
 ## после любой чистки: бесследно уйти нельзя (hacking.md).
 func hung_up(node: String, was_connected: bool) -> void:
 	_puzzle = {}
+	_login = {}
 	_cwd_remote = HOME_DIR
 	if not was_connected:
 		return
@@ -358,7 +399,7 @@ func finish_puzzle(gained: int) -> TermResult:
 	_puzzle = {}
 	apply_outcome(
 		str(data["node"]), str(data["service"]), str(data["kind"]), int(data["level"]),
-		gained, result, int(data["layers_total"])
+		gained, result, int(data["layers_total"]), str(data.get("password", ""))
 	)
 	return result
 
@@ -366,7 +407,7 @@ func finish_puzzle(gained: int) -> TermResult:
 ## Итог попытки: слои в прогресс, сервис вскрыт целиком, частичный успех или провал.
 func apply_outcome(
 	node: String, service: String, kind: String, level: int, gained: int, result: TermResult,
-	layers_total: int = 1
+	layers_total: int = 1, password: String = ""
 ) -> void:
 	var now_minute: int = now()
 	var progress: PuzzleProgress = PuzzleProgress.for_game()
@@ -381,6 +422,12 @@ func apply_outcome(
 		progress.clear_service(node, service)
 		EventBus.puzzle_solved.emit(kind, level, node, service)
 		result.add("порт %d: доступ получен (%d из %d)" % [port, done.cracked, done.required])
+		# Взломщик достал пароль: игрок видит его и вводит сам (hacking.md, «Пароль после перехвата»).
+		if not password.is_empty():
+			net.remember_password(node, service, password)
+			result.add("")
+			result.add("        пароль: %s" % password.to_upper())
+			result.add("")
 		# Вскрыто всё нужное — вход происходит сам: игрок входит без лишнего connect.
 		if done.cracked >= done.required and not session.has_connection():
 			_network.connect_to(PackedStringArray([session.target_address()]), result)

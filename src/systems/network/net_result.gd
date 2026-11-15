@@ -12,6 +12,8 @@ enum Code {
 	OFFLINE,
 	## `connect` отказал: вскрыто меньше сервисов, чем нужно. Узел при этом остаётся целью.
 	SERVICES_LEFT,
+	## Всё нужное вскрыто, но добытый пароль ещё не введён.
+	LOGIN_REQUIRED,
 	## Адрес — свой ПК: подключаться к самому себе незачем.
 	LOCAL,
 	ALREADY_CONNECTED,
@@ -73,6 +75,8 @@ func message() -> String:
 			return "неизвестный адрес: %s" % address
 		Code.OFFLINE:
 			return "узел не в сети"
+		Code.LOGIN_REQUIRED:
+			return "требуется пароль"
 		Code.SERVICES_LEFT:
 			return "вход отклонён"
 		Code.LOCAL:

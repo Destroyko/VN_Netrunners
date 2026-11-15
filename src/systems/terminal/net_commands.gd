@@ -81,6 +81,17 @@ func connect_to(args: PackedStringArray, result: TermResult) -> void:
 	if was_connected and _t.session.target_id() != before_node:
 		_t.hung_up(before_node, true)
 
+	if tried.code == NetResult.Code.LOGIN_REQUIRED:
+		# Как ssh: соединение есть, сервер спрашивает пароль. Ввести можно здесь же или в окне входа.
+		var host: Dictionary = _t.net.definition(tried.node_id)
+		result.add("соединение с %s установлено" % host.get("address", tried.node_id))
+		_t.begin_login(tried.node_id, tried.service_id)
+		result.request = {
+			"type": "login", "node": tried.node_id, "address": str(host.get("address", "")),
+			"port": _t.net.port_of(tried.node_id, tried.service_id),
+		}
+		_t.spend(_t.minutes_of("terminal_command"), result)
+		return
 	if tried.code == NetResult.Code.SERVICES_LEFT:
 		# Соединение есть, входа нет: узел становится целью взлома. Что за защита — покажет probe.
 		var target: Dictionary = _t.net.definition(tried.node_id)

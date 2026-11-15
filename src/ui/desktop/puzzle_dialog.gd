@@ -34,7 +34,7 @@ func setup(request: Dictionary) -> void:
 		panel = matrix
 	elif puzzle is DumpPuzzle:
 		var dump := DumpPanel.new()
-		dump.setup(puzzle as DumpPuzzle)
+		dump.setup(puzzle as DumpPuzzle, str(request.get("password", "")))
 		dump.finished.connect(_on_finished)
 		panel = dump
 	else:

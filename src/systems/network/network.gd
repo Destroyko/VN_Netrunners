@@ -359,6 +359,41 @@ func mark_cracked(node_id: String, service_id: String, now: int) -> void:
 
 func reset_services(node_id: String) -> void:
 	_entry(node_id).erase("cracked")
+	_entry(node_id).erase("passwords")
+
+
+# --- Пароли сервисов ---------------------------------------------------------
+
+## Взломщик достал пароль сервиса (docs/gameplay/hacking.md, «Пароль после перехвата»). Игрок
+## ещё должен ввести его сам — `entered` станет true. Живёт столько же, сколько вскрытый сервис:
+## сервис сбросился — при следующем взломе будет новое слово.
+func remember_password(node_id: String, service_id: String, word: String) -> void:
+	var entry: Dictionary = _entry(node_id)
+	if not entry.has("passwords"):
+		entry["passwords"] = {}
+	(entry["passwords"] as Dictionary)[service_id] = {"word": word, "entered": false}
+
+
+func password_of(node_id: String, service_id: String) -> String:
+	var passwords: Dictionary = _peek(node_id).get("passwords", {}) as Dictionary
+	return str((passwords.get(service_id, {}) as Dictionary).get("word", ""))
+
+
+## Сервис, пароль которого добыт, но ещё не введён (пусто — вводить нечего). Сервисы, открытые
+## заказом («клиент дал логин»), пароля не требуют: слова у них нет.
+func pending_login(node_id: String, now: int) -> String:
+	var passwords: Dictionary = _peek(node_id).get("passwords", {}) as Dictionary
+	for service_id: String in passwords.keys():
+		var record: Dictionary = passwords[service_id] as Dictionary
+		if not bool(record.get("entered", false)) and is_cracked(node_id, service_id, now):
+			return service_id
+	return ""
+
+
+func enter_password(node_id: String, service_id: String) -> void:
+	var passwords: Dictionary = _peek(node_id).get("passwords", {}) as Dictionary
+	if passwords.has(service_id):
+		(passwords[service_id] as Dictionary)["entered"] = true
 
 
 # --- Осторожность цели -------------------------------------------------------

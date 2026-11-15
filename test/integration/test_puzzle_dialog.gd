@@ -465,3 +465,45 @@ func test_puzzle_window_is_not_smaller_than_the_wide_dump() -> void:
 	assert_gte(window.size.x, dialog.get_combined_minimum_size().x, "широкая сетка не обрезана")
 	assert_eq((dialog.panel as DumpPanel).puzzle.current_target().size(), 5)
 
+
+# --- Пароль после перехвата и окно входа ------------------------------------------
+
+func test_login_window_opens_and_lets_in_with_the_password() -> void:
+	Clock.set_time(1, 12 * 60)
+	GameState.set_flag(Programs.flag_for("passhound"))
+	var scene: PackedScene = load(Screens.DESKTOP) as PackedScene
+	var desktop: Desktop = scene.instantiate() as Desktop
+	add_child_autofree(desktop)
+	await wait_frames(2)
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	for line: String in ["scan", "connect 10.0.0.1", "scan", "dc", "connect 10.0.0.7", "passhound 22"]:
+		view.submit(line)
+	var dialog: PuzzleDialog = desktop.find_children("*", "PuzzleDialog", true, false)[0] as PuzzleDialog
+	var panel: DumpPanel = dialog.panel as DumpPanel
+	var word: String = ""
+	while not panel.is_done():
+		var spot: Vector2i = _dump_spot(panel)
+		if spot.x < 0:
+			panel.step()
+		else:
+			panel.click(spot.x, spot.y)
+	var note: String = (panel.find_children("*", "Label", true, false).filter(
+		func(l: Node) -> bool: return (l as Label).text.begins_with("Хэш собран"))[0] as Label).text
+	assert_string_contains(note, "Пароль:", "пароль крупно в окне взлома")
+	word = note.get_slice("Пароль: ", 1).to_lower()
+	(panel.get_children().filter(func(c: Node) -> bool: return c is Button).back() as Button).pressed.emit()
+	await wait_frames(2)
+
+	var login: DesktopWindow = desktop.window_of("login")
+	assert_not_null(login, "открылось окно входа")
+	var form: LoginForm = login.body.get_child(0) as LoginForm
+	form.field().text = "неверно"
+	form.try_login()
+	assert_eq(form.note_text(), "доступ запрещён")
+	form.field().text = word
+	form.try_login()
+	await wait_frames(2)
+	assert_true(desktop.terminal.session.has_connection(), "вошли через окно")
+	assert_null(desktop.window_of("login"), "окно входа закрылось")
+	assert_false(view.output_text().contains(word), "пароль, набранный в окне, не печатается в консоли")
+

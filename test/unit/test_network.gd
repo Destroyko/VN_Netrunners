@@ -420,3 +420,19 @@ func test_ids_is_a_node_property() -> void:
 	assert_false(net.has_ids("node_lab"))
 	assert_true(bool(net.describe("node_office", _at(1, 9))["ids"]))
 
+
+# --- Пароли сервисов ---------------------------------------------------------------
+
+func test_password_waits_to_be_entered_while_the_service_is_open() -> void:
+	var now: int = _at(1, 9)
+	net.mark_cracked("node_lab", "svc_login", now)
+	net.remember_password("node_lab", "svc_login", "метро")
+	assert_eq(net.pending_login("node_lab", now), "svc_login")
+	net.enter_password("node_lab", "svc_login")
+	assert_eq(net.pending_login("node_lab", now), "")
+
+
+func test_service_opened_by_a_client_needs_no_password() -> void:
+	net.mark_cracked("node_lab", "svc_login", _at(1, 9))
+	assert_eq(net.pending_login("node_lab", _at(1, 9)), "", "слова нет — вводить нечего")
+

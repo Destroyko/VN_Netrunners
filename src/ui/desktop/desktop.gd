@@ -9,6 +9,8 @@ extends Control
 const DEBUG_CONSOLE: String = "res://src/debug/debug_console.tscn"
 ## Окно головоломки: не приложение, иконки у него нет.
 const PUZZLE_APP: String = "puzzle"
+## Окно входа по паролю: тоже без иконки, появляется, когда сервер спрашивает пароль.
+const LOGIN_APP: String = "login"
 const ICON_SIZE: Vector2 = Vector2(96, 72)
 
 ## Приложения: порядок = порядок иконок. `requires` — условие доступности на общем языке;
@@ -185,6 +187,7 @@ func _make_content(app_id: String) -> Control:
 		var view := TerminalView.new()
 		view.setup(terminal)
 		view.puzzle_requested.connect(_on_puzzle_requested.bind(view))
+		view.login_requested.connect(_on_login_requested.bind(view))
 		view.result_shown.connect(_on_result_shown)
 		view.ready.connect(view.focus_entry)
 		return view
@@ -251,6 +254,34 @@ func _on_menu(action: String) -> void:
 ## Головоломка открывается обычным окном поверх терминала: его можно свернуть и закрыть.
 ## Закрытие — это «выйти»: засчитывается то, что успели собрать. Игровое время при этом стоит
 ## (time.md). Итог уходит в терминал, а его ответ — в вывод окна терминала.
+## Сервер спросил пароль: окно входа рядом с консолью (позже — экран входа проводника).
+## Ввод уходит в тот же терминал, что и строка консоли: путь один, просто два способа ввести.
+func _on_login_requested(request: Dictionary, view: TerminalView) -> void:
+	var old: DesktopWindow = window_of(LOGIN_APP)
+	if old != null:
+		old.close()
+	var window := DesktopWindow.new()
+	window.app_id = LOGIN_APP
+	window.title = "Вход — %s" % str(request.get("address", ""))
+	window.set_minimum(Vector2(320, 200))
+	window.closed.connect(_on_window_closed)
+	window.closed.connect(func(_w: DesktopWindow) -> void:
+		# Закрыли окно, не войдя, — это отказ от входа, как пустая строка в консоли.
+		if terminal.login_pending() and is_instance_valid(view):
+			view.submit(""))
+	window.focus_requested.connect(focus)
+	window.state_changed.connect(func(_w: DesktopWindow) -> void: _sync_taskbar())
+	_windows.add_child(window)
+	window.body.add_child(LoginForm.create(str(request.get("address", "")), func(text: String) -> String:
+		view.submit(text)
+		return "" if not terminal.login_pending() else "доступ запрещён"))
+	window.size = Vector2(340, 220)
+	window.position = WindowRules.cascade(_opened_count, window.size, _windows.size)
+	_open[LOGIN_APP] = window
+	_opened_count += 1
+	focus(window)
+
+
 func _on_puzzle_requested(request: Dictionary, view: TerminalView) -> void:
 	_show_puzzle(request, view)
 
@@ -343,6 +374,10 @@ func _close_stale_puzzle() -> void:
 ## Команда выполнена: карта и режим стола перечитывают состояние.
 func _on_result_shown() -> void:
 	_close_stale_puzzle()
+	# Пароль введён в консоли (или вход отменён) — окно входа больше не нужно.
+	var login: DesktopWindow = window_of(LOGIN_APP)
+	if login != null and not terminal.login_pending():
+		login.close()
 	var map: DesktopWindow = window_of("map")
 	if map != null:
 		(map.body.get_child(0) as MapView).refresh()
@@ -392,6 +427,7 @@ func _make_emergency(lines: PackedStringArray) -> Control:
 	view.print_lines(lines)
 	view.result_shown.connect(_on_result_shown)
 	view.puzzle_requested.connect(_on_puzzle_requested.bind(view))
+	view.login_requested.connect(_on_login_requested.bind(view))
 	view.ready.connect(view.focus_entry)
 	box.add_child(view)
 	return root

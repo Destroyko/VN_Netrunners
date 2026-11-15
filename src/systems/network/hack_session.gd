@@ -100,6 +100,13 @@ func connect_to(address: String, now: int) -> NetResult:
 		denied.required = required
 		return denied
 
+	# Пароль добыт, но не введён: соединение есть, входа нет, пока игрок не введёт его сам.
+	var waiting: String = _net.pending_login(node_id, now)
+	if not waiting.is_empty():
+		var login := NetResult.fail(NetResult.Code.LOGIN_REQUIRED, node_id, address)
+		login.service_id = waiting
+		return login
+
 	_state["connected"] = true
 	var result := NetResult.ok(node_id)
 	result.address = address

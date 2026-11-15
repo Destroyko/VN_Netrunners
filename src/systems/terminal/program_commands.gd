@@ -109,17 +109,29 @@ func _open_puzzle(target: String, service: String, program: String, result: Term
 		# Слой = раунд с одной целью. Вскрытые слои остаются: играть надо только оставшиеся.
 		puzzle = MatrixPuzzle.generate_round(level, seed_value, 0)
 
+	# Слово, которое откроется, когда хэш собран: по сиду партии, так что после загрузки — то же.
+	var password: String = pick_password(seed_value) if kind == "dump" or kind == "password" else ""
+	if kind == "password":
+		password = (puzzle as PasswordPuzzle).word
 	_t.set_puzzle({
 		"node": target, "service": service, "kind": kind, "level": level,
-		"layers_total": layers_total, "puzzle": puzzle,
+		"layers_total": layers_total, "puzzle": puzzle, "password": password,
 	})
 	result.request = {
 		"type": "puzzle", "kind": kind, "node": target, "service": service,
 		"port": _t.net.port_of(target, service), "address": str(_t.net.definition(target).get("address", "")),
 		"difficulty": level, "alert": alert, "attempt": attempt,
 		"layers_done": layers_done, "layers_total": layers_total, "puzzle": puzzle,
-		"rounds": layers_total - layers_done, "seed": seed_value,
+		"rounds": layers_total - layers_done, "seed": seed_value, "password": password,
 	}
+
+
+## Пароль сервиса — слово из словаря «пароля» (частые и обычные слова): его игрок увидит и введёт.
+static func pick_password(seed_value: int) -> String:
+	var words: PackedStringArray = Words.answers(5, ["common", "regular"])
+	if words.is_empty():
+		return "admin"
+	return words[Rng.fixed(("pass:%d" % seed_value).hash()).randi_range(0, words.size() - 1)]
 
 
 ## Какая ступень сыграется против этого сервиса: по его сложности с учётом осторожности цели.
