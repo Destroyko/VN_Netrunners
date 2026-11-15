@@ -23,6 +23,11 @@ func setup(request: Dictionary) -> void:
 	add_child(center)
 
 	var frame := PanelContainer.new()
+	# Своя непрозрачная заливка: иначе иконки стола просвечивают сквозь окно.
+	var backdrop := StyleBoxFlat.new()
+	backdrop.bg_color = Color(0.09, 0.1, 0.13)
+	backdrop.set_content_margin_all(14)
+	frame.add_theme_stylebox_override("panel", backdrop)
 	center.add_child(frame)
 	var rows := VBoxContainer.new()
 	frame.add_child(rows)

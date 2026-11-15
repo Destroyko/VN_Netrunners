@@ -12,6 +12,7 @@ const COLOR_ABSENT: String = "#7b8190"
 var puzzle: PasswordPuzzle
 
 var _board: RichTextLabel
+var _alphabet: RichTextLabel
 var _note: Label
 var _entry: LineEdit
 var _done: bool = false
@@ -29,6 +30,13 @@ func setup(game: PasswordPuzzle) -> void:
 	_board.custom_minimum_size = Vector2(360, 160)
 	_board.add_theme_font_override("normal_font", _mono())
 	add_child(_board)
+
+	# Алфавит с отметками, как клавиатура в Wordle: не заставляем игрока вести счёт в уме.
+	_alphabet = RichTextLabel.new()
+	_alphabet.bbcode_enabled = true
+	_alphabet.fit_content = true
+	_alphabet.custom_minimum_size = Vector2(360, 0)
+	add_child(_alphabet)
 
 	_note = Label.new()
 	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -134,4 +142,31 @@ func _pattern_row() -> String:
 		if puzzle.known.has(index):
 			letter = str(puzzle.known[index]).to_upper()
 		text += "[color=%s]%s[/color]  " % [COLOR_EXACT if letter != "_" else COLOR_ABSENT, letter]
+	return text
+
+
+const MARK_BEST: int = PasswordPuzzle.MARK_EXACT
+const ALPHABET: String = "абвгдежзийклмнопрстуфхцчшщъыьэюя"
+
+
+## Лучшая известная отметка по каждой букве: точное место > есть в слове > нет в слове.
+func _alphabet_text() -> String:
+	var best: Dictionary = {}
+	for entry: Dictionary in puzzle.history:
+		var word_text: String = str(entry["word"])
+		var marks: Array = entry["marks"] as Array
+		for index: int in word_text.length():
+			var letter: String = word_text[index]
+			var mark: int = int(marks[index])
+			if not best.has(letter) or mark > int(best[letter]):
+				best[letter] = mark
+	for index: int in puzzle.known.keys():
+		best[str(puzzle.known[index])] = MARK_BEST
+	var text: String = ""
+	for letter: String in ALPHABET:
+		var color: String = "#c8ccd6"
+		if best.has(letter):
+			var mark: int = int(best[letter])
+			color = COLOR_EXACT if mark == PasswordPuzzle.MARK_EXACT else (COLOR_PRESENT if mark == PasswordPuzzle.MARK_PRESENT else "#3d414c")
+		text += "[color=%s]%s[/color] " % [color, letter.to_upper()]
 	return text
