@@ -397,3 +397,18 @@ func test_play_dump_opens_from_the_console() -> void:
 	var dialog: PuzzleDialog = desktop.find_children("*", "PuzzleDialog", true, false)[0] as PuzzleDialog
 	assert_true(dialog.panel is DumpPanel)
 
+
+func test_hover_lens_paints_the_cell_and_its_neighbours() -> void:
+	var panel := DumpPanel.new()
+	panel.setup(DumpPuzzle.generate(2, 4))
+	add_child_autofree(panel)
+	panel._on_hover(panel.puzzle.width + 3)  # вторая строка, четвёртый столбец
+	var lens: Dictionary = panel.puzzle.lens(panel.puzzle.top + 1, 3)
+	assert_ne(panel.cell_color(1, 3), DumpPanel.CELL_IDLE, "клетка под мышью подкрашена")
+	assert_ne(panel.cell_color(1, 2), DumpPanel.CELL_IDLE, "сосед слева тоже")
+	assert_eq(panel.cell_color(1, 0), DumpPanel.CELL_IDLE, "дальние клетки — нет")
+	var expected: Color = DumpPanel.CELL_MATCH if lens[3] == DumpPuzzle.LENS_MATCH else DumpPanel.CELL_WRONG
+	assert_eq(panel.cell_color(1, 3), expected)
+	panel._on_hover(-1)
+	assert_eq(panel.cell_color(1, 3), DumpPanel.CELL_IDLE, "мышь ушла — лупа погасла")
+

@@ -96,3 +96,42 @@ func test_scrolling_moves_the_screen_by_one_row() -> void:
 	assert_eq(puzzle.visible_rows()[0], 1)
 	assert_eq(puzzle.row_symbols(puzzle.visible_rows()[0]), second)
 	assert_eq(puzzle.visible_rows().size(), puzzle.rows_visible)
+
+
+# --- Лупа ----------------------------------------------------------------------
+
+func _puzzle_with_row(symbols: Array, target: Array) -> DumpPuzzle:
+	# Головоломка с заданной первой строкой и целью — чтобы проверять лупу по известным байтам.
+	var puzzle: DumpPuzzle = DumpPuzzle.generate(2, 1, {"width": 8, "rows": 8, "length": target.size(), "pieces": 1})
+	puzzle.targets[0] = PackedInt32Array(target)
+	puzzle._rows[0] = PackedInt32Array(symbols)
+	return puzzle
+
+
+func test_lens_marks_a_byte_from_the_piece_and_checks_its_neighbours() -> void:
+	# Цель: 14 5 1 (C4 55 1C). Строка: … 15(FF) 14(C4) 2(2F) …
+	var puzzle: DumpPuzzle = _puzzle_with_row([0, 0, 0, 15, 14, 2, 0, 0], [14, 5, 1])
+	var lens: Dictionary = puzzle.lens(0, 4)
+	assert_eq(lens[4], DumpPuzzle.LENS_MATCH, "C4 есть в куске")
+	assert_eq(lens[3], DumpPuzzle.LENS_NEAR, "перед C4 в куске ничего нет")
+	assert_eq(lens[5], DumpPuzzle.LENS_WRONG, "после C4 должно быть 55")
+
+
+func test_lens_on_the_right_spot_is_all_green() -> void:
+	var puzzle: DumpPuzzle = _puzzle_with_row([0, 14, 5, 1, 0, 0, 0, 0], [14, 5, 1])
+	var lens: Dictionary = puzzle.lens(0, 2)
+	assert_eq([lens[1], lens[2], lens[3]], [DumpPuzzle.LENS_MATCH, DumpPuzzle.LENS_MATCH, DumpPuzzle.LENS_MATCH])
+
+
+func test_lens_on_a_foreign_byte_is_red_with_plain_neighbours() -> void:
+	var puzzle: DumpPuzzle = _puzzle_with_row([0, 3, 7, 9, 0, 0, 0, 0], [14, 5, 1])
+	var lens: Dictionary = puzzle.lens(0, 2)
+	assert_eq(lens[2], DumpPuzzle.LENS_WRONG)
+	assert_eq(lens[1], DumpPuzzle.LENS_NEAR)
+	assert_eq(lens[3], DumpPuzzle.LENS_NEAR)
+
+
+func test_lens_at_the_edge_has_one_neighbour() -> void:
+	var puzzle: DumpPuzzle = _puzzle_with_row([14, 5, 0, 0, 0, 0, 0, 0], [14, 5, 1])
+	assert_eq(puzzle.lens(0, 0).size(), 2)
+

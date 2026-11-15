@@ -19,6 +19,11 @@ const PICK_HIT: String = "hit"
 const PICK_MISS: String = "miss"
 const PICK_DONE: String = "done"
 
+## Состояния клеток под «лупой» (наведение мыши): подходит, не подходит, просто рядом.
+const LENS_MATCH: String = "match"
+const LENS_WRONG: String = "wrong"
+const LENS_NEAR: String = "near"
+
 var level: int = 2
 var puzzle_seed: int = 0
 ## Ширина строки и сколько строк видно разом.
@@ -137,6 +142,43 @@ func _put_decoy(symbols: PackedInt32Array, target: PackedInt32Array, taken: int)
 	_put(symbols, places[_rng.randi_range(0, places.size() - 1)], decoy)
 
 
+# --- Лупа ----------------------------------------------------------------------
+
+## Подсказка при наведении на клетку (решено 15.11.2026, на пробу): сама клетка и её соседи
+## слева и справа. Клетка с байтом из текущего куска — «подходит», иначе «не подходит». Если
+## подходит, соседи сверяются с тем, что в куске стоит рядом с этим байтом: совпал — «подходит»,
+## нет — «не подходит»; сосед за краем куска — просто «рядом». Байт встречается в куске дважды —
+## берём место, где сходится больше соседей. Возвращает {столбец: состояние}.
+func lens(row: int, col: int) -> Dictionary:
+	var result: Dictionary = {}
+	var symbols: PackedInt32Array = row_symbols(row)
+	var target: PackedInt32Array = current_target()
+	var best: int = -1
+	var best_score: int = -1
+	for index: int in target.size():
+		if target[index] != symbols[col]:
+			continue
+		var score: int = 0
+		if index > 0 and col > 0 and target[index - 1] == symbols[col - 1]:
+			score += 1
+		if index < target.size() - 1 and col < width - 1 and target[index + 1] == symbols[col + 1]:
+			score += 1
+		if score > best_score:
+			best = index
+			best_score = score
+	result[col] = LENS_WRONG if best < 0 else LENS_MATCH
+	for side: int in [-1, 1]:
+		var neighbour: int = col + side
+		if neighbour < 0 or neighbour >= width:
+			continue
+		var expected: int = best + side
+		if best < 0 or expected < 0 or expected >= target.size():
+			result[neighbour] = LENS_NEAR
+		else:
+			result[neighbour] = LENS_MATCH if target[expected] == symbols[neighbour] else LENS_WRONG
+	return result
+
+
 # --- Клик ----------------------------------------------------------------------
 
 ## Игрок кликнул по ячейке. Попал внутрь текущей цели (в видимой строке) — кусок пойман.
@@ -145,7 +187,8 @@ func _put_decoy(symbols: PackedInt32Array, target: PackedInt32Array, taken: int)
 func pick(row: int, col: int) -> Dictionary:
 	if is_solved():
 		return {"result": PICK_DONE, "stage": stage, "cells": []}
-	if row < top or row >= top + rows_visible or col < 0 or col >= width:
+	# +1: при плавной прокрутке снизу уже въезжает следующая строка, её тоже видно.
+	if row < top or row > top + rows_visible or col < 0 or col >= width:
 		return _miss()
 	var at: int = _occurrence_at(row_symbols(row), current_target(), col)
 	if at < 0:
