@@ -21,9 +21,9 @@ const FALLBACK_PASSWORD: Dictionary = {
 	"4": {"length": 7, "tiers": ["common", "regular", "rare"], "attempts": 4, "known": 0, "candidates": [100, 600]},
 }
 const FALLBACK_MATRIX: Dictionary = {
-	"2": {"size": 5, "buffer": 8, "sequences": 2, "seq_min": 2, "seq_max": 3, "noise": 0, "slack": [3, 4]},
-	"3": {"size": 6, "buffer": 8, "sequences": 2, "seq_min": 3, "seq_max": 3, "noise": 0, "slack": [2, 2]},
-	"4": {"size": 7, "buffer": 7, "sequences": 3, "seq_min": 3, "seq_max": 4, "noise": 0, "slack": [0, 1]},
+	"2": {"size": 5, "buffer": 8, "sequences": 2, "seq_min": 4, "seq_max": 5, "noise": 0, "slack": [3, 4]},
+	"3": {"size": 6, "buffer": 8, "sequences": 2, "seq_min": 5, "seq_max": 5, "noise": 0, "slack": [2, 2]},
+	"4": {"size": 7, "buffer": 7, "sequences": 3, "seq_min": 5, "seq_max": 6, "noise": 0, "slack": [0, 1]},
 }
 
 
