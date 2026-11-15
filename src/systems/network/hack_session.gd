@@ -46,6 +46,17 @@ func is_tracing() -> bool:
 	return bool(_state.get("tracing", false))
 
 
+## Права администратора на узле: их даёт rootstep, и держатся они до конца сеанса.
+## Не путать с правами дома: на своём ПК у героя полные права всегда (terminal-spec.md).
+func has_admin() -> bool:
+	return has_connection() and bool(_state.get("admin", false))
+
+
+func grant_admin() -> void:
+	if has_connection():
+		_state["admin"] = true
+
+
 func trace_left() -> int:
 	return int(_state.get("trace_left", 0))
 
@@ -211,6 +222,7 @@ func node_sabotaged(node_id: String, now: int) -> Array[Dictionary]:
 func _end() -> void:
 	_state["target"] = ""
 	_state["connected"] = false
+	_state["admin"] = false
 	_state["tracing"] = false
 	_state["trace_left"] = 0
 	_state["trace_total"] = 0

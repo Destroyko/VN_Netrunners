@@ -1,0 +1,140 @@
+class_name NetCommands
+extends RefCounted
+## Команды сети: scan, probe, connect, dc, nodes (docs/tech/terminal-spec.md, «Сеть»).
+## Правила сети — в Network и HackSession; здесь время, события, следы и тексты для игрока.
+
+const NO_NETWORK: String = "сети нет: на этом ПК нет /sys/net.sys"
+
+const PUZZLE_NAMES: Dictionary = {"password": "пароль", "matrix": "матрица"}
+
+var _t: Terminal
+
+
+func _init(terminal: Terminal) -> void:
+	_t = terminal
+
+
+## `scan`: соседи узла, на котором стоит игрок. Найденные остаются в адресной книге навсегда.
+func scan(result: TermResult) -> void:
+	if not _t.has_network():
+		result.add(NO_NETWORK)
+		return
+	var found: Array[Dictionary] = _t.net.scan(_t.node_id())
+	if found.is_empty():
+		result.add("соседей не видно")
+	for entry: Dictionary in found:
+		result.add(_book_line(entry))
+	_t.spend(_t.minutes_of("terminal_command"), result)
+
+
+## `nodes`: всё, что игрок уже знает. Только чтение — сеть для этого не нужна.
+func nodes(result: TermResult) -> void:
+	for entry: Dictionary in _t.net.address_book():
+		result.add(_book_line(entry))
+
+
+## `probe`: сервисы, защита, трейс и расписание. Трейс не запускает.
+func probe(args: PackedStringArray, result: TermResult) -> void:
+	if not _t.has_network():
+		result.add(NO_NETWORK)
+		return
+	if args.is_empty():
+		result.add("использование: probe <адрес>")
+		return
+	var seen: NetResult = _t.net.probe(args[0], _t.now())
+	if not seen.is_ok():
+		result.add(seen.message())
+		return
+
+	var info: Dictionary = seen.info
+	result.add("%s — %s (%s)" % [info["address"], info["title"], info["device"]])
+	result.add("нужно вскрыть сервисов: %d из %d (вскрыто %d)" % [
+		int(info["required_services"]), (info["services"] as Array).size(), int(info["cracked_services"])
+	])
+	for service: Dictionary in info["services"] as Array:
+		result.add("  %s — %s [%s, %s, сложность %d]%s" % [
+			service["id"], service["name"], PUZZLE_NAMES.get(service["puzzle"], service["puzzle"]),
+			service["program"], int(service["difficulty"]), "  вскрыт" if bool(service["cracked"]) else ""
+		])
+		for hint: Variant in service["hints"] as Array:
+			result.add("    подсказка: %s" % str(hint))
+
+	var minutes: int = int(info["trace_minutes"])
+	result.add("трейс: %s" % (("%d мин" % minutes) if minutes > 0 else "нет"))
+	var window: Dictionary = info["online"] as Dictionary
+	if window.is_empty():
+		result.add("в сети: круглосуточно")
+	else:
+		result.add("в сети: %s–%s, сейчас %s" % [
+			window["from"], window["to"], "в сети" if bool(info["online_now"]) else "не в сети"
+		])
+	_t.spend(_t.minutes_of("probe", 2), result)
+
+
+func connect_to(args: PackedStringArray, result: TermResult) -> void:
+	if not _t.has_network():
+		result.add(NO_NETWORK)
+		return
+	if args.is_empty():
+		result.add("использование: connect <адрес>")
+		return
+
+	var before_node: String = _t.session.target_id()
+	var was_connected: bool = _t.session.has_connection()
+	var tried: NetResult = _t.session.connect_to(args[0], _t.now())
+
+	# Прыжок на другой узел закрыл прежний сеанс: следы и событие о выходе — как при `dc`.
+	if was_connected and _t.session.target_id() != before_node:
+		_t.hung_up(before_node, true)
+
+	if tried.code == NetResult.Code.SERVICES_LEFT:
+		result.add(tried.message())
+		_list_closed_services(tried.node_id, result)
+		_t.spend(_t.minutes_of("terminal_command"), result)
+		return
+	if not tried.is_ok():
+		result.add(tried.message())
+		if tried.code == NetResult.Code.OFFLINE and tried.back_at >= 0:
+			var days: int = ceili(float(tried.back_at - _t.now()) / float(1440))
+			result.add("вернётся примерно через %d дн." % maxi(days, 1))
+		return
+
+	_t.set_cwd(Terminal.HOME_DIR)
+	var definition: Dictionary = _t.net.definition(tried.node_id)
+	result.add("подключено: %s (%s)" % [definition.get("title", tried.node_id), definition.get("address", "")])
+	_t.note(Logbook.CATEGORY_SESSION, "вход с неизвестного адреса", "login")
+	EventBus.node_connected.emit(tried.node_id)
+	if tried.first_hack:
+		Effects.apply_all(definition.get("on_hacked", []) as Array)
+		EventBus.hack_completed.emit(tried.node_id)
+	_t.spend(_t.minutes_of("terminal_command"), result)
+
+
+## `dc`: отключиться и прервать взлом на любой стадии, в том числе до подключения.
+func disconnect_now(result: TermResult) -> void:
+	var closed: NetResult = _t.session.disconnect_now()
+	if not closed.is_ok():
+		result.add(closed.message())
+		return
+	_t.hung_up(closed.node_id, closed.was_connected)
+	result.add("отключено" if closed.was_connected else "цель сброшена")
+
+
+# --- Общее -------------------------------------------------------------------
+
+func _book_line(entry: Dictionary) -> String:
+	var title: String = str(entry["title"])
+	var line: String = "%-16s %s" % [entry["address"], entry["device"]]
+	if not title.is_empty():
+		line += "  " + title
+	if bool(entry["hacked"]):
+		line += "  [взломан]"
+	return line
+
+
+## Подсказка после отказа: что именно осталось вскрыть.
+func _list_closed_services(node_id: String, result: TermResult) -> void:
+	result.add("осталось вскрыть:")
+	for service: Dictionary in _t.net.describe(node_id, _t.now())["services"] as Array:
+		if not bool(service["cracked"]):
+			result.add("  %s — %s (%s)" % [service["id"], service["name"], service["program"]])

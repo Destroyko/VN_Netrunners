@@ -28,9 +28,6 @@ var _quests: Dictionary = {}
 ## удаления и скопированные файлы обязаны попасть в сейв — иначе после загрузки мир
 ## «забудет», что игрок там был (docs/tech/architecture.md).
 var _filesystems: Dictionary = {}
-## Логи узлов: node_id → {entries}. Тоже состояние, а не сессия: после загрузки сейва узел
-## должен помнить, что игрок у него был и чего не почистил (docs/gameplay/hacking.md).
-var _logbooks: Dictionary = {}
 ## Сеть: адресная книга, вскрытые сервисы, осторожность целей и идущий взлом. Это состояние
 ## мира, а не сессии: после загрузки узел должен помнить, что его уже вскрывали, и сколько
 ## осталось до конца трейса (docs/gameplay/network.md).
@@ -48,7 +45,6 @@ func reset(new_difficulty: Difficulty = Difficulty.NORMAL) -> void:
 	_vars.clear()
 	_quests.clear()
 	_filesystems.clear()
-	_logbooks.clear()
 	_network.clear()
 
 
@@ -175,19 +171,6 @@ func set_filesystem_state(node_id: String, state: Dictionary) -> void:
 	_filesystems[node_id] = state
 
 
-func has_logbook(node_id: String) -> bool:
-	return _logbooks.has(node_id)
-
-
-## Как и с файлами: возвращается сам словарь, чтобы записи сразу оказывались в состоянии.
-func logbook_state(node_id: String) -> Dictionary:
-	return _logbooks.get(node_id, {}) as Dictionary
-
-
-func set_logbook_state(node_id: String, state: Dictionary) -> void:
-	_logbooks[node_id] = state
-
-
 ## Сеть одна на игру. Отдаётся сам словарь, как и у файлов: Network меняет его на месте.
 func network_state() -> Dictionary:
 	return _network
@@ -211,7 +194,6 @@ func to_dict() -> Dictionary:
 		"vars": _vars.duplicate(true),
 		"quests": _quests.duplicate(true),
 		"filesystems": _filesystems.duplicate(true),
-		"logbooks": _logbooks.duplicate(true),
 		"network": _network.duplicate(true),
 	}
 
@@ -227,7 +209,6 @@ func from_dict(data: Dictionary) -> void:
 	_vars = (data.get("vars", {}) as Dictionary).duplicate(true)
 	_quests = (data.get("quests", {}) as Dictionary).duplicate(true)
 	_filesystems = (data.get("filesystems", {}) as Dictionary).duplicate(true)
-	_logbooks = (data.get("logbooks", {}) as Dictionary).duplicate(true)
 	_network = (data.get("network", {}) as Dictionary).duplicate(true)
 
 

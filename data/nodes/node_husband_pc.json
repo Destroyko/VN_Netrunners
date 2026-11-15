@@ -52,10 +52,16 @@
     "/sys/x-server.sys": {
       "system": true
     },
-    "/log/access.log": {
+    "/log/auth/old_01_session.txt": {
+      "text": "Вход: локальный пользователь, вечернее время.",
       "log": true
     },
-    "/log/auth.log": {
+    "/log/access/old_02_config.txt": {
+      "text": "Открыт каталог /home/photos.",
+      "log": true
+    },
+    "/log/access/old_03_config.txt": {
+      "text": "Записан файл /home/work/zametki.txt.",
       "log": true
     }
   },

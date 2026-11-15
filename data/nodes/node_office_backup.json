@@ -33,7 +33,12 @@
     "/home/dump/readme.txt": {
       "text": "Выгрузка каждую ночь в 3:00. Старые архивы никто не чистит."
     },
-    "/log/access.log": {
+    "/log/auth/old_01_session.txt": {
+      "text": "Плановый вход службы резервного копирования.",
+      "log": true
+    },
+    "/log/access/old_02_backup.txt": {
+      "text": "Записан архив ночной выгрузки.",
       "log": true
     }
   },

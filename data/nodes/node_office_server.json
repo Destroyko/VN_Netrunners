@@ -69,13 +69,16 @@
     "/sys/net.sys": {
       "system": true
     },
-    "/log/access.log": {
+    "/log/auth/old_01_session.txt": {
+      "text": "Вход: сервисная учётная запись.",
       "log": true
     },
-    "/log/auth.log": {
+    "/log/auth/old_02_session.txt": {
+      "text": "Вход: администратор, рабочее время.",
       "log": true
     },
-    "/log/transfer.log": {
+    "/log/access/old_03_transfer.txt": {
+      "text": "Передача файла на резервный узел.",
       "log": true
     }
   },

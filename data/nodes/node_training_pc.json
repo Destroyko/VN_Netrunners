@@ -40,7 +40,12 @@
     "/sys/x-server.sys": {
       "system": true
     },
-    "/log/access.log": {
+    "/log/auth/old_01_session.txt": {
+      "text": "Вход: хозяин машины, вечер.",
+      "log": true
+    },
+    "/log/access/old_02_config.txt": {
+      "text": "Открыт файл /home/zametka.txt.",
       "log": true
     }
   },
