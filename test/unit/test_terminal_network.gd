@@ -114,16 +114,17 @@ func test_scan_on_a_remote_node_shows_its_neighbours() -> void:
 	assert_string_contains(text, "localhost")
 
 
-func test_denied_connect_leaves_the_player_at_the_door() -> void:
+func test_denied_connect_keeps_the_target_and_marks_it_closed() -> void:
 	reach_training_pc()
 	var text: String = run("connect 10.0.0.7")
 	assert_string_contains(text, "вход закрыт")
 	assert_string_contains(text, "вскрыто 0 из 1")
 	assert_false(text.contains("svc_login"), "защиту показывает probe, а не connect")
-	assert_eq(t.prompt(), "10.0.0.7 [дверь]$ ", "не дома и ещё не внутри")
+	assert_false(text.contains("двер"), "метафор в консоли нет")
+	assert_eq(t.prompt(), "10.0.0.7:[закрыт]$ ")
 
 
-func test_probe_without_an_address_examines_the_door() -> void:
+func test_probe_without_an_address_examines_the_target() -> void:
 	reach_training_pc()
 	run("connect 10.0.0.7")
 	var text: String = run("probe")

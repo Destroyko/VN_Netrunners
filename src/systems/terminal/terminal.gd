@@ -120,8 +120,8 @@ func prompt() -> String:
 	if is_remote():
 		where = str(net.definition(node_id()).get("address", node_id()))
 	elif not session.target_id().is_empty():
-		# У двери закрытого узла: не «дома» и ещё не внутри.
-		return "%s [дверь]$ " % session.target_address()
+		# Узел закрыт: цель выбрана, но внутрь не вошли.
+		return "%s:[закрыт]$ " % session.target_address()
 	return "%s:%s%s " % [where, cwd(), "#" if is_remote() and admin() else "$"]
 
 
@@ -324,7 +324,7 @@ func apply_outcome(
 		GameState.set_var(ProgramCommands.VAR_DEEPSCAN_PREFIX + node + "." + service, 0)
 		EventBus.puzzle_solved.emit(kind, level, node, service)
 		result.add("сервис вскрыт: %s (%d из %d)" % [service, done.cracked, done.required])
-		# Вскрыто всё нужное — дверь открывается сама: игрок входит без лишнего connect.
+		# Вскрыто всё нужное — вход происходит сам: игрок входит без лишнего connect.
 		if done.cracked >= done.required and not session.has_connection():
 			_network.connect_to(PackedStringArray([session.target_address()]), result)
 	elif layers_gained > 0:
