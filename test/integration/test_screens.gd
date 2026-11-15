@@ -86,9 +86,9 @@ func test_every_screen_has_a_way_back() -> void:
 		assert_not_null(screen.get_node_or_null("Rows/Back") as Button, "есть «Назад»: " + path)
 
 
-func test_desktop_stub_opens() -> void:
+func test_desktop_opens() -> void:
 	var desktop: Node = _open(Screens.DESKTOP)
-	assert_not_null(desktop.get_node_or_null("Info") as Label)
+	assert_true(desktop is Desktop)
 
 
 func test_room_has_its_objects() -> void:

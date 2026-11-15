@@ -122,7 +122,7 @@
 | Числа баланса (**заглушки**) | `data/balance.json` |
 | Консоль разработчика по F1: `help`, `state`, `flags`, `set_flag`, `money`, `heat`, `time`, `seed`, `effect`, `cond`, `quest` | `src/debug/` |
 | Валидатор данных отдельным инструментом, код возврата для CI | `tools/validate_data.gd` |
-| Заглушка главной сцены (показывает время, деньги, заметность, сид) | `src/ui/main.tscn` |
+| Рабочий стол (иконки, окна, панель задач) | `src/ui/desktop/desktop.tscn` |
 | 104 unit-теста | `test/unit/` |
 
 Команды:
