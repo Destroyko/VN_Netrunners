@@ -18,6 +18,10 @@ signal time_advanced(minute: int, minutes_passed: int)
 ## Начался новый день: NewsManager публикует новости, TriggerManager проверяет триггеры.
 signal day_started(day: int)
 
+## Герой выспал столько ночей: заметность спадает на `decay_per_night` за каждую (heat.md).
+## Пока сна как системы нет (M2), в M1 это событие шлёт консоль разработчика: `sleep`.
+signal slept(nights: int)
+
 # --- Квесты (шлёт QuestManager, M2) -----------------------------------------
 
 signal quest_stage_changed(quest_id: String, stage_id: String)

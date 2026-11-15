@@ -18,6 +18,7 @@ GameState="*res://src/autoload/game_state.gd"
 EventBus="*res://src/autoload/event_bus.gd"
 Rng="*res://src/autoload/rng.gd"
 Clock="*res://src/autoload/clock.gd"
+HeatManager="*res://src/autoload/heat_manager.gd"
 ; Инфраструктура, а не игровая система: держит пропорции окна при ручном ресайзе.
 WindowGuard="*res://src/autoload/window_guard.gd"
 

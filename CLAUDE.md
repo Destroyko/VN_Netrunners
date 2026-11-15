@@ -15,6 +15,7 @@
    - новая механика или связь с сюжетом — `docs/tech/gates.md` (песочница и рельсы).
 3. Не придумывай механики, которых нет в документах. Если без решения не обойтись — предложи варианты и спроси.
 4. Новые идеи, не относящиеся к задаче, — в `ideas/inbox.md`, не в код.
+5. **Открытый вопрос или противоречие между документами — в `docs/open-questions.md`**, одной строкой со ссылкой. Не оставляй их только в ответе или в коде; решили — перенеси в «Закрыто» и добавь запись в `docs/decisions.md`.
 
 ## Архитектура — коротко (подробно: `docs/tech/architecture.md`)
 
@@ -34,7 +35,7 @@ CLAUDE.md, README.md
 docs/            — дизайн-документы (.gdignore — Godot их не импортирует)
 ideas/           — входящие идеи (.gdignore)
 src/
-  autoload/      — синглтоны: GameState, EventBus, Clock, Rng, QuestManager, TriggerManager, NewsManager, SaveManager
+  autoload/      — синглтоны: GameState, EventBus, Clock, Rng, HeatManager, QuestManager, TriggerManager, NewsManager, SaveManager
                    плюс инфраструктурные (не игровые системы): WindowGuard — пропорции окна
   core/          — общая логика: Conditions, Effects, DataLoader, Validator
   systems/       — игровые системы (чистая логика): terminal, filesystem, network, puzzles, economy, needs, heat

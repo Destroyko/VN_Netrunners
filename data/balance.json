@@ -61,7 +61,7 @@
   "heat": {
     "_note": "Заметность: рост от промахов и спад со временем (docs/gameplay/heat.md).",
     "max": 100,
-    "decay_per_day": 5,
+    "decay_per_night": 5,
     "_note_no_flat_gain": "Плоского прироста за сам факт взлома нет (был gain_hack_completed: 3): заметность берётся только со следов, которые игрок оставил. Аккуратный взлом стоит ровно 1.",
     "gain_puzzle_failed": 5,
     "gain_puzzle_retry_step": 2,

@@ -14,6 +14,7 @@ const HELP: Dictionary = {
 	"set_flag": "set_flag <имя> [0|1] — поставить или снять флаг",
 	"money": "money <±сколько> | money =<значение> — изменить или задать деньги",
 	"heat": "heat <±сколько> | heat =<значение> — изменить или задать заметность",
+	"sleep": "sleep [ночей] — выспать ночи: заметность спадает (по умолчанию одна)",
 	"time": "time | time +<минут> | time <день> <чч:мм> — показать, продвинуть или перевести время",
 	"seed": "seed [значение] — показать или задать сид случайности",
 	"effect": "effect <json> — применить эффект, например: effect {\"money\": 500}",
@@ -48,6 +49,8 @@ static func run(line: String) -> String:
 			return _change_number(args, "money")
 		"heat":
 			return _change_number(args, "heat")
+		"sleep":
+			return _sleep(args)
 		"time":
 			return _time(args)
 		"seed":
@@ -225,3 +228,15 @@ static func _puzzle(args: PackedStringArray) -> String:
 	if level < PuzzleLevels.MIN_LEVEL or level > PuzzleLevels.MAX_LEVEL:
 		return "уровень от %d до %d (первый — сюжетный, там головоломок нет)" % [PuzzleLevels.MIN_LEVEL, PuzzleLevels.MAX_LEVEL]
 	return PuzzleReport.describe(kind, level, int(args[2]))
+
+
+## Выспать ночи. Системы сна пока нет, поэтому это единственный способ спада заметности руками.
+static func _sleep(args: PackedStringArray) -> String:
+	var nights: int = 1
+	if args.size() > 0:
+		if not args[0].is_valid_int() or int(args[0]) < 1:
+			return "sleep: нужно целое число ночей от 1"
+		nights = int(args[0])
+	var before: int = GameState.heat
+	EventBus.slept.emit(nights)
+	return "заметность: %d (было %d)" % [GameState.heat, before]
