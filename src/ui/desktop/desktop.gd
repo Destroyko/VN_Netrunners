@@ -267,6 +267,8 @@ func play_puzzle(kind: String, level: int, seed_value: int) -> bool:
 	var layers_total: int = 1
 	if kind == "password":
 		puzzle = PasswordPuzzle.generate(level, seed_value, 0)
+	elif kind == "dump":
+		puzzle = DumpPuzzle.generate(level, seed_value)
 	else:
 		layers_total = int(PuzzleLevels.matrix(level)["sequences"])
 		puzzle = MatrixPuzzle.generate_round(level, seed_value, 0)

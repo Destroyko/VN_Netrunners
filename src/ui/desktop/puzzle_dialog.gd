@@ -32,6 +32,11 @@ func setup(request: Dictionary) -> void:
 		matrix.setup(puzzle as MatrixPuzzle, int(request.get("rounds", 1)), make_round, int(request.get("layers_done", 0)))
 		matrix.finished.connect(_on_finished)
 		panel = matrix
+	elif puzzle is DumpPuzzle:
+		var dump := DumpPanel.new()
+		dump.setup(puzzle as DumpPuzzle)
+		dump.finished.connect(_on_finished)
+		panel = dump
 	else:
 		push_error("PuzzleDialog: неизвестный вид головоломки: %s" % [request.get("kind")])
 		_on_finished(0)

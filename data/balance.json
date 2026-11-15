@@ -119,6 +119,14 @@
         "3": { "size": 6, "buffer": 8, "sequences": 2, "seq_min": 5, "seq_max": 5, "noise": 0, "slack": [2, 2] },
         "4": { "size": 7, "buffer": 7, "sequences": 3, "seq_min": 5, "seq_max": 6, "noise": 0, "slack": [0, 1] }
       }
+    },
+    "dump": {
+      "_note": "«Перехват в дампе» (docs/tech/puzzles-spec.md, раздел 3). width/rows — размер экрана дампа, length — длина куска хэша, pieces — сколько кусков собрать, match_every — раз в сколько строк в дампе появляется нужный кусок, decoy_chance — доля строк с ловушкой (почти совпадение), scroll_seconds — сколько реальных секунд одна строка. Пока только для пробы: play dump в консоли F1.",
+      "levels": {
+        "2": { "width": 8, "rows": 8, "length": 3, "pieces": 2, "match_every": 4, "decoy_chance": 0.2, "scroll_seconds": 1.2 },
+        "3": { "width": 8, "rows": 8, "length": 3, "pieces": 3, "match_every": 5, "decoy_chance": 0.35, "scroll_seconds": 0.9 },
+        "4": { "width": 8, "rows": 8, "length": 4, "pieces": 3, "match_every": 6, "decoy_chance": 0.5, "scroll_seconds": 0.7 }
+      }
     }
   },
 

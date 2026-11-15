@@ -8,6 +8,7 @@ var _gained: int = -1
 func before_each() -> void:
 	GameState.reset()
 	MatrixPanel.animate = false
+	DumpPanel.animate = false
 	_gained = -1
 
 
@@ -343,4 +344,56 @@ func test_trace_ending_by_itself_closes_the_puzzle_window() -> void:
 	await wait_frames(2)
 	assert_false(desktop.has_puzzle_open(), "сеанс оборван — головоломке не на что работать")
 	assert_string_contains(view.output_text(), "трейс дошёл до конца")
+
+
+# --- Перехват в дампе ------------------------------------------------------------
+
+func _dump_spot(panel: DumpPanel) -> Vector2i:
+	# Ищет текущий кусок на экране: (строка экрана, столбец) или (-1, -1).
+	var piece: PackedInt32Array = panel.puzzle.current_target()
+	var rows: Array[int] = panel.puzzle.visible_rows()
+	for row: int in rows.size():
+		var symbols: PackedInt32Array = panel.puzzle.row_symbols(rows[row])
+		for at: int in panel.puzzle.width - piece.size() + 1:
+			if symbols.slice(at, at + piece.size()) == piece:
+				return Vector2i(row, at)
+	return Vector2i(-1, -1)
+
+
+func test_dump_panel_catches_pieces_and_reports_one_layer() -> void:
+	var panel := DumpPanel.new()
+	panel.setup(DumpPuzzle.generate(2, 4))
+	panel.finished.connect(_on_finished)
+	add_child_autofree(panel)
+	for _piece: int in panel.puzzle.targets.size():
+		var spot: Vector2i = _dump_spot(panel)
+		var guard: int = 0
+		while spot.x < 0 and guard < 40:
+			panel.step()
+			spot = _dump_spot(panel)
+			guard += 1
+		panel.click(spot.x, spot.y)
+	assert_true(panel.is_done())
+	(panel.get_children().filter(func(c: Node) -> bool: return c is Button).back() as Button).pressed.emit()
+	assert_eq(_gained, 1)
+
+
+func test_dump_screen_follows_the_stream() -> void:
+	var panel := DumpPanel.new()
+	panel.setup(DumpPuzzle.generate(2, 4))
+	add_child_autofree(panel)
+	var grid: GridContainer = panel.find_children("*", "GridContainer", true, false)[0] as GridContainer
+	var second_row_first: String = (grid.get_child(panel.puzzle.width) as Button).text
+	panel.step()
+	assert_eq((grid.get_child(0) as Button).text, second_row_first, "строки поехали вверх")
+
+
+func test_play_dump_opens_from_the_console() -> void:
+	var scene: PackedScene = load(Screens.DESKTOP) as PackedScene
+	var desktop: Desktop = scene.instantiate() as Desktop
+	add_child_autofree(desktop)
+	await wait_frames(2)
+	assert_true(desktop.play_puzzle("dump", 3, 9))
+	var dialog: PuzzleDialog = desktop.find_children("*", "PuzzleDialog", true, false)[0] as PuzzleDialog
+	assert_true(dialog.panel is DumpPanel)
 
