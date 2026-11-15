@@ -494,7 +494,7 @@ func test_login_window_opens_and_lets_in_with_the_password() -> void:
 	(panel.get_children().filter(func(c: Node) -> bool: return c is Button).back() as Button).pressed.emit()
 	await wait_frames(2)
 
-	var login: DesktopWindow = desktop.window_of("login")
+	var login: DesktopWindow = desktop.window_of("remote")
 	assert_not_null(login, "открылось окно входа")
 	var form: LoginForm = login.body.get_child(0) as LoginForm
 	form.field().text = "неверно"
@@ -504,6 +504,65 @@ func test_login_window_opens_and_lets_in_with_the_password() -> void:
 	form.try_login()
 	await wait_frames(2)
 	assert_true(desktop.terminal.session.has_connection(), "вошли через окно")
-	assert_null(desktop.window_of("login"), "окно входа закрылось")
+	assert_string_contains(view.output_text(), "подключено", "консоль тоже вошла")
 	assert_false(view.output_text().contains(word), "пароль, набранный в окне, не печатается в консоли")
+	var remote: DesktopWindow = desktop.window_of("remote")
+	assert_not_null(remote, "окно осталось — теперь это проводник")
+	assert_true(remote.body.get_child(0) is FileBrowser)
+	assert_string_contains(remote.title, "Проводник")
+
+
+func _desktop_at_the_training_password() -> Array:
+	# Стол, учебный ПК взломан, сервер спрашивает пароль. Возвращает [стол, консоль, слово].
+	Clock.set_time(1, 12 * 60)
+	GameState.set_flag(Programs.flag_for("passhound"))
+	var scene: PackedScene = load(Screens.DESKTOP) as PackedScene
+	var desktop: Desktop = scene.instantiate() as Desktop
+	add_child_autofree(desktop)
+	await wait_frames(2)
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	for line: String in ["scan", "connect 10.0.0.1", "scan", "dc", "connect 10.0.0.7", "passhound 22"]:
+		view.submit(line)
+	var word: String = ""
+	var dialog: PuzzleDialog = desktop.find_children("*", "PuzzleDialog", true, false)[0] as PuzzleDialog
+	var panel: DumpPanel = dialog.panel as DumpPanel
+	word = panel._password
+	while not panel.is_done():
+		var spot: Vector2i = _dump_spot(panel)
+		if spot.x < 0:
+			panel.step()
+		else:
+			panel.click(spot.x, spot.y)
+	(panel.get_children().filter(func(c: Node) -> bool: return c is Button).back() as Button).pressed.emit()
+	await wait_frames(2)
+	return [desktop, view, word]
+
+
+func test_password_typed_in_the_console_also_logs_the_window_in() -> void:
+	var setup: Array = await _desktop_at_the_training_password()
+	var desktop: Desktop = setup[0] as Desktop
+	var view: TerminalView = setup[1] as TerminalView
+	assert_true(desktop.window_of("remote").body.get_child(0) is LoginForm)
+	view.submit(str(setup[2]))
+	await wait_frames(2)
+	var remote: DesktopWindow = desktop.window_of("remote")
+	assert_not_null(remote, "окно не закрылось, а вошло")
+	var browser: FileBrowser = remote.body.get_child(0) as FileBrowser
+	assert_not_null(browser, "в окне проводник")
+	assert_true(browser.item_names().has("home/"), "видны каталоги узла")
+
+
+func test_browser_opens_folders_and_closes_on_disconnect() -> void:
+	var setup: Array = await _desktop_at_the_training_password()
+	var desktop: Desktop = setup[0] as Desktop
+	var view: TerminalView = setup[1] as TerminalView
+	view.submit(str(setup[2]))
+	await wait_frames(2)
+	var browser: FileBrowser = desktop.window_of("remote").body.get_child(0) as FileBrowser
+	browser.open_item(browser.item_names().find("home/"))
+	assert_eq(browser.path, "/home")
+	assert_eq(browser.item_names()[0], "..")
+	view.submit("dc")
+	await wait_frames(2)
+	assert_null(desktop.window_of("remote"), "соединение закрыто — окно закрылось")
 
