@@ -133,10 +133,3 @@ func _book_line(entry: Dictionary) -> String:
 		line += "  [взломан]"
 	return line
 
-
-## Подсказка после отказа: что именно осталось вскрыть.
-func _list_closed_services(node_id: String, result: TermResult) -> void:
-	result.add("осталось вскрыть:")
-	for service: Dictionary in _t.net.describe(node_id, _t.now())["services"] as Array:
-		if not bool(service["cracked"]):
-			result.add("  %s — %s (%s)" % [service["id"], service["name"], service["program"]])

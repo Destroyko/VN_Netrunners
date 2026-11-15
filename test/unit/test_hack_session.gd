@@ -85,7 +85,7 @@ func test_connect_outside_prime_time_is_refused() -> void:
 func test_connect_with_open_services_left_is_denied_with_progress() -> void:
 	var result: NetResult = session.connect_to("77.0.0.12", _at(1, 9))
 	assert_eq(result.code, NetResult.Code.SERVICES_LEFT)
-	assert_eq(result.message(), "узел отказал: вскрыто 0 из 2 сервисов")
+	assert_eq(result.message(), "вход отклонён")
 
 
 func test_denied_connect_still_picks_the_target() -> void:

@@ -72,7 +72,7 @@ func message() -> String:
 		Code.OFFLINE:
 			return "узел не в сети"
 		Code.SERVICES_LEFT:
-			return "узел отказал: вскрыто %d из %d сервисов" % [cracked, required]
+			return "вход отклонён"
 		Code.LOCAL:
 			return "локальный адрес"
 		Code.ALREADY_CONNECTED:

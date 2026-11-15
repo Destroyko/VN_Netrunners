@@ -56,7 +56,7 @@ func test_training_hack_start_to_finish() -> void:
 	assert_eq(service["program"], "passhound")
 
 	var denied: NetResult = session.connect_to("10.0.0.7", _now())
-	assert_eq(denied.message(), "узел отказал: вскрыто 0 из 1 сервисов")
+	assert_eq(denied.message(), "вход отклонён")
 
 	var started: NetResult = session.begin_cracking("svc_login", "passhound", _now(), true)
 	assert_true(started.is_ok())
@@ -108,5 +108,5 @@ func test_order_without_logins_still_needs_the_hack() -> void:
 	net = Network.for_game()
 	session = HackSession.new(net)
 	var denied: NetResult = session.connect_to("92.44.18.3", _now())
-	assert_eq(denied.message(), "узел отказал: вскрыто 0 из 1 сервисов")
+	assert_eq(denied.message(), "вход отклонён")
 	assert_eq(session.target_id(), "node_husband_pc", "цель выбрана: можно запускать gridrunner")
