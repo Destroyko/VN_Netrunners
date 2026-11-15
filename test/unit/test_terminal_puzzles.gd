@@ -19,26 +19,28 @@ func _start_training() -> void:
 
 # --- Запрос головоломки ------------------------------------------------------
 
-func test_password_request_carries_a_live_puzzle() -> void:
+func test_passhound_request_carries_a_live_dump() -> void:
+	# passhound ломает вход по паролю «перехватом в дампе» (решено 15.11.2026).
 	_start_training()
 	run("passhound")
 	var request: Dictionary = last.request
+	assert_eq(request["kind"], "dump")
 	assert_eq(request["difficulty"], 2, "сервис 1 — лёгкая ступень")
 	assert_eq(request["layers_total"], 1)
-	var puzzle: PasswordPuzzle = request["puzzle"] as PasswordPuzzle
+	var puzzle: DumpPuzzle = request["puzzle"] as DumpPuzzle
 	assert_not_null(puzzle)
-	assert_eq(puzzle.length, 5)
+	assert_eq(puzzle.targets.size(), int(PuzzleLevels.dump(2)["pieces"]))
 	assert_same(t.current_puzzle(), puzzle, "терминал держит ту же партию, что отдал интерфейсу")
 
 
-func test_solving_the_password_opens_the_service() -> void:
+func test_catching_the_hash_opens_the_service() -> void:
 	_start_training()
 	run("passhound")
-	var puzzle: PasswordPuzzle = last.request["puzzle"] as PasswordPuzzle
-	assert_true(bool(puzzle.guess(puzzle.word)["solved"]))
+	var puzzle: DumpPuzzle = last.request["puzzle"] as DumpPuzzle
+	assert_eq(catch_all(puzzle)["result"], DumpPuzzle.PICK_DONE)
 	var text: String = t.finish_puzzle(1).text()
 	assert_string_contains(text, "доступ получен")
-	assert_string_contains(text, "подключено", "всё вскрыто — дверь открылась сама")
+	assert_string_contains(text, "подключено", "всё вскрыто — вход сам")
 	assert_true(t.session.has_connection())
 
 
@@ -55,9 +57,9 @@ func test_same_attempt_gives_the_same_puzzle() -> void:
 	# После загрузки сейва игрок получает ту же головоломку, а не новую.
 	_start_training()
 	run("passhound")
-	var first: String = (last.request["puzzle"] as PasswordPuzzle).word
+	var first: Array = (last.request["puzzle"] as DumpPuzzle).targets
 	run("passhound")
-	assert_eq((last.request["puzzle"] as PasswordPuzzle).word, first)
+	assert_eq((last.request["puzzle"] as DumpPuzzle).targets, first)
 
 
 func test_cautious_target_plays_harder() -> void:
@@ -70,29 +72,28 @@ func test_cautious_target_plays_harder() -> void:
 	assert_eq(last.request["alert"], 1)
 
 
-func test_deepscan_opens_an_extra_letter_in_the_next_puzzle() -> void:
-	# Узел фирмы: сервис с паролем сложности 3 → уровень «нетраннер», открытых букв нет.
+func test_deepscan_takes_one_piece_off_the_next_dump() -> void:
+	# Узел фирмы: пароль сложности 3 → ступень 4, кусков по умолчанию 3.
 	learn_programs()
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
 	run("passhound")
-	assert_eq((last.request["puzzle"] as PasswordPuzzle).known.size(), 0)
+	var full: int = (last.request["puzzle"] as DumpPuzzle).targets.size()
 	run("deepscan 8080")
 	run("passhound")
-	assert_eq((last.request["puzzle"] as PasswordPuzzle).known.size(), 1, "deepscan открыл ещё один символ")
+	assert_eq((last.request["puzzle"] as DumpPuzzle).targets.size(), full - 1, "один кусок восстановлен заранее")
 
 
-func test_deepscan_can_fill_up_to_the_rule_and_no_further() -> void:
-	# Минимум три буквы остаются неизвестными: на «нетраннере» открыть можно четыре из семи.
+func test_deepscan_leaves_at_least_one_piece() -> void:
 	learn_programs()
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
-	for _step: int in 4:
-		assert_string_contains(run("deepscan 8080"), "ещё один символ")
-	assert_string_contains(run("deepscan 8080"), "больше символов здесь не открыть")
+	var pieces: int = int(PuzzleLevels.dump(4)["pieces"])
+	for _step: int in pieces - 1:
+		assert_string_contains(run("deepscan 8080"), "восстановлен кусок хэша")
+	assert_string_contains(run("deepscan 8080"), "больше здесь не восстановить")
 	run("passhound")
-	var puzzle: PasswordPuzzle = last.request["puzzle"] as PasswordPuzzle
-	assert_eq(puzzle.length - puzzle.known.size(), 3)
+	assert_eq((last.request["puzzle"] as DumpPuzzle).targets.size(), 1)
 
 
 # --- Слои «матрицы» ----------------------------------------------------------
@@ -186,10 +187,10 @@ func test_failure_counts_the_attempt_and_reports_it() -> void:
 func test_retry_after_failure_is_a_new_puzzle() -> void:
 	_start_training()
 	run("passhound")
-	var first_seed: int = (last.request["puzzle"] as PasswordPuzzle).puzzle_seed
+	var first_seed: int = (last.request["puzzle"] as DumpPuzzle).puzzle_seed
 	t.finish_puzzle(0)
 	run("passhound")
-	assert_ne((last.request["puzzle"] as PasswordPuzzle).puzzle_seed, first_seed, "новая попытка — новый сид")
+	assert_ne((last.request["puzzle"] as DumpPuzzle).puzzle_seed, first_seed, "новая попытка — новый сид")
 	assert_eq(last.request["attempt"], 1)
 
 

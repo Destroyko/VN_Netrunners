@@ -69,3 +69,27 @@ func logbook(node_id: String) -> Logbook:
 func solve_puzzle() -> TermResult:
 	var request: Dictionary = last.request
 	return t.finish_puzzle(int(request["layers_total"]) - int(request["layers_done"]))
+
+
+## Поймать все куски дампа по-честному: прокручивать до появления куска и кликать по нему.
+## Возвращает последний итог `pick` (done — хэш собран).
+static func catch_all(puzzle: DumpPuzzle) -> Dictionary:
+	var last_pick: Dictionary = {}
+	var guard: int = 0
+	while not puzzle.is_solved() and guard < 400:
+		guard += 1
+		var piece: PackedInt32Array = puzzle.current_target()
+		var found: bool = false
+		for row: int in puzzle.visible_rows():
+			var symbols: PackedInt32Array = puzzle.row_symbols(row)
+			for at: int in puzzle.width - piece.size() + 1:
+				if symbols.slice(at, at + piece.size()) == piece:
+					last_pick = puzzle.pick(row, at)
+					found = true
+					break
+			if found:
+				break
+		if not found:
+			puzzle.scroll()
+	return last_pick
+

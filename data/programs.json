@@ -4,9 +4,9 @@
 
   "passhound": {
     "kind": "cracker",
-    "puzzle": "password",
+    "puzzle": "dump",
     "minutes": "hack_step",
-    "about": "подбор пароля сервиса: головоломка «пароль»",
+    "about": "перехват хэша пароля из дампа памяти сервиса",
     "requires": []
   },
   "gridrunner": {
@@ -31,7 +31,7 @@
   "deepscan": {
     "kind": "recon",
     "minutes": "deepscan",
-    "about": "расширенная разведка: открывает ещё один символ пароля",
+    "about": "расширенная разведка: восстанавливает кусок хэша пароля заранее",
     "requires": []
   }
 }

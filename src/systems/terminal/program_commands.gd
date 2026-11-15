@@ -103,9 +103,11 @@ func _open_puzzle(target: String, service: String, program: String, result: Term
 	var puzzle: RefCounted
 	var layers_total: int = 1
 	var layers_done: int = 0
+	var extra: int = int(GameState.get_var_or(VAR_DEEPSCAN_PREFIX + target + "." + service, 0))
 	if kind == "password":
-		var extra: int = int(GameState.get_var_or(VAR_DEEPSCAN_PREFIX + target + "." + service, 0))
 		puzzle = PasswordPuzzle.generate(level, seed_value, extra)
+	elif kind == "dump":
+		puzzle = DumpPuzzle.generate(level, seed_value, dump_params(level, extra))
 	else:
 		layers_total = int(PuzzleLevels.matrix(level)["sequences"])
 		layers_done = mini(progress.layers(target, service, now), layers_total - 1)
@@ -123,6 +125,13 @@ func _open_puzzle(target: String, service: String, program: String, result: Term
 		"layers_done": layers_done, "layers_total": layers_total, "puzzle": puzzle,
 		"rounds": layers_total - layers_done, "seed": seed_value,
 	}
+
+
+## Параметры дампа с учётом разведки: каждый запуск deepscan снимает один кусок, но не последний.
+static func dump_params(level: int, scanned: int) -> Dictionary:
+	var params: Dictionary = PuzzleLevels.dump(level)
+	params["pieces"] = maxi(1, int(params["pieces"]) - scanned)
+	return params
 
 
 ## Какая ступень сыграется против этого сервиса: по его сложности с учётом осторожности цели.
@@ -169,18 +178,28 @@ func _deepscan(program: String, args: PackedStringArray, result: TermResult) -> 
 		result.add("%s работает только против пароля" % program)
 		return
 
-	# Три буквы остаются неизвестными всегда (puzzles-spec.md). Если открыто всё, что можно,
-	# честно говорим об этом и не тратим время: иначе игрок платил бы за символ, которого нет.
+	# Что даёт разведка, зависит от того, какой головоломкой passhound ломает пароль.
+	# Если дать больше нечего, честно говорим об этом и не тратим время.
 	var key: String = VAR_DEEPSCAN_PREFIX + target + "." + service
 	var opened: int = int(GameState.get_var_or(key, 0))
-	var config: Dictionary = PuzzleLevels.password(_puzzle_level(target, service))
-	var most: int = int(config["length"]) - int(config.get("min_unknown", 3))
-	if int(config["known"]) + opened >= most:
-		result.add("%s: больше символов здесь не открыть, три останутся неизвестными" % program)
-		return
-
-	GameState.set_var(key, opened + 1)
-	result.add("%s: открыт ещё один символ пароля (порт %d)" % [program, _t.net.port_of(target, service)])
+	var level: int = _puzzle_level(target, service)
+	var port: int = _t.net.port_of(target, service)
+	if Programs.puzzle_of("passhound") == "dump":
+		# Кусок хэша восстановлен заранее — ловить на один меньше; хотя бы один остаётся всегда.
+		if int(PuzzleLevels.dump(level)["pieces"]) - opened <= 1:
+			result.add("%s: больше здесь не восстановить, один кусок хэша останется" % program)
+			return
+		GameState.set_var(key, opened + 1)
+		result.add("%s: восстановлен кусок хэша пароля (порт %d)" % [program, port])
+	else:
+		# Три буквы остаются неизвестными всегда (puzzles-spec.md).
+		var config: Dictionary = PuzzleLevels.password(level)
+		var most: int = int(config["length"]) - int(config.get("min_unknown", 3))
+		if int(config["known"]) + opened >= most:
+			result.add("%s: больше символов здесь не открыть, три останутся неизвестными" % program)
+			return
+		GameState.set_var(key, opened + 1)
+		result.add("%s: открыт ещё один символ пароля (порт %d)" % [program, port])
 	# Разведка трейс не запускает, но время идёт, а если трейс уже идёт — он тикает.
 	_t.spend(Programs.minutes_for(program), result)
 

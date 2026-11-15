@@ -228,7 +228,7 @@ func test_passhound_asks_the_interface_for_a_puzzle() -> void:
 	var before: int = minute()
 	run("passhound")
 	assert_eq(last.request["type"], "puzzle")
-	assert_eq(last.request["kind"], "password")
+	assert_eq(last.request["kind"], "dump")
 	assert_eq(last.request["service"], "svc_login")
 	assert_eq(last.request["node"], "node_training_pc")
 	assert_eq(minute(), before + 3, "программа стоит hack_step из balance.json")
@@ -479,13 +479,13 @@ func test_logwipe_needs_a_connection() -> void:
 	assert_string_contains(run("logwipe"), "нет подключения")
 
 
-func test_deepscan_opens_one_more_symbol() -> void:
-	# Узел фирмы: пароль сложности 3 → «нетраннер», открытых букв нет, есть куда открывать.
+func test_deepscan_restores_a_piece_of_the_hash() -> void:
+	# Узел фирмы: пароль сложности 3 → ступень 4, кусков хэша 3 — есть что восстанавливать.
 	learn_programs()
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
 	var before: int = minute()
-	assert_string_contains(run("deepscan 8080"), "ещё один символ")
+	assert_string_contains(run("deepscan 8080"), "восстановлен кусок хэша")
 	assert_eq(int(GameState.get_var_or("deepscan.node_office_server.svc_admin_login", 0)), 1)
 	run("deepscan 8080")
 	assert_eq(int(GameState.get_var_or("deepscan.node_office_server.svc_admin_login", 0)), 2)
@@ -493,15 +493,18 @@ func test_deepscan_opens_one_more_symbol() -> void:
 	assert_false(t.session.is_tracing(), "разведка трейс не запускает")
 
 
-func test_deepscan_refuses_when_nothing_more_can_be_opened() -> void:
-	# На лёгком уровне открыто уже всё, что можно: три буквы остаются неизвестными.
+func test_deepscan_refuses_when_only_one_piece_is_left() -> void:
+	# Последний кусок хэша всегда ловит игрок: дальше разведка честно отказывает.
 	learn_programs()
 	reach_training_pc()
 	run("connect 10.0.0.7")
+	var pieces: int = int(PuzzleLevels.dump(2)["pieces"])
+	for _step: int in pieces - 1:
+		run("deepscan")
 	var before: int = minute()
-	assert_string_contains(run("deepscan"), "больше символов здесь не открыть")
-	assert_eq(minute(), before, "за несуществующий символ время не берём")
-	assert_eq(int(GameState.get_var_or("deepscan.node_training_pc.svc_login", 0)), 0)
+	assert_string_contains(run("deepscan"), "больше здесь не восстановить")
+	assert_eq(minute(), before, "за то, чего нет, время не берём")
+	assert_eq(int(GameState.get_var_or("deepscan.node_training_pc.svc_login", 0)), pieces - 1)
 
 
 func test_deepscan_works_only_against_a_password() -> void:

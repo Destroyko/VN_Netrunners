@@ -261,10 +261,16 @@ func test_full_hack_through_the_desktop() -> void:
 	assert_true(desktop.has_puzzle_open(), "программа открыла головоломку поверх стола")
 
 	var dialog: PuzzleDialog = desktop.find_children("*", "PuzzleDialog", true, false)[0] as PuzzleDialog
-	var panel: PasswordPanel = dialog.panel as PasswordPanel
+	var panel: DumpPanel = dialog.panel as DumpPanel
 	assert_not_null(desktop.window_of("puzzle"), "головоломка — обычное окно: его видно на панели задач")
-	panel.submit(panel.puzzle.word)
-	var button: Button = panel.get_children().filter(func(c: Node) -> bool: return c is Button)[0] as Button
+	# Ловим куски через окно: прокрутка и клики, как у игрока.
+	while not panel.is_done():
+		var spot: Vector2i = _dump_spot(panel)
+		if spot.x < 0:
+			panel.step()
+		else:
+			panel.click(spot.x, spot.y)
+	var button: Button = panel.get_children().filter(func(c: Node) -> bool: return c is Button).back() as Button
 	button.pressed.emit()
 	await wait_frames(2)
 	assert_false(desktop.has_puzzle_open())

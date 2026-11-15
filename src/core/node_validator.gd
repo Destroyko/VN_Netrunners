@@ -7,7 +7,7 @@ extends RefCounted
 ## Validator вызывает validate_all() и подмешивает ошибки к своим.
 
 ## Типы головоломок, docs/tech/puzzles-spec.md. MVP — две.
-const PUZZLE_TYPES: PackedStringArray = ["password", "matrix"]
+const PUZZLE_TYPES: PackedStringArray = ["password", "matrix", "dump"]
 
 ## Тип устройства, который показывает scan (docs/tech/terminal-spec.md). Нет поля — «pc».
 const DEVICE_TYPES: PackedStringArray = ["pc", "router", "server", "phone"]
