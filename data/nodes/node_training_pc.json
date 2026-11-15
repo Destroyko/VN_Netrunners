@@ -3,6 +3,7 @@
   "id": "node_training_pc",
   "title": "Учебный ПК",
   "address": "10.0.0.7",
+  "device": "pc",
   "difficulty": 1,
   "trace_minutes": 0,
   "required_services": 1,

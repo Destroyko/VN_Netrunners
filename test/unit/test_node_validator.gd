@@ -176,6 +176,79 @@ func test_self_link_is_error() -> void:
 	assert_false(_check(node))
 
 
+func test_device_type_is_checked() -> void:
+	var node: Dictionary = _good_node()
+	node["device"] = "router"
+	assert_true(_check(node), _text())
+	validator = NodeValidator.new()
+	node["device"] = "toaster"
+	assert_false(_check(node))
+	assert_string_contains(_text(), "toaster")
+
+
+func test_chain_from_start_node_is_reachable() -> void:
+	var nodes: Dictionary = _linked_pair(["node_second"], ["node_test"])
+	(nodes["node_test"] as Dictionary)["known_from_start"] = true
+	validator.validate_all(nodes)
+	assert_eq(validator.warnings.size(), 0, "
+".join(validator.warnings))
+
+
+func test_node_outside_every_chain_is_warned_about() -> void:
+	var nodes: Dictionary = _linked_pair([], [])
+	(nodes["node_test"] as Dictionary)["known_from_start"] = true
+	validator.validate_all(nodes)
+	assert_eq(validator.errors.size(), 0, "недостижимость — не ошибка")
+	assert_eq(validator.warnings.size(), 1)
+	assert_string_contains(validator.warnings[0], "node_second")
+
+
+func test_node_opened_by_an_order_is_not_lost() -> void:
+	# Вход не через scan: заказ открывает узел сам (reveal_node), и это нормально.
+	var nodes: Dictionary = _linked_pair([], [])
+	(nodes["node_test"] as Dictionary)["known_from_start"] = true
+	validator.validate_all(nodes, {"node_second": true})
+	assert_eq(validator.warnings.size(), 0, "
+".join(validator.warnings))
+
+
+func test_node_opened_by_an_order_also_opens_its_neighbours() -> void:
+	var nodes: Dictionary = _linked_pair(["node_second"], ["node_test"])
+	var third: Dictionary = _good_node()
+	third["id"] = "node_third"
+	third["address"] = "10.0.0.9"
+	third["links"] = []
+	nodes["node_third"] = third
+	(nodes["node_test"] as Dictionary)["known_from_start"] = true
+	validator.validate_all(nodes, {"node_third": true})
+	assert_eq(validator.warnings.size(), 0, "
+".join(validator.warnings))
+
+
+func test_reveal_in_on_hacked_is_checked() -> void:
+	# Червь на телефоне открывает следующий узел: ссылка должна вести на существующий.
+	var node: Dictionary = _good_node()
+	node["on_hacked"] = [{"reveal_node": "node_nowhere"}]
+	assert_false(_check(node))
+	assert_string_contains(_text(), "node_nowhere")
+
+
+func test_reveal_in_on_hacked_with_unknown_service_is_error() -> void:
+	var nodes: Dictionary = _linked_pair([], [])
+	(nodes["node_test"] as Dictionary)["on_hacked"] = [
+		{"reveal_node": {"node": "node_second", "open": ["svc_nope"]}}
+	]
+	validator.validate_all(nodes)
+	assert_string_contains("
+".join(validator.errors), "svc_nope")
+
+
+func test_reachability_is_silent_without_start_nodes() -> void:
+	# Нет узлов «известных с начала» — не от чего считать цепочки.
+	validator.validate_all(_linked_pair([], []))
+	assert_eq(validator.warnings.size(), 0)
+
+
 func test_online_window_passes() -> void:
 	var node: Dictionary = _good_node()
 	node["online"] = {"from": "08:00", "to": "18:00"}

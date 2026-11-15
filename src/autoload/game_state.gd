@@ -31,6 +31,10 @@ var _filesystems: Dictionary = {}
 ## Логи узлов: node_id → {entries}. Тоже состояние, а не сессия: после загрузки сейва узел
 ## должен помнить, что игрок у него был и чего не почистил (docs/gameplay/hacking.md).
 var _logbooks: Dictionary = {}
+## Сеть: адресная книга, вскрытые сервисы, осторожность целей и идущий взлом. Это состояние
+## мира, а не сессии: после загрузки узел должен помнить, что его уже вскрывали, и сколько
+## осталось до конца трейса (docs/gameplay/network.md).
+var _network: Dictionary = {}
 
 
 ## Новая игра. Сложность задаётся здесь, потому что менять её потом нельзя.
@@ -45,6 +49,7 @@ func reset(new_difficulty: Difficulty = Difficulty.NORMAL) -> void:
 	_quests.clear()
 	_filesystems.clear()
 	_logbooks.clear()
+	_network.clear()
 
 
 # --- Флаги -------------------------------------------------------------------
@@ -183,6 +188,15 @@ func set_logbook_state(node_id: String, state: Dictionary) -> void:
 	_logbooks[node_id] = state
 
 
+## Сеть одна на игру. Отдаётся сам словарь, как и у файлов: Network меняет его на месте.
+func network_state() -> Dictionary:
+	return _network
+
+
+func set_network_state(state: Dictionary) -> void:
+	_network = state
+
+
 # --- Сейв --------------------------------------------------------------------
 
 func to_dict() -> Dictionary:
@@ -198,6 +212,7 @@ func to_dict() -> Dictionary:
 		"quests": _quests.duplicate(true),
 		"filesystems": _filesystems.duplicate(true),
 		"logbooks": _logbooks.duplicate(true),
+		"network": _network.duplicate(true),
 	}
 
 
@@ -213,6 +228,7 @@ func from_dict(data: Dictionary) -> void:
 	_quests = (data.get("quests", {}) as Dictionary).duplicate(true)
 	_filesystems = (data.get("filesystems", {}) as Dictionary).duplicate(true)
 	_logbooks = (data.get("logbooks", {}) as Dictionary).duplicate(true)
+	_network = (data.get("network", {}) as Dictionary).duplicate(true)
 
 
 # --- Внутреннее --------------------------------------------------------------

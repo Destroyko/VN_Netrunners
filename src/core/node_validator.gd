@@ -9,6 +9,9 @@ extends RefCounted
 ## Типы головоломок, docs/tech/puzzles-spec.md. MVP — две.
 const PUZZLE_TYPES: PackedStringArray = ["password", "matrix"]
 
+## Тип устройства, который показывает scan (docs/tech/terminal-spec.md). Нет поля — «pc».
+const DEVICE_TYPES: PackedStringArray = ["pc", "router", "server", "phone"]
+
 const MIN_DIFFICULTY: int = 1
 const MAX_DIFFICULTY: int = 4
 
@@ -29,7 +32,9 @@ var _nodes: Dictionary = {}
 var _file_ids: Dictionary = {}
 
 
-func validate_all(nodes: Dictionary) -> void:
+## `revealed` — узлы, которые открывают заказы и эффекты (Effects.collect_revealed): у них
+## есть вход не через scan, и недостижимыми они не считаются.
+func validate_all(nodes: Dictionary, revealed: Dictionary = {}) -> void:
 	errors.clear()
 	warnings.clear()
 	_addresses.clear()
@@ -37,6 +42,7 @@ func validate_all(nodes: Dictionary) -> void:
 	_nodes = nodes
 	for id: String in nodes.keys():
 		_validate_node(id, nodes[id] as Dictionary)
+	_check_reachability(nodes, revealed)
 
 
 ## Формат узла описан в docs/tech/terminal-spec.md, раздел «Формат узла».
@@ -54,6 +60,11 @@ func _validate_node(id: String, node: Dictionary) -> void:
 			_addresses[address] = id
 
 	_check_difficulty(where, node)
+	if node.has("device") and not DEVICE_TYPES.has(str(node["device"])):
+		errors.append(
+			"%s: неизвестный тип устройства '%s' (допустимо: %s)"
+			% [where, node["device"], ", ".join(DEVICE_TYPES)]
+		)
 	if int(node.get("trace_minutes", 0)) < 0:
 		errors.append("%s: trace_minutes не может быть отрицательным" % where)
 
@@ -73,6 +84,40 @@ func _validate_node(id: String, node: Dictionary) -> void:
 	_validate_links(id, where, node)
 	_validate_online(where, node)
 	_validate_effects(where + ", on_hacked", node.get("on_hacked", []) as Array)
+
+
+## Достижимость: в игру узел попадает тремя путями — известен с начала, открыт заказом
+## (reveal_node) или найден через scan по цепочке links от одного из них. Узел вне всех трёх
+## игрок не увидит никогда. Предупреждение, а не ошибка: сюжетные узлы следующих этапов могут
+## ждать своего заказа, но дыру в двадцати JSON-файлах глазами не найти.
+## Без точек входа мерить не от чего — проверка молчит (так бывает в тестах).
+func _check_reachability(nodes: Dictionary, revealed: Dictionary) -> void:
+	var reached: Dictionary = {}
+	var queue: Array[String] = []
+	for id: String in nodes.keys():
+		var entry: bool = bool((nodes[id] as Dictionary).get("known_from_start", false)) or revealed.has(id)
+		if entry:
+			reached[id] = true
+			queue.append(id)
+	if queue.is_empty():
+		return
+
+	while not queue.is_empty():
+		var current: String = queue.pop_back()
+		for link: Variant in (nodes[current] as Dictionary).get("links", []) as Array:
+			var other: String = str(link)
+			if nodes.has(other) and not reached.has(other):
+				reached[other] = true
+				queue.append(other)
+
+	var lost: Array = nodes.keys()
+	lost.sort()
+	for id: String in lost:
+		if not reached.has(id):
+			warnings.append(
+				"узел %s недостижим: он не известен с начала, его не открывает ни один заказ (reveal_node), и scan не ведёт к нему"
+				% id
+			)
 
 
 ## Связи между узлами: их показывает scan (docs/gameplay/network.md).
@@ -207,6 +252,28 @@ func _has_known_root(path: String) -> bool:
 	return false
 
 
+## Эффект reveal_node ссылается на существующий узел и существующие сервисы. Общая для
+## обоих валидаторов: эффект встречается и в квестах, и в on_hacked узлов.
+## Подстановка шаблона radiant-квеста ({phone}) проверяется после подстановки, не здесь.
+static func check_reveal(where: String, value: Variant, nodes: Dictionary) -> PackedStringArray:
+	var problems: PackedStringArray = []
+	var node_id: String = Effects.reveal_target(value)
+	if node_id.begins_with("{"):
+		return problems
+	if not nodes.has(node_id):
+		problems.append("%s: reveal_node ссылается на несуществующий узел '%s'" % [where, node_id])
+		return problems
+	var known_services: Array[String] = []
+	for service_variant: Variant in (nodes[node_id] as Dictionary).get("services", []) as Array:
+		known_services.append(str((service_variant as Dictionary).get("id", "")))
+	for service_id: Variant in Effects.reveal_open(value):
+		if not known_services.has(str(service_id)):
+			problems.append(
+				"%s: reveal_node открывает несуществующий сервис '%s' узла %s" % [where, service_id, node_id]
+			)
+	return problems
+
+
 func _check_difficulty(where: String, data: Dictionary) -> void:
 	if not data.has("difficulty"):
 		return
@@ -229,3 +296,5 @@ func _validate_effects(where: String, effects: Array) -> void:
 		for type: String in effect.keys():
 			if not Effects.is_known(type):
 				errors.append("%s: неизвестный тип эффекта '%s'" % [where, type])
+			elif type == "reveal_node":
+				errors.append_array(check_reveal(where, effect[type], _nodes))

@@ -3,6 +3,7 @@
   "id": "node_home_router",
   "title": "Роутер (дом)",
   "address": "10.0.0.1",
+  "device": "router",
   "difficulty": 1,
   "trace_minutes": 0,
   "required_services": 0,

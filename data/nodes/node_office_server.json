@@ -3,6 +3,7 @@
   "id": "node_office_server",
   "title": "Сервер фирмы",
   "address": "77.61.204.12",
+  "device": "server",
   "difficulty": 3,
   "trace_minutes": 60,
   "required_services": 2,

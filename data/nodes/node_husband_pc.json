@@ -4,6 +4,7 @@
   "id": "node_husband_pc",
   "title": "Домашний ПК",
   "address": "92.44.18.3",
+  "device": "pc",
   "difficulty": 2,
   "trace_minutes": 45,
   "required_services": 1,

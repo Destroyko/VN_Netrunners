@@ -49,11 +49,44 @@ func test_several_keys_in_one_effect() -> void:
 	assert_eq(GameState.heat, 5)
 
 
+func test_reveal_node_by_id() -> void:
+	# Заказ даёт адрес цели; scan до неё не доходит (узел мужа ни с чем не связан).
+	assert_true(Effects.apply({"reveal_node": "node_husband_pc"}))
+	var net: Network = Network.for_game()
+	assert_true(net.is_known("node_husband_pc"))
+
+
+func test_reveal_node_with_logins() -> void:
+	Effects.apply({"reveal_node": {"node": "node_husband_pc", "open": ["svc_firewall"]}})
+	var net: Network = Network.for_game()
+	var now: int = net.abs_minute(GameState.day, GameState.minute)
+	assert_true(net.is_cracked("node_husband_pc", "svc_firewall", now))
+
+
+func test_reveal_target_reads_both_forms() -> void:
+	assert_eq(Effects.reveal_target("node_a"), "node_a")
+	assert_eq(Effects.reveal_target({"node": "node_b", "open": ["svc"]}), "node_b")
+	assert_eq(Effects.reveal_open("node_a"), [])
+	assert_eq(Effects.reveal_open({"node": "node_b", "open": ["svc"]}), ["svc"])
+
+
+func test_collect_revealed_finds_effects_anywhere() -> void:
+	var data: Dictionary = {
+		"quest_x": {"stages": [{"effects": [{"reveal_node": "node_a"}]}]},
+		"node_y": {"on_hacked": [{"reveal_node": {"node": "node_b"}}, {"money": 5}]},
+	}
+	var found: Dictionary = {}
+	Effects.collect_revealed(data, found)
+	assert_eq(found.keys().size(), 2)
+	assert_true(found.has("node_a"))
+	assert_true(found.has("node_b"))
+
+
 func test_known_types_cover_documented_dictionary() -> void:
 	# Словарь из docs/tech/quest-format.md.
 	var documented: Array = [
 		"money", "rep", "heat", "set_flag", "unlock_quest", "add_file", "schedule_news",
-		"send_message", "add_note",
+		"send_message", "add_note", "reveal_node",
 	]
 	for type: String in documented:
 		assert_true(Effects.is_known(type), "тип эффекта из документации: " + type)

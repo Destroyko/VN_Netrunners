@@ -26,6 +26,9 @@ const CHANNELS: PackedStringArray = ["email", "messenger", "group_site"]
 var errors: PackedStringArray = []
 var warnings: PackedStringArray = []
 
+# Узлы нужны проверке эффектов: reveal_node ссылается на узел и его сервисы.
+var _nodes: Dictionary = {}
+
 
 ## Проверить все данные из data/. true — ошибок нет.
 func validate_all() -> bool:
@@ -43,10 +46,16 @@ func validate_data(
 ) -> bool:
 	errors.clear()
 	warnings.clear()
+	_nodes = nodes
+
+	# Какие узлы открывают заказы: у них вход не через scan, и недостижимыми они не считаются.
+	var revealed: Dictionary = {}
+	for source: Dictionary in [nodes, quests, triggers]:
+		Effects.collect_revealed(source, revealed)
 
 	# Узлы проверяет отдельный класс, его находки подмешиваем к своим.
 	var node_validator := NodeValidator.new()
-	node_validator.validate_all(nodes)
+	node_validator.validate_all(nodes, revealed)
 	errors.append_array(node_validator.errors)
 	warnings.append_array(node_validator.warnings)
 
@@ -192,6 +201,8 @@ func _validate_effects(where: String, effects: Array, quests: Dictionary) -> voi
 			if not Effects.is_known(type):
 				errors.append("%s: неизвестный тип эффекта '%s'" % [where, type])
 				continue
+			if type == "reveal_node":
+				errors.append_array(NodeValidator.check_reveal(where, effect[type], _nodes))
 			if type == "unlock_quest" and not quests.has(str(effect[type])):
 				errors.append("%s: unlock_quest ссылается на несуществующий квест '%s'" % [where, effect[type]])
 

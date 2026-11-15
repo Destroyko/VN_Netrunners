@@ -26,6 +26,15 @@ func _nodes() -> Dictionary:
 	}
 
 
+## Квест, который при старте даёт игроку адрес и логины узла (заказ).
+func _order_quest(effect: Dictionary) -> Dictionary:
+	return {
+		"id": "side_order", "title": "Заказ", "type": "side",
+		"stages": [{"id": "start", "effects": [effect], "objectives": []}],
+		"outcomes": {},
+	}
+
+
 func _news() -> Dictionary:
 	return {"news_local_murder": {"id": "news_local_murder"}}
 
@@ -110,6 +119,53 @@ func test_typo_in_effect_is_caught() -> void:
 	var outcomes: Dictionary = quest["outcomes"]
 	outcomes["murder"]["effects"] = [{"monney": 500}]
 	assert_false(_validate(quest))
+
+
+func test_order_that_reveals_a_real_node_passes() -> void:
+	var quest: Dictionary = _order_quest({"reveal_node": {"node": "node_husband_pc"}})
+	assert_true(_validate(quest), validator.summary())
+
+
+func test_order_revealing_a_missing_node_is_caught() -> void:
+	var quest: Dictionary = _order_quest({"reveal_node": "node_opechatka"})
+	assert_false(_validate(quest))
+	assert_string_contains(validator.summary(), "node_opechatka")
+
+
+func test_order_opening_a_missing_service_is_caught() -> void:
+	var quest: Dictionary = _order_quest({"reveal_node": {"node": "node_husband_pc", "open": ["svc_nope"]}})
+	assert_false(_validate(quest))
+	assert_string_contains(validator.summary(), "svc_nope")
+
+
+func test_order_template_placeholder_is_not_checked_as_node() -> void:
+	# У radiant-квестов узел подставляется позже: {phone} — не опечатка.
+	var quest: Dictionary = _order_quest({"reveal_node": "{phone}"})
+	assert_true(_validate(quest), validator.summary())
+
+
+## Свой ПК, известный с начала, и узел мужа, который с ним не связан.
+func _world_with_lonely_husband() -> Dictionary:
+	var nodes: Dictionary = _nodes()
+	nodes["node_home_pc"] = {
+		"id": "node_home_pc", "title": "Мой ПК", "address": "localhost", "known_from_start": true,
+		"required_services": 0, "services": [], "files": {},
+	}
+	return nodes
+
+
+func test_lonely_node_is_warned_about() -> void:
+	validator.validate_data(_world_with_lonely_husband(), _news(), {}, {})
+	assert_string_contains("
+".join(validator.warnings), "node_husband_pc")
+
+
+func test_order_removes_the_lonely_node_warning() -> void:
+	# Заказ — законный вход в сеть: узел мужа и не должен находиться через scan.
+	var quest: Dictionary = _order_quest({"reveal_node": "node_husband_pc"})
+	validator.validate_data(_world_with_lonely_husband(), _news(), {"side_order": quest}, {})
+	assert_eq(validator.warnings.size(), 0, "
+".join(validator.warnings))
 
 
 func test_unknown_objective_type_is_caught() -> void:

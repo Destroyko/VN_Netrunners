@@ -16,6 +16,7 @@ const KNOWN_TYPES: PackedStringArray = [
 	"clear_flag",
 	"set_var",
 	"rep",
+	"reveal_node",
 ]
 
 ## Типы из документации, которым нужны системы следующих этапов.
@@ -55,6 +56,33 @@ static func is_implemented(type: String) -> bool:
 	return KNOWN_TYPES.has(type)
 
 
+## Узел, который открывает эффект reveal_node: строка или поле node у объекта.
+static func reveal_target(value: Variant) -> String:
+	if value is Dictionary:
+		return str((value as Dictionary).get("node", ""))
+	return str(value)
+
+
+## Сервисы, открытые «логинами» из заказа. Пустой список, если логинов нет.
+static func reveal_open(value: Variant) -> Array:
+	if value is Dictionary:
+		return (value as Dictionary).get("open", []) as Array
+	return []
+
+
+## Все узлы, которые открывают эффекты reveal_node где-то в данных (квесты, триггеры,
+## on_hacked узлов). Нужно валидатору: такой узел не должен находиться через scan.
+static func collect_revealed(data: Variant, found: Dictionary) -> void:
+	if data is Dictionary:
+		for key: Variant in (data as Dictionary).keys():
+			if str(key) == "reveal_node":
+				found[reveal_target((data as Dictionary)[key])] = true
+			collect_revealed((data as Dictionary)[key], found)
+	elif data is Array:
+		for item: Variant in data as Array:
+			collect_revealed(item, found)
+
+
 static func _apply_one(type: String, value: Variant) -> bool:
 	match type:
 		"money":
@@ -85,6 +113,16 @@ static func _apply_one(type: String, value: Variant) -> bool:
 				return false
 			var key: String = VAR_REP_PREFIX + str(pair_rep[0])
 			GameState.set_var(key, int(GameState.get_var_or(key, 0)) + int(pair_rep[1]))
+			return true
+		"reveal_node":
+			# Формат: {"reveal_node": "node_x"} или {"reveal_node": {"node": "node_x", "open": ["svc_login"]}}.
+			# Заказ даёт адрес и, если клиент знает логины, открывает часть сервисов заранее.
+			var target: String = reveal_target(value)
+			var net: Network = Network.for_game()
+			var now: int = net.abs_minute(GameState.day, GameState.minute)
+			if not net.reveal(target, reveal_open(value), now):
+				push_error("Effects: reveal_node: нет такого узла: '%s'" % target)
+				return false
 			return true
 		_:
 			if DEFERRED_TYPES.has(type):

@@ -3,6 +3,7 @@
   "id": "node_office_backup",
   "title": "Резервный узел",
   "address": "77.61.204.40",
+  "device": "server",
   "difficulty": 3,
   "trace_minutes": 40,
   "required_services": 1,
