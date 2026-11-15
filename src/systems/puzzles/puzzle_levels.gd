@@ -36,8 +36,8 @@ static func level_for_service(service_difficulty: int) -> int:
 
 const FALLBACK_DUMP: Dictionary = {
 	"2": {"width": 8, "rows": 8, "length": 3, "pieces": 2, "match_every": 4, "decoy_chance": 0.2, "scroll_seconds": 1.8},
-	"3": {"width": 8, "rows": 8, "length": 3, "pieces": 3, "match_every": 5, "decoy_chance": 0.35, "scroll_seconds": 1.35},
-	"4": {"width": 8, "rows": 8, "length": 4, "pieces": 3, "match_every": 6, "decoy_chance": 0.5, "scroll_seconds": 1.05},
+	"3": {"width": 8, "rows": 8, "length": 3, "pieces": 4, "match_every": 5, "decoy_chance": 0.35, "scroll_seconds": 1.35},
+	"4": {"width": 12, "rows": 8, "length": 6, "pieces": 3, "match_every": 6, "decoy_chance": 0.5, "scroll_seconds": 1.05},
 }
 
 ## Параметры «пароля» на уровне: числа из баланса поверх запасных.

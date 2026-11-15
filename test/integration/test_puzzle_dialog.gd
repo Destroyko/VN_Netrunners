@@ -438,3 +438,24 @@ func test_caught_piece_rolls_the_train_to_the_next_one() -> void:
 	assert_almost_eq(panel.train_x(), panel.train_offset(1), 0.5, "второй кусок по центру")
 	assert_lt(panel.train_offset(1), panel.train_offset(0), "поезд едет влево")
 
+
+func test_wide_dump_grid_shrinks_cells_to_fit() -> void:
+	var normal: Vector2 = DumpPanel.cell_size_for(8)
+	var wide: Vector2 = DumpPanel.cell_size_for(12)
+	assert_eq(normal, DumpPanel.CELL_SIZE, "8 в ряд — обычные клетки")
+	assert_lt(wide.x, normal.x, "12 в ряд — клетки уже")
+	assert_lte(12 * (wide.x + DumpPanel.GAP) - DumpPanel.GAP, DumpPanel.MAX_GRID_WIDTH)
+
+
+func test_puzzle_window_is_not_smaller_than_the_wide_dump() -> void:
+	var scene: PackedScene = load(Screens.DESKTOP) as PackedScene
+	var desktop: Desktop = scene.instantiate() as Desktop
+	add_child_autofree(desktop)
+	await wait_frames(2)
+	desktop.play_puzzle("dump", 4, 3)
+	await wait_frames(2)
+	var window: DesktopWindow = desktop.window_of("puzzle")
+	var dialog: PuzzleDialog = desktop.find_children("*", "PuzzleDialog", true, false)[0] as PuzzleDialog
+	assert_gte(window.size.x, dialog.get_combined_minimum_size().x, "сетка 12 в ряд не обрезана")
+	assert_eq((dialog.panel as DumpPanel).puzzle.current_target().size(), 6)
+

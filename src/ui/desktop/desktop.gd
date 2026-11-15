@@ -304,11 +304,13 @@ func _show_puzzle(request: Dictionary, view: TerminalView) -> void:
 	window.focus_requested.connect(focus)
 	window.state_changed.connect(func(_w: DesktopWindow) -> void: _sync_taskbar())
 	_windows.add_child(window)
-	window.size = Vector2(440, 480)
-	window.position = WindowRules.cascade(_opened_count, window.size, _windows.size)
 	_dialog = PuzzleDialog.new()
 	window.body.add_child(_dialog)
 	_dialog.setup(request)
+	# Окно не меньше содержимого: широкая сетка дампа не должна обрезаться.
+	var needed: Vector2 = _dialog.get_combined_minimum_size() + Vector2(16, WindowRules.TITLE_HEIGHT + 16)
+	window.size = Vector2(440, 480).max(needed)
+	window.position = WindowRules.cascade(_opened_count, window.size, _windows.size)
 	_dialog.finished.connect(func(gained: int) -> void:
 		var done_window: DesktopWindow = _puzzle_window
 		_dialog = null

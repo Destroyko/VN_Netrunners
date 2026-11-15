@@ -11,7 +11,12 @@ signal finished(gained: int)
 const COLOR_CAUGHT: Color = Color("#5fd27a")
 const COLOR_CURRENT: Color = Color("#f0f2f5")
 const COLOR_LATER: Color = Color("#5b606c")
+## Клетка обычной сетки (8 в ряд). Широкая сетка (кусок в 6 байт) ужимает клетки, чтобы
+## окно не разрасталось: не шире `MAX_GRID_WIDTH`, но и не уже `MIN_CELL_WIDTH`.
 const CELL_SIZE: Vector2 = Vector2(42, 28)
+const MAX_GRID_WIDTH: float = 460.0
+const MIN_CELL_WIDTH: float = 30.0
+const SMALL_FONT_SIZE: int = 13
 const GAP: int = 2
 const CELL_IDLE: Color = Color(0.1, 0.12, 0.15)
 const CELL_NEAR: Color = Color(0.2, 0.23, 0.29)
@@ -30,6 +35,7 @@ static var animate: bool = true
 
 var puzzle: DumpPuzzle
 
+var _cell: Vector2 = CELL_SIZE
 var _strip: Control
 var _train: HBoxContainer
 var _shown_stage: int = -1
@@ -49,6 +55,7 @@ func setup(game: DumpPuzzle) -> void:
 	var config: Dictionary = PuzzleLevels.dump(puzzle.level)
 	_scroll_seconds = maxf(0.2, float(config.get("scroll_seconds", 1.0)))
 	_lens_enabled = bool(config.get("lens", true))
+	_cell = cell_size_for(puzzle.width)
 
 	_build_train()
 
@@ -57,7 +64,7 @@ func setup(game: DumpPuzzle) -> void:
 	add_child(center)
 	var window := Control.new()
 	window.clip_contents = true
-	window.custom_minimum_size = Vector2(_grid_width(), puzzle.rows_visible * (CELL_SIZE.y + GAP) - GAP)
+	window.custom_minimum_size = Vector2(_grid_width(), puzzle.rows_visible * (_cell.y + GAP) - GAP)
 	center.add_child(window)
 	_grid = GridContainer.new()
 	_grid.columns = puzzle.width
@@ -67,9 +74,11 @@ func setup(game: DumpPuzzle) -> void:
 	for row: int in puzzle.rows_visible + 1:
 		for col: int in puzzle.width:
 			var cell := Button.new()
-			cell.custom_minimum_size = CELL_SIZE
+			cell.custom_minimum_size = _cell
 			cell.focus_mode = Control.FOCUS_NONE
 			cell.add_theme_font_override("font", PasswordPanel._mono())
+			if _cell.x < CELL_SIZE.x:
+				cell.add_theme_font_size_override("font_size", SMALL_FONT_SIZE)
 			cell.add_theme_color_override("font_color", TEXT_DUMP)
 			cell.add_theme_color_override("font_hover_color", Color.WHITE)
 			var style := StyleBoxFlat.new()
@@ -100,7 +109,15 @@ func _ready() -> void:
 
 
 func _grid_width() -> float:
-	return puzzle.width * (CELL_SIZE.x + GAP) - GAP
+	return puzzle.width * (_cell.x + GAP) - GAP
+
+
+## Размер клетки для сетки шириной `columns`: обычный, пока сетка влезает, иначе ужатый.
+static func cell_size_for(columns: int) -> Vector2:
+	if columns * (CELL_SIZE.x + GAP) - GAP <= MAX_GRID_WIDTH:
+		return CELL_SIZE
+	var width: float = maxf(MIN_CELL_WIDTH, floorf((MAX_GRID_WIDTH + GAP) / columns) - GAP)
+	return Vector2(width, CELL_SIZE.y - 2)
 
 
 ## Дамп ползёт непрерывно: сетка сдвигается по пикселям, а раз в `scroll_seconds` экран
@@ -112,7 +129,7 @@ func _process(delta: float) -> void:
 	while _elapsed >= _scroll_seconds:
 		_elapsed -= _scroll_seconds
 		step()
-	_grid.position.y = -(_elapsed / _scroll_seconds) * (CELL_SIZE.y + GAP)
+	_grid.position.y = -(_elapsed / _scroll_seconds) * (_cell.y + GAP)
 
 
 ## Экран сдвинулся на строку. Отдельно от кадров, чтобы тест мог двигать дамп сам.
