@@ -246,3 +246,14 @@ func test_every_round_is_solvable_on_all_levels() -> void:
 				accepted += 1
 	gut.p("раунды «матрицы» в допуске: %d из %d" % [accepted, total])
 
+
+func test_wrong_first_symbol_is_a_dead_end_at_once_in_a_round() -> void:
+	var puzzle: MatrixPuzzle = MatrixPuzzle.generate_round(2, 11, 0)
+	var first_symbol: int = (puzzle.targets[0] as PackedInt32Array)[0]
+	for cell: int in puzzle.legal_moves():
+		if puzzle.grid[cell] != first_symbol:
+			puzzle.pick(cell)
+			assert_true(puzzle.is_finished(), "неверный первый символ — тупик сразу")
+			return
+	pass_test("в верхней строке все символы совпали с началом цели")
+

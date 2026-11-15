@@ -196,13 +196,17 @@ static func contains_run(buffer: PackedInt32Array, target: PackedInt32Array) -> 
 
 # --- Генерация ---------------------------------------------------------------
 
-## Параметры одного раунда: одна цель, буфер ровно под неё и запас уровня.
-## Слой защиты = один раунд (docs/tech/puzzles-spec.md): собрал цель — следующий раунд с новой сеткой.
+## Параметры одного раунда: одна цель и буфер ровно по её длине, без запаса. Так цепочка обязана
+## идти по цели с первого хода, и неверный ход — тупик сразу (docs/tech/puzzles-spec.md).
+## Сложность даёт длина цели, размер сетки и шумные ячейки (обход помех — часть задачи).
 static func round_params(game_level: int) -> Dictionary:
 	var params: Dictionary = PuzzleLevels.matrix(game_level)
-	var slack: Array = params.get("slack", [0, 0]) as Array
+	var length: int = int(params["seq_max"])
 	params["sequences"] = 1
-	params["buffer"] = int(params["seq_max"]) + int(slack[0])
+	params["seq_min"] = length
+	params["seq_max"] = length
+	params["buffer"] = length
+	params["slack"] = [0, 0]
 	return params
 
 

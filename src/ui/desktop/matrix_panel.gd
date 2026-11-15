@@ -159,9 +159,9 @@ func _transition(tint: Color, shake: bool, swap: Callable) -> void:
 	var tween: Tween = create_tween()
 	if shake:
 		for step: int in 6:
-			tween.tween_property(_grid, "position:x", base + (10.0 if step % 2 == 0 else -10.0), 0.06)
+			tween.tween_property(_grid, "position:x", base + (10.0 if step % 2 == 0 else -10.0), 0.05)
 		tween.tween_property(_grid, "position:x", base, 0.06)
-	tween.tween_interval(0.3)
+	tween.tween_interval(0.12)
 	tween.tween_callback(_flip_out.bind(swap))
 
 
@@ -170,7 +170,7 @@ func _flip_out(swap: Callable) -> void:
 	for child: Node in _grid.get_children():
 		var tile: Button = child as Button
 		tile.pivot_offset = tile.size / 2.0
-		tween.tween_property(tile, "scale:x", 0.0, 0.2)
+		tween.tween_property(tile, "scale:x", 0.0, 0.12)
 	tween.chain().tween_callback(func() -> void:
 		swap.call()
 		_grid.modulate = Color.WHITE
@@ -183,7 +183,7 @@ func _flip_in() -> void:
 		var tile: Button = child as Button
 		tile.pivot_offset = tile.size / 2.0
 		tile.scale = Vector2(0.0, 1.0)
-		tween.tween_property(tile, "scale:x", 1.0, 0.2)
+		tween.tween_property(tile, "scale:x", 1.0, 0.12)
 	tween.chain().tween_callback(func() -> void: _busy = false)
 
 
