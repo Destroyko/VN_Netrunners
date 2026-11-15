@@ -36,6 +36,7 @@ var _icons: GridContainer
 var _windows: Control
 var _taskbar: Taskbar
 var _open: Dictionary = {}
+var _dialog: PuzzleDialog
 var _opened_count: int = 0
 
 
@@ -229,6 +230,18 @@ func _on_menu(action: String) -> void:
 			get_tree().change_scene_to_file(Screens.MAIN_MENU)
 
 
-## Головоломка открывается отдельным модальным окном поверх терминала (шаг 7в).
-func _on_puzzle_requested(_request: Dictionary, _view: TerminalView) -> void:
-	pass
+## Головоломка открывается модальным окном поверх стола и терминала: игровое время при этом
+## стоит (time.md). Итог уходит в терминал, а его ответ — в вывод окна терминала.
+func _on_puzzle_requested(request: Dictionary, view: TerminalView) -> void:
+	if _dialog != null:
+		return
+	_dialog = PuzzleDialog.new()
+	add_child(_dialog)
+	_dialog.setup(request)
+	_dialog.finished.connect(func(gained: int) -> void:
+		_dialog = null
+		view.show_result(terminal.finish_puzzle(gained)))
+
+
+func has_puzzle_open() -> bool:
+	return _dialog != null and is_instance_valid(_dialog)
