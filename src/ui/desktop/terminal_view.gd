@@ -8,6 +8,8 @@ extends HSplitContainer
 ## `puzzle_requested` и принимает итог через `show_result`.
 
 signal puzzle_requested(request: Dictionary)
+## Команда выполнена: карта сети и режим стола перечитывают состояние.
+signal result_shown
 
 var terminal: Terminal
 
@@ -169,10 +171,17 @@ func show_result(result: TermResult) -> void:
 		"puzzle":
 			puzzle_requested.emit(request)
 	_refresh()
+	result_shown.emit()
 
 
 func _print(text: String) -> void:
 	_output.add_text(text + "\n")
+
+
+## Напечатать строки от себя (приветствие, ошибки загрузки).
+func print_lines(lines: PackedStringArray) -> void:
+	for line: String in lines:
+		_print(line)
 
 
 func output_text() -> String:

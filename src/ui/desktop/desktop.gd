@@ -14,6 +14,7 @@ const ICON_SIZE: Vector2 = Vector2(96, 72)
 ## `size` — размер окна при первом открытии. Содержимое M1: терминал настоящий, остальное — заглушки.
 const APPS: Array[Dictionary] = [
 	{"id": "terminal", "title": "Терминал", "color": Color(0.2, 0.55, 0.35), "size": Vector2(860, 520), "min": Vector2(520, 320)},
+	{"id": "map", "title": "Карта сети", "color": Color(0.25, 0.4, 0.55), "size": Vector2(560, 380), "min": Vector2(320, 220)},
 	{"id": "files", "title": "Файлы", "color": Color(0.3, 0.45, 0.7), "size": Vector2(520, 380), "min": Vector2(320, 220)},
 	{"id": "mail", "title": "Почта", "color": Color(0.6, 0.45, 0.25), "size": Vector2(520, 380), "min": Vector2(320, 220)},
 	{"id": "bank", "title": "Банк", "color": Color(0.5, 0.5, 0.25), "size": Vector2(520, 380), "min": Vector2(320, 220)},
@@ -37,6 +38,8 @@ var _windows: Control
 var _taskbar: Taskbar
 var _open: Dictionary = {}
 var _dialog: PuzzleDialog
+var _rows: VBoxContainer
+var _emergency: Control
 var _opened_count: int = 0
 
 
@@ -44,11 +47,13 @@ func _ready() -> void:
 	terminal = Terminal.new()
 	_build()
 	_add_debug_console()
+	apply_mode()
 
 
 func _build() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var rows := VBoxContainer.new()
+	_rows = rows
 	rows.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rows.add_theme_constant_override("separation", 0)
 	add_child(rows)
@@ -164,10 +169,15 @@ func _apply_geometry(window: DesktopWindow, app: Dictionary) -> void:
 
 ## Содержимое окна. Терминал и остальное подключаются здесь, остальные приложения — заглушки M1.
 func _make_content(app_id: String) -> Control:
+	if app_id == "map":
+		var map := MapView.new()
+		map.setup(terminal)
+		return map
 	if app_id == "terminal":
 		var view := TerminalView.new()
 		view.setup(terminal)
 		view.puzzle_requested.connect(_on_puzzle_requested.bind(view))
+		view.result_shown.connect(_on_result_shown)
 		view.ready.connect(view.focus_entry)
 		return view
 	var label := Label.new()
@@ -245,3 +255,59 @@ func _on_puzzle_requested(request: Dictionary, view: TerminalView) -> void:
 
 func has_puzzle_open() -> bool:
 	return _dialog != null and is_instance_valid(_dialog)
+
+
+## Команда выполнена: карта и режим стола перечитывают состояние.
+func _on_result_shown() -> void:
+	var map: DesktopWindow = window_of("map")
+	if map != null:
+		(map.body.get_child(0) as MapView).refresh()
+	apply_mode()
+
+
+# --- Аварийная консоль ----------------------------------------------------------
+
+## Рабочий стол держится на x-server.sys и на ОС: нет их — вместо стола консоль на весь экран
+## (hacking.md, «Свой ПК можно сломать»). Игрок видит, что натворил, и у него остаётся терминал.
+func apply_mode() -> void:
+	var report: Dictionary = Room.monitor(Filesystem.for_node(Network.HOME_ID))
+	var broken: bool = not bool(report["desktop"])
+	_rows.visible = not broken
+	if broken and _emergency == null:
+		_emergency = _make_emergency(report["lines"] as PackedStringArray)
+		add_child(_emergency)
+	elif not broken and _emergency != null:
+		_emergency.queue_free()
+		_emergency = null
+
+
+func is_emergency() -> bool:
+	return _emergency != null and is_instance_valid(_emergency)
+
+
+func _make_emergency(lines: PackedStringArray) -> Control:
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var background := ColorRect.new()
+	background.color = Color(0, 0, 0)
+	background.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(background)
+
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(box)
+
+	var back := Button.new()
+	back.name = "BackToRoom"
+	back.text = "Отойти от компьютера"
+	back.pressed.connect(func() -> void: get_tree().change_scene_to_file(Screens.ROOM))
+	box.add_child(back)
+
+	var view := TerminalView.new()
+	view.setup(terminal)
+	view.print_lines(lines)
+	view.result_shown.connect(_on_result_shown)
+	view.puzzle_requested.connect(_on_puzzle_requested.bind(view))
+	view.ready.connect(view.focus_entry)
+	box.add_child(view)
+	return root
