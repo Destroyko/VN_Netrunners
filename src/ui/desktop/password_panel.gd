@@ -16,6 +16,7 @@ const POOL_SIZE: int = 12
 
 var puzzle: PasswordPuzzle
 
+var _title: Label
 var _history: RichTextLabel
 var _note: Label
 var _slot_row: HBoxContainer
@@ -31,9 +32,8 @@ var _busy: bool = false
 
 func setup(game: PasswordPuzzle) -> void:
 	puzzle = game
-	var title := Label.new()
-	title.text = "Взлом: собери пароль (%d букв)" % puzzle.length
-	add_child(title)
+	_title = Label.new()
+	add_child(_title)
 
 	_history = RichTextLabel.new()
 	_history.bbcode_enabled = true
@@ -193,7 +193,7 @@ func _apply(result: Dictionary) -> void:
 	elif bool(result["failed"]):
 		_finish(0, "Попытки кончились. Было слово: %s." % puzzle.word)
 	else:
-		_note.text = "Осталось попыток: %d" % puzzle.attempts_left()
+		_note.text = ""
 
 
 ## Целое слово разом (для тестов и отладки): раскладывает его по ячейкам и проверяет.
@@ -270,6 +270,7 @@ static func _reason_text(reason: String) -> String:
 
 
 func _refresh() -> void:
+	_title.text = "Собери пароль (%d букв) · попыток: %d из %d" % [puzzle.length, puzzle.attempts_left(), puzzle.max_attempts]
 	for child: Node in _slot_row.get_children():
 		_slot_row.remove_child(child)
 		child.queue_free()
