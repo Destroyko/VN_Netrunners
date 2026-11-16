@@ -411,51 +411,13 @@ func finish_puzzle(gained: int) -> TermResult:
 
 	var data: Dictionary = _puzzle
 	_puzzle = {}
-	apply_outcome(
-		str(data["node"]), str(data["service"]), str(data["kind"]), int(data["level"]),
-		gained, result, int(data["layers_total"]), str(data.get("password", ""))
-	)
+	PuzzleOutcome.new(self).apply(data, gained, result)
 	return result
 
 
-## Итог попытки: слои в прогресс, сервис вскрыт целиком, частичный успех или провал.
-func apply_outcome(
-	node: String, service: String, kind: String, level: int, gained: int, result: TermResult,
-	layers_total: int = 1, password: String = ""
-) -> void:
-	var now_minute: int = now()
-	var progress: PuzzleProgress = PuzzleProgress.for_game()
-	var layers_gained: int = gained
-	var attempt: int = progress.attempts(node, service, now_minute) + 1
-	progress.record(node, service, now_minute, layers_gained)
-	var layers_now: int = progress.layers(node, service, now_minute)
-
-	var port: int = net.port_of(node, service)
-	if layers_now >= layers_total:
-		var done: NetResult = session.crack(service, now_minute)
-		progress.clear_service(node, service)
-		EventBus.puzzle_solved.emit(kind, level, node, service)
-		result.add("порт %d: доступ получен (%d из %d)" % [port, done.cracked, done.required])
-		# Вскрытая часть защиты больше не поднимает шум: трейс отступает (разработчик, 16.11.2026).
-		var eased: int = session.ease_trace(int((DataLoader.balance().get("nodes", {}) as Dictionary).get("trace_ease_percent", 25)))
-		if eased > 0:
-			result.add("трейс: +%d мин (осталось %d)" % [eased, session.trace_left()])
-		# Взломщик достал пароль: игрок видит его и вводит сам (hacking.md, «Пароль после перехвата»).
-		if not password.is_empty():
-			net.access.remember_password(node, service, password)
-			result.add("")
-			result.add("        пароль: %s" % password.to_upper())
-			result.add("")
-		# Вскрыто всё нужное — вход происходит сам: игрок входит без лишнего connect.
-		if done.cracked >= done.required and not session.has_connection():
-			_network.connect_to(PackedStringArray([session.target_address()]), result)
-	elif layers_gained > 0:
-		# Частичный успех: слои остались, добить можно позже (даже после `dc`).
-		EventBus.puzzle_solved.emit(kind, level, node, service)
-		result.add("слой вскрыт: %d из %d. порт %d ещё закрыт" % [layers_now, layers_total, port])
-	else:
-		EventBus.puzzle_failed.emit(kind, level, node, service, attempt)
-		result.add("провал: порт %d не поддался" % port)
+## Вскрыто всё нужное после головоломки — войти на узел-цель (как `connect`).
+func connect_target(result: TermResult) -> void:
+	_network.connect_to(PackedStringArray([session.target_address()]), result)
 
 
 # --- Остальные команды -------------------------------------------------------
