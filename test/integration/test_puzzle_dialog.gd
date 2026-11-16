@@ -346,7 +346,7 @@ func test_trace_ending_by_itself_closes_the_puzzle_window() -> void:
 	view.submit("connect 77.61.204.12")
 	view.submit("passhound 8080")
 	assert_true(desktop.has_puzzle_open())
-	Clock.advance(60)
+	Clock.advance(desktop.terminal.session.trace_left())
 	await wait_frames(2)
 	assert_false(desktop.has_puzzle_open(), "сеанс оборван — головоломке не на что работать")
 	assert_string_contains(view.output_text(), "трейс дошёл до конца")

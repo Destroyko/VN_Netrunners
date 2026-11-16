@@ -101,3 +101,8 @@ static func catch_all(puzzle: DumpPuzzle) -> Dictionary:
 			puzzle.scroll()
 	return last_pick
 
+
+## Длина трейса узла из данных: тесты не ломаются, когда трейс подкручивают на игре.
+func trace_of(node_id: String) -> int:
+	return int((DataLoader.nodes()[node_id] as Dictionary).get("trace_minutes", 0))
+

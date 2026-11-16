@@ -85,6 +85,7 @@ func connect_to(args: PackedStringArray, result: TermResult) -> void:
 		# Как ssh: соединение есть, сервер спрашивает пароль. Ввести можно здесь же или в окне входа.
 		var host: Dictionary = _t.net.definition(tried.node_id)
 		result.add("соединение с %s установлено" % host.get("address", tried.node_id))
+		_tell_trace(result)
 		_t.begin_login(tried.node_id, tried.service_id)
 		# У ПК рядом открывается трансляция с экраном блокировки; у роутера и сервера — только консоль.
 		if _t.net.has_graphical_session(tried.node_id):
@@ -96,6 +97,7 @@ func connect_to(args: PackedStringArray, result: TermResult) -> void:
 		var target: Dictionary = _t.net.definition(tried.node_id)
 		result.add("соединение с %s установлено" % target.get("address", tried.node_id))
 		result.add("вход отклонён")
+		_tell_trace(result)
 		_t.spend(_t.minutes_of("terminal_command"), result)
 		return
 	if not tried.is_ok():
@@ -108,6 +110,7 @@ func connect_to(args: PackedStringArray, result: TermResult) -> void:
 	_t.set_cwd(Terminal.HOME_DIR)
 	var definition: Dictionary = _t.net.definition(tried.node_id)
 	result.add("подключено: %s (%s)" % [definition.get("title", tried.node_id), definition.get("address", "")])
+	_tell_trace(result)
 	if _t.net.has_graphical_session(tried.node_id) and result.request.is_empty():
 		result.request = {"type": "remote", "node": tried.node_id, "address": str(definition.get("address", ""))}
 	_t.note(Logbook.CATEGORY_SESSION, "вход с неизвестного адреса", "login")
@@ -129,6 +132,11 @@ func disconnect_now(result: TermResult) -> void:
 
 
 # --- Общее -------------------------------------------------------------------
+
+## Вернулся на узел, где тревога уже поднята: трейс продолжает тот же отсчёт.
+func _tell_trace(result: TermResult) -> void:
+	if _t.session.is_tracing():
+		result.add("трейс: %d мин" % _t.session.trace_left())
 
 ## Строка адресной книги: адрес, тип, имя (после probe), пометка о взломе. Её же печатает deepscan.
 static func book_line(entry: Dictionary) -> String:

@@ -353,9 +353,10 @@ func test_first_cracker_starts_the_trace_in_the_group_era() -> void:
 	GameState.set_flag(Programs.GATE_PRESSURE)
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
-	assert_string_contains(run("passhound"), "трейс запущен: 60 мин")
+	var total: int = trace_of("node_office_server")
+	assert_string_contains(run("passhound"), "трейс запущен: %d мин" % total)
 	assert_signal_emitted(EventBus, "trace_started")
-	assert_eq(t.session.trace_left(), 57, "программа уже отъела три минуты")
+	assert_eq(t.session.trace_left(), total - 3, "программа уже отъела три минуты")
 
 
 func test_trace_warns_and_then_breaks_the_connection() -> void:
@@ -363,14 +364,15 @@ func test_trace_warns_and_then_breaks_the_connection() -> void:
 	GameState.set_flag(Programs.GATE_PRESSURE)
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
-	run("passhound")  # трейс стартует: 60, программа отъедает 3 → 57
+	run("passhound")  # трейс стартует, программа отъедает 3 минуты
+	var total: int = trace_of("node_office_server")
 
 	var half := TermResult.new()
-	t.spend(27, half)
+	t.spend(total / 2 - 3, half)
 	assert_string_contains(half.text(), "осталась половина")
 
 	var end := TermResult.new()
-	t.spend(40, end)
+	t.spend(total, end)
 	assert_string_contains(end.text(), "трейс дошёл до конца")
 	assert_signal_emitted(EventBus, "trace_finished")
 	assert_eq(t.prompt(), "home:/home$ ", "обрыв: терминал снова дома")
@@ -383,7 +385,7 @@ func test_finished_trace_resets_services_and_makes_target_wary() -> void:
 	run("connect 77.61.204.12")
 	run("passhound")
 	solve_puzzle()
-	t.spend(60, TermResult.new())
+	t.spend(trace_of("node_office_server"), TermResult.new())
 	var net: Network = Network.for_game()
 	assert_eq(net.cracked_count("node_office_server", t.now()), 0)
 	assert_eq(net.alert_level("node_office_server"), 1)
@@ -795,20 +797,21 @@ func _start_trace() -> void:
 	GameState.set_flag(Programs.GATE_PRESSURE)
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
-	run("passhound")  # трейс 60, программа отъела 3 → 57
+	run("passhound")  # трейс пошёл, программа отъела 3 минуты
 
 
 func test_trace_ticks_with_the_clock_without_commands() -> void:
 	_start_trace()
 	watch_signals(t)
+	var before: int = t.session.trace_left()
 	Clock.advance(10)  # часы пошли сами: игрок думает над головоломкой
-	assert_eq(t.session.trace_left(), 47)
+	assert_eq(t.session.trace_left(), before - 10)
 	assert_signal_emitted(t, "ticked", "окну сказали сдвинуть полоску")
 
 
 func test_trace_can_end_while_the_player_does_nothing() -> void:
 	_start_trace()
-	Clock.advance(57)
+	Clock.advance(t.session.trace_left())
 	assert_signal_emitted(EventBus, "trace_finished")
 	assert_null(t.current_puzzle(), "открытая головоломка сгорела вместе с сеансом")
 	assert_eq(t.prompt(), "home:/home$ ")
@@ -816,8 +819,9 @@ func test_trace_can_end_while_the_player_does_nothing() -> void:
 
 func test_own_command_does_not_count_the_trace_twice() -> void:
 	_start_trace()
+	var before: int = t.session.trace_left()
 	t.spend(1, TermResult.new())  # команда тратит минуту сама
-	assert_eq(t.session.trace_left(), 56)
+	assert_eq(t.session.trace_left(), before - 1)
 
 
 # --- Стены: защита, которая мешает и после входа ---------------------------------
@@ -951,4 +955,50 @@ func test_cracker_with_nothing_left_to_open_says_so() -> void:
 
 func test_ls_ignores_flags() -> void:
 	assert_false(run("ls -la").contains("нет такого"))
+
+
+# --- Трейс на узле, а не в сеансе (второй прогон гейта, 16.11.2026) --------------------
+
+func _office_under_trace() -> void:
+	# Вошли в сервер фирмы по логину в панель, запустили взломщик против фаервола — трейс пошёл.
+	learn_programs()
+	GameState.set_flag(Programs.GATE_PRESSURE)
+	reveal("node_office_server", ["svc_admin_login"])
+	Clock.set_time(1, 10 * 60)
+	run("connect 77.61.204.12")
+	run("gridrunner 1194")
+
+
+func test_reconnect_does_not_shake_off_the_trace() -> void:
+	# Абуз: вскрыл, вышел, зашёл — трейса нет. Теперь отсчёт у узла один на всё вторжение.
+	_office_under_trace()
+	solve_puzzle()
+	var at_dc: int = t.session.trace_left()
+	run("dc")
+	assert_false(t.session.is_tracing(), "вне узла трейс не идёт")
+	Clock.advance(30)
+	var text: String = run("connect 77.61.204.12")
+	assert_true(t.session.is_tracing(), "вернулся — трейс тот же")
+	assert_string_contains(text, "трейс: ")
+	assert_lte(t.session.trace_left(), at_dc, "пока был снаружи, отсчёт стоял, но назад не откатился")
+	assert_gt(t.session.trace_left(), at_dc - 30, "30 минут снаружи не съели трейс")
+
+
+func test_cracked_service_eases_the_trace() -> void:
+	_office_under_trace()
+	var before: int = t.session.trace_left()
+	var total: int = t.session.trace_total()
+	var text: String = solve_puzzle().text()
+	var ease: int = total * int((DataLoader.balance()["nodes"] as Dictionary)["trace_ease_percent"]) / 100
+	assert_string_contains(text, "трейс: +")
+	assert_eq(t.session.trace_left(), mini(total, before + ease))
+
+
+func test_trace_is_gone_after_the_target_resets() -> void:
+	_office_under_trace()
+	run("dc")
+	Network.for_game().reset_services("node_office_server")
+	reveal("node_office_server", ["svc_admin_login"])
+	run("connect 77.61.204.12")
+	assert_false(t.session.is_tracing(), "защита перенастроена — тревоги нет, нужен новый взлом")
 

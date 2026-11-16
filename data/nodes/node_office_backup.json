@@ -5,7 +5,7 @@
   "address": "77.61.204.40",
   "device": "server",
   "difficulty": 3,
-  "trace_minutes": 40,
+  "trace_minutes": 80,
   "required_services": 1,
   "root_required": false,
   "logs_path": "/log",

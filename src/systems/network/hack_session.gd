@@ -11,7 +11,8 @@ extends RefCounted
 ##      иначе программе-взломщику («passhound svc_login») было бы не на что целиться;
 ##   2. первый запуск взломщика стартует трейс (не `connect` и не разведка);
 ##   3. сервисы вскрыты — `connect` пускает, трейс продолжает идти;
-##   4. `dc`, обрыв или конец трейса закрывают взлом.
+##   4. `dc`, обрыв или конец трейса закрывают взлом. Трейс при этом остаётся на узле (пауза):
+##      повторный `connect` продолжает тот же отсчёт.
 ## Подключение к другому узлу закрывает предыдущий взлом так же, как `dc`.
 ##
 ## Чистая логика: время приходит параметром, события возвращаются списком — их шлёт терминал.
@@ -48,8 +49,11 @@ func current_id() -> String:
 	return target_id() if has_connection() else Network.HOME_ID
 
 
+## Идёт ли трейс против текущей цели. Отсчёт — у узла: стоишь у двери или внутри — тикает,
+## ушёл — стоит на паузе.
 func is_tracing() -> bool:
-	return bool(_state.get("tracing", false))
+	var node_id: String = target_id()
+	return not node_id.is_empty() and _net.has_trace(node_id)
 
 
 ## Права администратора на узле: их даёт rootstep, и держатся они до конца сеанса.
@@ -64,11 +68,11 @@ func grant_admin() -> void:
 
 
 func trace_left() -> int:
-	return int(_state.get("trace_left", 0))
+	return _net.trace_left(target_id()) if is_tracing() else 0
 
 
 func trace_total() -> int:
-	return int(_state.get("trace_total", 0))
+	return _net.trace_total(target_id()) if is_tracing() else 0
 
 
 # --- Подключение -------------------------------------------------------------
@@ -91,6 +95,7 @@ func connect_to(address: String, now: int) -> NetResult:
 	if not target_id().is_empty() and target_id() != node_id:
 		_end()
 	_state["target"] = node_id
+	_net.drop_stale_trace(node_id, now)
 
 	var cracked: int = _net.cracked_count(node_id, now)
 	var required: int = _net.required_services(node_id)
@@ -154,10 +159,9 @@ func begin_cracking(service_id: String, program: String, now: int, trace_enabled
 	var result := NetResult.ok(node_id)
 	result.service_id = service_id
 	var minutes: int = int(_net.definition(node_id).get("trace_minutes", 0))
+	_net.drop_stale_trace(node_id, now)
 	if trace_enabled and minutes > 0 and not is_tracing():
-		_state["tracing"] = true
-		_state["trace_total"] = minutes
-		_state["trace_left"] = minutes
+		_net.start_trace(node_id, minutes, now)
 		result.trace_started = true
 	return result
 
@@ -204,7 +208,7 @@ func advance(minutes: int, now: int) -> Array[Dictionary]:
 
 	var before: int = trace_left()
 	var after: int = maxi(0, before - minutes)
-	_state["trace_left"] = after
+	_net.set_trace_left(node_id, after)
 
 	if after == 0:
 		events.append({"type": "trace_finished", "node": node_id, "was_connected": has_connection()})
@@ -224,6 +228,17 @@ func advance(minutes: int, now: int) -> Array[Dictionary]:
 
 
 ## Игрок удалил net.sys на узле. Узел уходит из сети, а если игрок был внутри — вылетает.
+## Сервис вскрыт: эта часть защиты теперь «под контролем» и не поднимает шум — трейс отступает
+## на `percent` процентов от полного (не выше полного). Возвращает, на сколько минут отступил.
+func ease_trace(percent: int) -> int:
+	if not is_tracing() or percent <= 0:
+		return 0
+	var node_id: String = target_id()
+	var before: int = trace_left()
+	_net.set_trace_left(node_id, before + trace_total() * percent / 100)
+	return trace_left() - before
+
+
 func node_sabotaged(node_id: String, now: int) -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
 	_net.sabotage(node_id, now)
@@ -239,6 +254,4 @@ func _end() -> void:
 	_state["target"] = ""
 	_state["connected"] = false
 	_state["admin"] = false
-	_state["tracing"] = false
-	_state["trace_left"] = 0
-	_state["trace_total"] = 0
+	# Трейс узла не трогаем: dc — пауза, а не конец тревоги.

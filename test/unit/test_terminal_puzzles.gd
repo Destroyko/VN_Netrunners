@@ -133,7 +133,7 @@ func test_finished_trace_resets_the_layers() -> void:
 	_start_husband()
 	run("gridrunner")
 	t.finish_puzzle(1)
-	t.spend(60, TermResult.new())
+	t.spend(trace_of("node_husband_pc"), TermResult.new())
 	assert_eq(PuzzleProgress.for_game().layers("node_husband_pc", "svc_firewall", t.now()), 0, "цель перенастроила защиту")
 
 

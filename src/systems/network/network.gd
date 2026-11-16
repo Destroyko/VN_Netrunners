@@ -384,7 +384,45 @@ func mark_cracked(node_id: String, service_id: String, now: int) -> void:
 func reset_services(node_id: String) -> void:
 	_entry(node_id).erase("cracked")
 	_entry(node_id).erase("root_at")
+	_entry(node_id).erase("trace")
 	_entry(node_id).erase("passwords")
+
+
+# --- Трейс узла --------------------------------------------------------------
+
+## Трейс живёт на узле, а не в сеансе (решено 16.11.2026): взлом поднял тревогу — у вторжения
+## один общий отсчёт. `dc` ставит его на паузу, повторный `connect` продолжает с того же места.
+## Сбрасывается вместе с вскрытой защитой (доведённый трейс, `services_reset_days`).
+func has_trace(node_id: String) -> bool:
+	return _peek(node_id).has("trace")
+
+
+func start_trace(node_id: String, minutes: int, now: int) -> void:
+	_entry(node_id)["trace"] = {"left": minutes, "total": minutes, "at": now}
+
+
+func trace_left(node_id: String) -> int:
+	return int((_peek(node_id).get("trace", {}) as Dictionary).get("left", 0))
+
+
+func trace_total(node_id: String) -> int:
+	return int((_peek(node_id).get("trace", {}) as Dictionary).get("total", 0))
+
+
+func set_trace_left(node_id: String, minutes: int) -> void:
+	if has_trace(node_id):
+		((_peek(node_id)["trace"]) as Dictionary)["left"] = clampi(minutes, 0, trace_total(node_id))
+
+
+func clear_trace(node_id: String) -> void:
+	_entry(node_id).erase("trace")
+
+
+## Тревога старше окна сброса защиты — цель успокоилась, отсчёта больше нет.
+func drop_stale_trace(node_id: String, now: int) -> void:
+	var trace: Dictionary = _peek(node_id).get("trace", {}) as Dictionary
+	if not trace.is_empty() and now - int(trace.get("at", now)) >= _reset_minutes:
+		clear_trace(node_id)
 
 
 # --- Пароли сервисов ---------------------------------------------------------

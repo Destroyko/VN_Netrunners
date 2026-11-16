@@ -6,7 +6,7 @@
   "address": "92.44.18.3",
   "device": "pc",
   "difficulty": 2,
-  "trace_minutes": 45,
+  "trace_minutes": 90,
   "required_services": 1,
   "root_required": false,
   "logs_path": "/log",

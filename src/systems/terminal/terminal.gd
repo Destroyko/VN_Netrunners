@@ -449,6 +449,10 @@ func apply_outcome(
 		progress.clear_service(node, service)
 		EventBus.puzzle_solved.emit(kind, level, node, service)
 		result.add("порт %d: доступ получен (%d из %d)" % [port, done.cracked, done.required])
+		# Вскрытая часть защиты больше не поднимает шум: трейс отступает (разработчик, 16.11.2026).
+		var eased: int = session.ease_trace(int((DataLoader.balance().get("nodes", {}) as Dictionary).get("trace_ease_percent", 25)))
+		if eased > 0:
+			result.add("трейс: +%d мин (осталось %d)" % [eased, session.trace_left()])
 		# Взломщик достал пароль: игрок видит его и вводит сам (hacking.md, «Пароль после перехвата»).
 		if not password.is_empty():
 			net.remember_password(node, service, password)
