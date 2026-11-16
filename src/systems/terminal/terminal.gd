@@ -61,7 +61,7 @@ func _init() -> void:
 	_network = NetCommands.new(self)
 	_programs = ProgramCommands.new(self)
 	_sync()
-	EventBus.time_advanced.connect(_on_time_advanced)
+	EventBus.session_advanced.connect(_on_session_advanced)
 
 
 ## Что можно у двери закрытого узла: разведка цели, вход и выход, взломщики (они — программы)
@@ -69,45 +69,34 @@ func _init() -> void:
 const AT_DOOR_COMMANDS: PackedStringArray = ["probe", "connect", "dc", "nodes", "progs", "run", "help", "clear", "history"]
 
 
-## Пока какой-то терминал тратит минуты своей командой, он сам спрашивает сеанс о последствиях.
-## Общий флаг на класс: сеанс один на игру (в GameState), считать трейс дважды нельзя.
-static var _spending: bool = false
-## Какой сдвиг часов уже разобран и что из него вышло. Терминалов может быть несколько (окно,
-## аварийная консоль, тесты), а сеанс один: сдвиг разбирает первый, остальные берут готовый итог.
-static var _seen_advance: int = -1
-static var _seen_result: TermResult
-static var _seen_report: bool = false
+## Итог команды, которая сейчас тратит минуты: события сеанса от хода часов дописываются в него.
+## Вне команды (часы идут сами) они уходят в окно сигналом `ticked`.
+var _collect: TermResult
 
 
-## Часы сдвинулись не командой, а сами: трейс тикает и в головоломке, и пока игрок читает файлы
-## (time.md, решено 15.11.2026). Пустой итог тоже отдаём, пока идёт трейс: окну нужно сдвинуть полоску.
-func _on_time_advanced(_minute: int, minutes_passed: int) -> void:
-	if _spending:
-		return
-	# Без _sync(): починка узлов ленивая, по команде игрока, а не по ходу часов.
-	net = Network.for_game()
-	session = HackSession.new(net)
-	if Clock.advance_count != _seen_advance:
-		_seen_advance = Clock.advance_count
-		_seen_result = TermResult.new()
-		_seen_report = false
-		if not session.target_id().is_empty():
-			_seen_report = session.is_tracing()
-			handle_events(session.advance(minutes_passed, now()), _seen_result)
-			_seen_report = _seen_report or not _seen_result.lines.is_empty()
-	# Сеанс мог оборваться: у этого терминала тоже нет больше ни головоломки, ни чужого каталога.
-	if session.target_id().is_empty():
-		_puzzle = {}
-		_cwd_remote = HOME_DIR
-	if _seen_report:
-		ticked.emit(_seen_result)
+## Сеанс взлома тикнул от хода часов (HackManager): последствия для мира уже применены,
+## здесь — что сказать игроку и что забыть самому терминалу.
+func _on_session_advanced(events: Array) -> void:
+	_sync_wrappers()
+	var result: TermResult = _collect if _collect != null else TermResult.new()
+	var typed: Array[Dictionary] = []
+	for event: Variant in events:
+		typed.append(event as Dictionary)
+	_describe(typed, result)
+	if _collect == null:
+		ticked.emit(result)
 
 
 ## Свежие обёртки над состоянием игры. Зовём в начале каждой публичной операции.
 func _sync() -> void:
+	_sync_wrappers()
+	_apply_repairs()
+
+
+## Только обёртки, без починки узлов: починка ленивая, по команде игрока, а не по ходу часов.
+func _sync_wrappers() -> void:
 	net = Network.for_game()
 	session = HackSession.new(net)
-	_apply_repairs()
 
 
 ## Владелец починил узел, с которого игрок снёс net.sys: возвращаем файл на место.
@@ -327,20 +316,28 @@ func minutes_of(key: String, fallback: int = 1) -> int:
 func spend(minutes: int, result: TermResult) -> void:
 	if minutes <= 0:
 		return
-	_spending = true
-	Clock.advance(minutes)
-	_spending = false
-	result.minutes += minutes
 	# Штраф анализа действий: трейс идёт быстрее часов, часы — как обычно.
 	var extra: int = _ids_extra
 	_ids_extra = 0
-	handle_events(session.advance(minutes + extra, now()), result)
+	if extra > 0:
+		handle_events(session.advance(extra, now()), result)
+	# Ход часов двигает трейс через HackManager; что случилось, дописывается в этот итог.
+	_collect = result
+	Clock.advance(minutes)
+	_collect = null
+	result.minutes += minutes
 
 
-## Сообщить игроку о том, что произошло с сеансом, и закрыть его последствия.
+## События сеанса от действия игрока (саботаж, штраф анализа действий): применить последствия
+## для мира и сказать игроку.
 func handle_events(events: Array[Dictionary], result: TermResult) -> void:
+	HackConsequences.apply(events)
+	_describe(events, result)
+
+
+## Что напечатать по событиям сеанса и что забыть самому терминалу, если сеанс закрылся.
+func _describe(events: Array[Dictionary], result: TermResult) -> void:
 	for event: Dictionary in events:
-		var node: String = str(event.get("node", ""))
 		match str(event["type"]):
 			"trace_half":
 				result.add("трейс: осталась половина (%d мин)" % int(event["left"]))
@@ -348,32 +345,23 @@ func handle_events(events: Array[Dictionary], result: TermResult) -> void:
 				result.add("трейс: осталась последняя четверть (%d мин)" % int(event["left"]))
 			"connection_lost":
 				result.add("соединение потеряно: узел ушёл из сети")
-				hung_up(node, bool(event["was_connected"]))
+				_forget_session()
 			"trace_finished":
 				result.add("трейс дошёл до конца: соединение оборвано")
-				_forget_progress(node)
-				EventBus.trace_finished.emit(node)
-				hung_up(node, bool(event["was_connected"]))
+				_forget_session()
 
 
-## Цель перенастроила защиту: частичные слои и счётчики попыток узла обнуляются.
-func _forget_progress(node: String) -> void:
-	PuzzleProgress.for_game().reset_node(node)
-
-
-## Сеанс с узлом закончился — по `dc`, обрыву или трейсу. Запись о выходе пишется всегда и
-## после любой чистки: бесследно уйти нельзя (hacking.md).
-func hung_up(node: String, was_connected: bool) -> void:
+## Сеанс закрыт — у терминала больше нет ни головоломки, ни вопроса пароля, ни чужого каталога.
+func _forget_session() -> void:
 	_puzzle = {}
 	_login = {}
 	_cwd_remote = HOME_DIR
-	if not was_connected:
-		return
-	if not traces_covered():
-		Logbook.for_node(node).append(
-			Logbook.CATEGORY_SESSION, "сеанс закрыт", GameState.day, GameState.minute, false, "logout"
-		)
-	EventBus.node_disconnected.emit(node)
+
+
+## Игрок сам закрыл сеанс (`dc`, переход на другой узел): забыть своё и записать выход.
+func hung_up(node: String, was_connected: bool) -> void:
+	_forget_session()
+	HackConsequences.session_closed(node, was_connected)
 
 
 ## Записать след на чужом узле. На своём ПК следов нет: терминал не пишет туда то,
@@ -387,13 +375,12 @@ func note(category: String, text: String, slug: String = "") -> void:
 		_ids_extra += int((DataLoader.balance().get("nodes", {}) as Dictionary).get("ids_trace_minutes", 3))
 
 
-## Ворота `gate.cover` (docs/tech/gates.md): пока открыты, за игроком подчищают — его сеансы
-## на чужих узлах не оставляют записей в логах. Кто и почему подчищает — решают рельсы.
-const GATE_COVER: String = "gate.cover"
+## Ворота «следы подчищают» — правило в HackConsequences; имя оставлено для читаемости.
+const GATE_COVER: String = HackConsequences.GATE_COVER
 
 
 static func traces_covered() -> bool:
-	return GameState.has_flag(GATE_COVER)
+	return HackConsequences.traces_covered()
 
 
 func has_network() -> bool:

@@ -1002,3 +1002,16 @@ func test_trace_is_gone_after_the_target_resets() -> void:
 	run("connect 77.61.204.12")
 	assert_false(t.session.is_tracing(), "защита перенастроена — тревоги нет, нужен новый взлом")
 
+
+func test_two_terminals_do_not_count_the_trace_twice() -> void:
+	# Трейс двигает одна автозагрузка (HackManager), а не каждый терминал: окно и аварийная
+	# консоль могут жить одновременно (технический разбор 16.11.2026).
+	_office_under_trace()
+	var second := Terminal.new()
+	var ticks: Array = []
+	second.ticked.connect(func(_r: TermResult) -> void: ticks.append(1))
+	var before: int = t.session.trace_left()
+	Clock.advance(10)
+	assert_eq(t.session.trace_left(), before - 10, "ровно 10 минут, а не 20")
+	assert_eq(ticks.size(), 1, "второй терминал тоже узнал о тике")
+

@@ -35,7 +35,7 @@ CLAUDE.md, README.md
 docs/            — дизайн-документы (.gdignore — Godot их не импортирует)
 ideas/           — входящие идеи (.gdignore)
 src/
-  autoload/      — синглтоны: GameState, EventBus, Clock, Rng, HeatManager, QuestManager, TriggerManager, NewsManager, SaveManager
+  autoload/      — синглтоны: GameState, EventBus, Clock, Rng, HeatManager, HackManager, QuestManager, TriggerManager, NewsManager, SaveManager
                    плюс инфраструктурные (не игровые системы): WindowGuard — пропорции окна
   core/          — общая логика: Conditions, Effects, DataLoader, Validator
   systems/       — игровые системы (чистая логика): terminal, filesystem, network, puzzles, economy, needs, heat

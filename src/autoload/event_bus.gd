@@ -15,6 +15,9 @@ signal heat_changed(heat: int, delta: int)
 
 ## Прошло игровое время. minutes — сколько потратило действие.
 signal time_advanced(minute: int, minutes_passed: int)
+## Часы сдвинулись — сеанс взлома тикнул (HackManager). `events` — что случилось: трейс перевалил
+## за половину, дошёл до конца, узел ушёл из сети. Пусто — просто прошло время под трейсом.
+signal session_advanced(events: Array)
 ## Начался новый день: NewsManager публикует новости, TriggerManager проверяет триггеры.
 signal day_started(day: int)
 
