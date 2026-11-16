@@ -311,7 +311,7 @@ func test_finished_trace_ends_the_hack() -> void:
 func test_finished_trace_resets_services_and_alerts_the_target() -> void:
 	_enter_office(_at(1, 9))
 	session.advance(60, _at(1, 10))
-	assert_eq(net.cracked_count("node_office", _at(1, 10)), 0, "слои сброшены")
+	assert_eq(net.access.cracked_count("node_office", _at(1, 10)), 0, "слои сброшены")
 	assert_eq(net.alert_level("node_office"), 1, "цель осторожнее")
 	assert_eq(net.effective_difficulty("node_office", 2), 3, "+1 к сложности")
 
@@ -337,7 +337,7 @@ func test_trace_finishing_before_connect_still_resets() -> void:
 	session.crack("svc_login", _at(1, 9))
 	var events: Array[Dictionary] = session.advance(60, _at(1, 10))
 	assert_false(bool(events[0]["was_connected"]))
-	assert_eq(net.cracked_count("node_office", _at(1, 10)), 0)
+	assert_eq(net.access.cracked_count("node_office", _at(1, 10)), 0)
 
 
 func test_dc_stops_the_trace() -> void:
@@ -354,7 +354,7 @@ func test_new_hack_starts_a_fresh_trace() -> void:
 	session.advance(30, _at(1, 9, 30))
 	session.disconnect_now()
 	# Через неделю защита перенастроилась: сервисы снова закрыты, и взлом начинается заново.
-	net.reset_services("node_office")
+	net.access.reset_services("node_office")
 	session.connect_to("77.0.0.12", _at(1, 9, 40))
 	session.begin_cracking("svc_login", "passhound", _at(1, 9, 40), true)
 	assert_eq(session.trace_left(), 60, "новый заход — новый трейс")
@@ -374,7 +374,7 @@ func test_dropped_connection_keeps_progress_and_does_not_alert() -> void:
 	# Предложение из network.md: как при dc, прогресс сохраняется.
 	_enter_office(_at(1, 17, 50))
 	session.advance(20, _at(1, 18, 10))
-	assert_eq(net.cracked_count("node_office", _at(1, 18, 10)), 2)
+	assert_eq(net.access.cracked_count("node_office", _at(1, 18, 10)), 2)
 	assert_eq(net.alert_level("node_office"), 0)
 
 

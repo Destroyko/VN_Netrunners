@@ -60,7 +60,7 @@ func test_reveal_node_with_logins() -> void:
 	Effects.apply({"reveal_node": {"node": "node_husband_pc", "open": ["svc_firewall"]}})
 	var net: Network = Network.for_game()
 	var now: int = net.abs_minute(GameState.day, GameState.minute)
-	assert_true(net.is_cracked("node_husband_pc", "svc_firewall", now))
+	assert_true(net.access.is_cracked("node_husband_pc", "svc_firewall", now))
 
 
 func test_reveal_target_reads_both_forms() -> void:

@@ -297,8 +297,8 @@ func test_reset_service_needs_a_new_password() -> void:
 	var word: String = _password_after_cracking_the_training_pc()
 	run(word)
 	run("dc")
-	Network.for_game().reset_services("node_training_pc")
-	assert_eq(Network.for_game().password_of("node_training_pc", "svc_login"), "", "старый пароль забыт")
+	Network.for_game().access.reset_services("node_training_pc")
+	assert_eq(Network.for_game().access.password_of("node_training_pc", "svc_login"), "", "старый пароль забыт")
 	assert_false(run("connect 10.0.0.7").contains("подключено"), "сервис снова закрыт")
 
 
@@ -387,7 +387,7 @@ func test_finished_trace_resets_services_and_makes_target_wary() -> void:
 	solve_puzzle()
 	t.spend(trace_of("node_office_server"), TermResult.new())
 	var net: Network = Network.for_game()
-	assert_eq(net.cracked_count("node_office_server", t.now()), 0)
+	assert_eq(net.access.cracked_count("node_office_server", t.now()), 0)
 	assert_eq(net.alert_level("node_office_server"), 1)
 
 
@@ -513,7 +513,7 @@ func test_rights_survive_reconnect_until_the_target_resets() -> void:
 	assert_true(t.admin(), "права держатся на узле")
 	assert_eq(run("cd /sys"), "")
 	run("dc")
-	Network.for_game().reset_services("node_training_pc")
+	Network.for_game().access.reset_services("node_training_pc")
 	enter("node_training_pc")
 	assert_false(t.admin(), "цель перенастроила защиту — прав больше нет")
 
@@ -847,7 +847,7 @@ func test_firewall_blocks_downloads_after_entry() -> void:
 
 func test_cracked_firewall_lets_files_out() -> void:
 	_inside_office_past_the_login_only()
-	Network.for_game().mark_cracked("node_office_server", "svc_vpn", t.now())
+	Network.for_game().access.mark_cracked("node_office_server", "svc_vpn", t.now())
 	assert_false(run("cp /home/users/list.txt").contains("заблокирована"))
 	assert_true(t.home_fs().has_file(Terminal.DUMP_DIR + "/list.txt"))
 
@@ -997,7 +997,7 @@ func test_cracked_service_eases_the_trace() -> void:
 func test_trace_is_gone_after_the_target_resets() -> void:
 	_office_under_trace()
 	run("dc")
-	Network.for_game().reset_services("node_office_server")
+	Network.for_game().access.reset_services("node_office_server")
 	reveal("node_office_server", ["svc_admin_login"])
 	run("connect 77.61.204.12")
 	assert_false(t.session.is_tracing(), "защита перенастроена — тревоги нет, нужен новый взлом")

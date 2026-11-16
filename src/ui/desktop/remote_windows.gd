@@ -45,7 +45,7 @@ func open(request: Dictionary, view: TerminalView) -> void:
 	var session := RemoteSession.new()
 	window.body.add_child(session)
 	_view = view
-	session.setup(_terminal, node, address, _terminal.net.remote_desktop(node), func(text: String) -> String:
+	session.setup(_terminal, node, address, desktop_of(_terminal.net, node), func(text: String) -> String:
 		view.submit(text)
 		return "" if not _terminal.login_pending() else "доступ запрещён", run_command)
 	_desktop.attach_window(window, Vector2(560, 400))
@@ -120,3 +120,15 @@ func sync() -> void:
 		session.unlock()
 	else:
 		session.refresh()
+
+
+## Стол цели из данных узла (`desktop`): имя пользователя, обои, иконки. Чего нет — по умолчанию.
+## Это данные для интерфейса, поэтому они читаются здесь, а не в сети.
+static func desktop_of(net: Network, node_id: String) -> Dictionary:
+	var def: Dictionary = net.definition(node_id).get("desktop", {}) as Dictionary
+	return {
+		"user": str(def.get("user", "user")),
+		"wallpaper": str(def.get("wallpaper", "#24476b")),
+		"apps": (def.get("apps", ["files"]) as Array).duplicate(),
+	}
+

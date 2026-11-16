@@ -53,7 +53,7 @@ func current_id() -> String:
 ## ушёл — стоит на паузе.
 func is_tracing() -> bool:
 	var node_id: String = target_id()
-	return not node_id.is_empty() and _net.has_trace(node_id)
+	return not node_id.is_empty() and _net.access.has_trace(node_id)
 
 
 ## Права администратора на узле: их даёт rootstep, и держатся они до конца сеанса.
@@ -68,11 +68,11 @@ func grant_admin() -> void:
 
 
 func trace_left() -> int:
-	return _net.trace_left(target_id()) if is_tracing() else 0
+	return _net.access.trace_left(target_id()) if is_tracing() else 0
 
 
 func trace_total() -> int:
-	return _net.trace_total(target_id()) if is_tracing() else 0
+	return _net.access.trace_total(target_id()) if is_tracing() else 0
 
 
 # --- Подключение -------------------------------------------------------------
@@ -95,9 +95,9 @@ func connect_to(address: String, now: int) -> NetResult:
 	if not target_id().is_empty() and target_id() != node_id:
 		_end()
 	_state["target"] = node_id
-	_net.drop_stale_trace(node_id, now)
+	_net.access.drop_stale_trace(node_id, now)
 
-	var cracked: int = _net.cracked_count(node_id, now)
+	var cracked: int = _net.access.cracked_count(node_id, now)
 	var required: int = _net.required_services(node_id)
 	if cracked < required:
 		var denied := NetResult.fail(NetResult.Code.SERVICES_LEFT, node_id, address)
@@ -106,14 +106,14 @@ func connect_to(address: String, now: int) -> NetResult:
 		return denied
 
 	# Пароль добыт, но не введён: соединение есть, входа нет, пока игрок не введёт его сам.
-	var waiting: String = _net.pending_login(node_id, now)
+	var waiting: String = _net.access.pending_login(node_id, now)
 	if not waiting.is_empty():
 		var login := NetResult.fail(NetResult.Code.LOGIN_REQUIRED, node_id, address)
 		login.service_id = waiting
 		return login
 
 	_state["connected"] = true
-	if _net.has_admin_login(node_id) or _net.has_root(node_id, now):
+	if _net.access.has_admin_login(node_id) or _net.access.has_root(node_id, now):
 		_state["admin"] = true
 	var result := NetResult.ok(node_id)
 	result.address = address
@@ -150,7 +150,7 @@ func begin_cracking(service_id: String, program: String, now: int, trace_enabled
 		var wrong := NetResult.fail(NetResult.Code.WRONG_PROGRAM, node_id)
 		wrong.program = program
 		return wrong
-	if _net.is_cracked(node_id, service_id, now):
+	if _net.access.is_cracked(node_id, service_id, now):
 		var done := NetResult.fail(NetResult.Code.ALREADY_CRACKED, node_id)
 		done.service_id = service_id
 		done.port = _net.port_of(node_id, service_id)
@@ -159,9 +159,9 @@ func begin_cracking(service_id: String, program: String, now: int, trace_enabled
 	var result := NetResult.ok(node_id)
 	result.service_id = service_id
 	var minutes: int = int(_net.definition(node_id).get("trace_minutes", 0))
-	_net.drop_stale_trace(node_id, now)
+	_net.access.drop_stale_trace(node_id, now)
 	if trace_enabled and minutes > 0 and not is_tracing():
-		_net.start_trace(node_id, minutes, now)
+		_net.access.start_trace(node_id, minutes, now)
 		result.trace_started = true
 	return result
 
@@ -176,10 +176,10 @@ func crack(service_id: String, now: int) -> NetResult:
 		missing.service_id = service_id
 		return missing
 
-	_net.mark_cracked(node_id, service_id, now)
+	_net.access.mark_cracked(node_id, service_id, now)
 	var result := NetResult.ok(node_id)
 	result.service_id = service_id
-	result.cracked = _net.cracked_count(node_id, now)
+	result.cracked = _net.access.cracked_count(node_id, now)
 	result.required = _net.required_services(node_id)
 	return result
 
@@ -208,11 +208,11 @@ func advance(minutes: int, now: int) -> Array[Dictionary]:
 
 	var before: int = trace_left()
 	var after: int = maxi(0, before - minutes)
-	_net.set_trace_left(node_id, after)
+	_net.access.set_trace_left(node_id, after)
 
 	if after == 0:
 		events.append({"type": "trace_finished", "node": node_id, "was_connected": has_connection()})
-		_net.reset_services(node_id)
+		_net.access.reset_services(node_id)
 		_net.raise_alert(node_id)
 		_end()
 		return events
@@ -235,7 +235,7 @@ func ease_trace(percent: int) -> int:
 		return 0
 	var node_id: String = target_id()
 	var before: int = trace_left()
-	_net.set_trace_left(node_id, before + trace_total() * percent / 100)
+	_net.access.set_trace_left(node_id, before + trace_total() * percent / 100)
 	return trace_left() - before
 
 

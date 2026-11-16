@@ -199,19 +199,19 @@ func test_order_names_the_node() -> void:
 
 func test_order_logins_open_services_in_advance() -> void:
 	net.reveal("node_office", ["svc_login"], _at(1, 9))
-	assert_true(net.is_cracked("node_office", "svc_login", _at(1, 9)))
-	assert_false(net.is_cracked("node_office", "svc_fw", _at(1, 9)), "фаервол клиент не открывает")
+	assert_true(net.access.is_cracked("node_office", "svc_login", _at(1, 9)))
+	assert_false(net.access.is_cracked("node_office", "svc_fw", _at(1, 9)), "фаервол клиент не открывает")
 
 
 func test_order_logins_expire_like_any_cracked_service() -> void:
 	net.reveal("node_office", ["svc_login"], _at(1, 9))
-	assert_false(net.is_cracked("node_office", "svc_login", _at(9, 9)))
+	assert_false(net.access.is_cracked("node_office", "svc_login", _at(9, 9)))
 
 
 func test_order_ignores_unknown_services_and_nodes() -> void:
 	assert_false(net.reveal("node_nowhere", [], _at(1, 9)))
 	assert_true(net.reveal("node_office", ["svc_nope"], _at(1, 9)))
-	assert_eq(net.cracked_count("node_office", _at(1, 9)), 0)
+	assert_eq(net.access.cracked_count("node_office", _at(1, 9)), 0)
 
 
 # --- Прайм-тайм --------------------------------------------------------------
@@ -292,30 +292,30 @@ func test_sabotage_and_schedule_both_apply() -> void:
 # --- Вскрытые сервисы --------------------------------------------------------
 
 func test_service_stays_cracked_for_a_week() -> void:
-	net.mark_cracked("node_lab", "svc_login", _at(1, 10))
-	assert_true(net.is_cracked("node_lab", "svc_login", _at(1, 11)))
-	assert_true(net.is_cracked("node_lab", "svc_login", _at(8, 9, 59)), "почти неделя")
+	net.access.mark_cracked("node_lab", "svc_login", _at(1, 10))
+	assert_true(net.access.is_cracked("node_lab", "svc_login", _at(1, 11)))
+	assert_true(net.access.is_cracked("node_lab", "svc_login", _at(8, 9, 59)), "почти неделя")
 
 
 func test_cracked_service_expires() -> void:
 	# Иначе однажды взломанный узел остаётся открытым навсегда (hacking-loop.md).
-	net.mark_cracked("node_lab", "svc_login", _at(1, 10))
-	assert_false(net.is_cracked("node_lab", "svc_login", _at(8, 10)))
-	assert_eq(net.cracked_count("node_lab", _at(8, 10)), 0)
+	net.access.mark_cracked("node_lab", "svc_login", _at(1, 10))
+	assert_false(net.access.is_cracked("node_lab", "svc_login", _at(8, 10)))
+	assert_eq(net.access.cracked_count("node_lab", _at(8, 10)), 0)
 
 
 func test_cracked_count_counts_services_of_the_node() -> void:
-	net.mark_cracked("node_office", "svc_login", _at(1, 10))
-	assert_eq(net.cracked_count("node_office", _at(1, 11)), 1)
-	net.mark_cracked("node_office", "svc_fw", _at(1, 11))
-	assert_eq(net.cracked_count("node_office", _at(1, 12)), 2)
+	net.access.mark_cracked("node_office", "svc_login", _at(1, 10))
+	assert_eq(net.access.cracked_count("node_office", _at(1, 11)), 1)
+	net.access.mark_cracked("node_office", "svc_fw", _at(1, 11))
+	assert_eq(net.access.cracked_count("node_office", _at(1, 12)), 2)
 
 
 func test_reset_services_closes_them_all() -> void:
-	net.mark_cracked("node_office", "svc_login", _at(1, 10))
-	net.mark_cracked("node_office", "svc_fw", _at(1, 10))
-	net.reset_services("node_office")
-	assert_eq(net.cracked_count("node_office", _at(1, 11)), 0)
+	net.access.mark_cracked("node_office", "svc_login", _at(1, 10))
+	net.access.mark_cracked("node_office", "svc_fw", _at(1, 10))
+	net.access.reset_services("node_office")
+	assert_eq(net.access.cracked_count("node_office", _at(1, 11)), 0)
 
 
 # --- Осторожность ------------------------------------------------------------
@@ -350,8 +350,8 @@ func test_first_hack_is_reported_once() -> void:
 func test_hacked_list_survives_reset_of_defences() -> void:
 	# Защита восстанавливается, а знание, что ты здесь был, остаётся.
 	net.mark_hacked("node_lab")
-	net.mark_cracked("node_lab", "svc_login", _at(1, 10))
-	net.reset_services("node_lab")
+	net.access.mark_cracked("node_lab", "svc_login", _at(1, 10))
+	net.access.reset_services("node_lab")
 	assert_true(net.has_hacked("node_lab"))
 	assert_eq(net.hacked_nodes().size(), 1)
 
@@ -379,7 +379,7 @@ func test_state_survives_save_and_load() -> void:
 
 func test_peeking_does_not_bloat_the_save() -> void:
 	# Чтение не должно плодить записи про узлы, которых игрок не касался.
-	net.is_cracked("node_lab", "svc_login", _at(1, 9))
+	net.access.is_cracked("node_lab", "svc_login", _at(1, 9))
 	net.alert_level("node_lab")
 	net.has_hacked("node_lab")
 	assert_eq((state["nodes"] as Dictionary).size(), 0)
@@ -411,7 +411,7 @@ func test_firewall_is_up_until_its_service_is_cracked() -> void:
 	var now: int = _at(1, 9)
 	assert_true(net.firewall_up("node_office", now))
 	assert_false(net.firewall_up("node_lab", now), "у учебного ПК фаервола нет")
-	net.mark_cracked("node_office", "svc_fw", now)
+	net.access.mark_cracked("node_office", "svc_fw", now)
 	assert_false(net.firewall_up("node_office", now))
 
 
@@ -425,14 +425,14 @@ func test_ids_is_a_node_property() -> void:
 
 func test_password_waits_to_be_entered_while_the_service_is_open() -> void:
 	var now: int = _at(1, 9)
-	net.mark_cracked("node_lab", "svc_login", now)
-	net.remember_password("node_lab", "svc_login", "метро")
-	assert_eq(net.pending_login("node_lab", now), "svc_login")
-	net.enter_password("node_lab", "svc_login")
-	assert_eq(net.pending_login("node_lab", now), "")
+	net.access.mark_cracked("node_lab", "svc_login", now)
+	net.access.remember_password("node_lab", "svc_login", "метро")
+	assert_eq(net.access.pending_login("node_lab", now), "svc_login")
+	net.access.enter_password("node_lab", "svc_login")
+	assert_eq(net.access.pending_login("node_lab", now), "")
 
 
 func test_service_opened_by_a_client_needs_no_password() -> void:
-	net.mark_cracked("node_lab", "svc_login", _at(1, 9))
-	assert_eq(net.pending_login("node_lab", _at(1, 9)), "", "слова нет — вводить нечего")
+	net.access.mark_cracked("node_lab", "svc_login", _at(1, 9))
+	assert_eq(net.access.pending_login("node_lab", _at(1, 9)), "", "слова нет — вводить нечего")
 

@@ -238,12 +238,12 @@ func _attempt_login(text: String, result: TermResult) -> TermResult:
 			return _dispatch("dc", false, result)
 		return result
 	var service: String = str(_login["service"])
-	var word: String = net.password_of(node, service)
+	var word: String = net.access.password_of(node, service)
 	if word.is_empty() or text.to_lower().replace("ё", "е") != word:
 		result.add("доступ запрещён")
 		spend(minutes_of("terminal_command"), result)
 		return result
-	net.enter_password(node, service)
+	net.access.enter_password(node, service)
 	var address: String = str(_login["address"])
 	_login = {}
 	_network.connect_to(PackedStringArray([address]), result)
@@ -442,7 +442,7 @@ func apply_outcome(
 			result.add("трейс: +%d мин (осталось %d)" % [eased, session.trace_left()])
 		# Взломщик достал пароль: игрок видит его и вводит сам (hacking.md, «Пароль после перехвата»).
 		if not password.is_empty():
-			net.remember_password(node, service, password)
+			net.access.remember_password(node, service, password)
 			result.add("")
 			result.add("        пароль: %s" % password.to_upper())
 			result.add("")

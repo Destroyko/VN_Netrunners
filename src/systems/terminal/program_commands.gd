@@ -209,7 +209,7 @@ func _rootstep(result: TermResult) -> void:
 	if not _t.session.has_connection():
 		return
 	_t.session.grant_admin()
-	_t.net.grant_root(node, _t.now())
+	_t.net.access.grant_root(node, _t.now())
 	_t.note(Logbook.CATEGORY_ROOT, "смена уровня доступа", "root")
 	result.add("права администратора получены на %s" % node)
 
