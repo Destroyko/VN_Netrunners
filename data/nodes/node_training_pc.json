@@ -24,10 +24,7 @@
       "name": "Вход по паролю",
       "puzzle": "password",
       "difficulty": 1,
-      "program": "passhound",
-      "hints": [
-        "Машина старая: deepscan открывает здесь лишний символ."
-      ]
+      "program": "passhound"
     }
   ],
 

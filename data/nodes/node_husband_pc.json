@@ -23,10 +23,7 @@
       "wall": "firewall",
       "puzzle": "matrix",
       "difficulty": 2,
-      "program": "gridrunner",
-      "hints": [
-        "Роутер старый: в сетке будет меньше помех, чем на корпоративных узлах."
-      ]
+      "program": "gridrunner"
     }
   ],
   "files": {

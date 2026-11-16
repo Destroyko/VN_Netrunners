@@ -20,8 +20,7 @@
       "name": "Вход по паролю",
       "puzzle": "password",
       "difficulty": 3,
-      "program": "passhound",
-      "hints": []
+      "program": "passhound"
     }
   ],
   "files": {

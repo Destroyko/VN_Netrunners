@@ -248,7 +248,6 @@ func describe(node_id: String, now: int) -> Dictionary:
 			"puzzle": str(service_def.get("puzzle", "")),
 			"program": str(service_def.get("program", "")),
 			"difficulty": effective_difficulty(node_id, int(service_def.get("difficulty", 1))),
-			"hints": (service_def.get("hints", []) as Array).duplicate(),
 			"cracked": access.is_cracked(node_id, service_id, now),
 		})
 	return {

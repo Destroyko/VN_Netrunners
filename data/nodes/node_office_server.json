@@ -27,9 +27,7 @@
       "name": "Панель администратора",
       "puzzle": "password",
       "difficulty": 3,
-      "program": "passhound",
-      "hints": [
-      ]
+      "program": "passhound"
     },
     {
       "id": "svc_vpn",
@@ -38,8 +36,7 @@
       "wall": "firewall",
       "puzzle": "matrix",
       "difficulty": 3,
-      "program": "gridrunner",
-      "hints": []
+      "program": "gridrunner"
     }
   ],
   "files": {

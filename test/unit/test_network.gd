@@ -26,7 +26,7 @@ func _definitions() -> Dictionary:
 			"links": ["node_router"], "required_services": 1, "trace_minutes": 0,
 			"services": [{
 				"id": "svc_login", "name": "Вход по паролю", "puzzle": "password",
-				"program": "passhound", "difficulty": 1, "hints": ["подсказка"],
+				"program": "passhound", "difficulty": 1,
 			}],
 		},
 		"node_office": {
@@ -154,14 +154,6 @@ func test_probe_describes_the_node() -> void:
 	assert_eq((info["services"] as Array).size(), 2)
 	assert_true(bool(info["online_now"]))
 	assert_eq(str((info["online"] as Dictionary)["from"]), "08:00")
-
-
-func test_probe_shows_hints() -> void:
-	net.scan("node_home_pc")
-	net.scan("node_router")
-	var info: Dictionary = net.probe("10.0.0.7", _at(1, 9)).info
-	var service: Dictionary = (info["services"] as Array)[0] as Dictionary
-	assert_eq((service["hints"] as Array)[0], "подсказка")
 
 
 func test_probe_does_not_touch_the_session() -> void:
