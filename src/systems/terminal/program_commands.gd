@@ -153,13 +153,20 @@ func _pick_service(target: String, program: String, args: PackedStringArray, res
 		return by_port
 	var fitting: Array[String] = []
 	var ports: PackedStringArray = []
+	var already_open: bool = false
 	for service: Dictionary in _t.net.describe(target, _t.now())["services"] as Array:
-		if str(service["program"]) == program and not bool(service["cracked"]):
-			fitting.append(str(service["id"]))
-			ports.append(str(service["port"]))
+		if str(service["program"]) != program:
+			continue
+		if bool(service["cracked"]):
+			already_open = true
+			continue
+		fitting.append(str(service["id"]))
+		ports.append(str(service["port"]))
 	if fitting.size() == 1:
 		return fitting[0]
-	if fitting.is_empty():
+	if fitting.is_empty() and already_open:
+		result.add("%s: закрытых целей нет" % program)
+	elif fitting.is_empty():
 		result.add("%s не работает против этой защиты" % program)
 	else:
 		result.add("не указан порт (подходят: %s)" % ", ".join(ports))
@@ -196,13 +203,13 @@ func _rootstep(result: TermResult) -> void:
 		result.add("права уже повышены")
 		return
 	result.add_all(PackedStringArray(ROOTSTEP_LOG))
-	result.request = {"type": "progress", "title": "rootstep"}
 	var node: String = _t.node_id()
 	_t.spend(Programs.minutes_for("rootstep"), result)
 	# Трейс мог оборвать соединение раньше, чем права поднялись.
 	if not _t.session.has_connection():
 		return
 	_t.session.grant_admin()
+	_t.net.grant_root(node, _t.now())
 	_t.note(Logbook.CATEGORY_ROOT, "смена уровня доступа", "root")
 	result.add("права администратора получены на %s" % node)
 
@@ -211,8 +218,10 @@ func _logwipe(result: TermResult) -> void:
 	if not _t.is_remote():
 		result.add("нет подключения к узлу")
 		return
+	if not _t.admin():
+		result.add("недостаточно прав. нужен доступ администратора")
+		return
 	result.add_all(PackedStringArray(LOGWIPE_LOG))
-	result.request = {"type": "progress", "title": "logwipe"}
 	var node: String = _t.node_id()
 	_t.spend(Programs.minutes_for("logwipe"), result)
 	if not _t.session.has_connection():

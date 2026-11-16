@@ -187,8 +187,6 @@ func show_result(result: TermResult) -> void:
 		_print(result.question)
 	var request: Dictionary = result.request
 	match str(request.get("type", "")):
-		"progress":
-			_print("[ %s: работает… ]" % str(request.get("title", "")))
 		"puzzle":
 			puzzle_requested.emit(request)
 		"remote":

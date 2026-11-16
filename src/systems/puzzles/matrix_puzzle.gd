@@ -104,6 +104,15 @@ func is_hopeless() -> bool:
 	var goal: int = layers()
 	if goal >= targets.size():
 		return false
+	# Раунд (одна цель, буфер ровно под неё): тупик — только когда игрок сам поставил не тот байт.
+	# Заглядывать вперёд нельзя: «нужного байта нет в следующем ряду» игрок должен увидеть сам и
+	# ошибиться, а не получить поражение до хода (разработчик, 16.11.2026).
+	if targets.size() == 1 and capacity == (targets[0] as PackedInt32Array).size():
+		var target: PackedInt32Array = targets[0] as PackedInt32Array
+		for index: int in buffer.size():
+			if buffer[index] != target[index]:
+				return true
+		return false
 	return not _can_collect_more(buffer, _used, picks.size(), picks[picks.size() - 1] if not picks.is_empty() else -1, goal)
 
 

@@ -383,6 +383,7 @@ func mark_cracked(node_id: String, service_id: String, now: int) -> void:
 
 func reset_services(node_id: String) -> void:
 	_entry(node_id).erase("cracked")
+	_entry(node_id).erase("root_at")
 	_entry(node_id).erase("passwords")
 
 
@@ -440,6 +441,17 @@ func effective_difficulty(node_id: String, base: int) -> int:
 
 
 # --- Взломанные узлы ---------------------------------------------------------
+
+## `rootstep` поднял права на узле: они держатся и после `dc`, пока цель не перенастроила защиту
+## (доведённый трейс, `services_reset_days`) — как вскрытые сервисы.
+func grant_root(node_id: String, now: int) -> void:
+	_entry(node_id)["root_at"] = now
+
+
+func has_root(node_id: String, now: int) -> bool:
+	var entry: Dictionary = _peek(node_id)
+	return entry.has("root_at") and now - int(entry["root_at"]) < _reset_minutes
+
 
 ## Заказчик дал логин администратора: на этом узле игрок сразу с правами (удалить, положить —
 ## работа офисного технаря). Логин не взлом — сбросы сервисов его не трогают.

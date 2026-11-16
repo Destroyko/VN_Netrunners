@@ -257,3 +257,16 @@ func test_wrong_first_symbol_is_a_dead_end_at_once_in_a_round() -> void:
 			return
 	pass_test("в верхней строке все символы совпали с началом цели")
 
+
+func test_round_does_not_judge_a_dead_end_ahead_of_the_player() -> void:
+	# Баг со снимка F9 16.11: верный первый байт, а в нужном столбце следующего нет — игра сразу
+	# объявляла тупик. Теперь тупик только когда игрок сам поставил не тот байт.
+	for seed_value: int in 30:
+		var puzzle: MatrixPuzzle = MatrixPuzzle.generate_round(4, seed_value, 0)
+		var target: PackedInt32Array = puzzle.targets[0] as PackedInt32Array
+		for cell: int in puzzle.legal_moves():
+			if puzzle.grid[cell] == target[0]:
+				puzzle.pick(cell)
+				assert_false(puzzle.is_hopeless(), "сид %d: верный ход не тупик" % seed_value)
+				break
+

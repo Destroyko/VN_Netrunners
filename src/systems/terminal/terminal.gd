@@ -64,6 +64,11 @@ func _init() -> void:
 	EventBus.time_advanced.connect(_on_time_advanced)
 
 
+## Что можно у двери закрытого узла: разведка цели, вход и выход, взломщики (они — программы)
+## и служебные команды самого терминала.
+const AT_DOOR_COMMANDS: PackedStringArray = ["probe", "connect", "dc", "nodes", "progs", "run", "help", "clear", "history"]
+
+
 ## Пока какой-то терминал тратит минуты своей командой, он сам спрашивает сеанс о последствиях.
 ## Общий флаг на класс: сеанс один на игру (в GameState), считать трейс дважды нельзя.
 static var _spending: bool = false
@@ -267,6 +272,13 @@ func _dispatch(text: String, confirmed: bool, result: TermResult) -> TermResult:
 	var words: PackedStringArray = CommandLine.parse(text)
 	var command: String = words[0].to_lower()
 	var args: PackedStringArray = words.slice(1)
+
+	# У двери (соединение есть, входа нет) работают только команды к цели и служебные: иначе
+	# `scan` или `ls` молча выполнились бы на своём ПК, хотя приглашение показывает чужой адрес.
+	if not session.target_id().is_empty() and not session.has_connection() \
+			and not AT_DOOR_COMMANDS.has(command) and not Programs.is_program(command):
+		result.add("вход не выполнен")
+		return result
 
 	match command:
 		"pwd": _files.pwd(result)

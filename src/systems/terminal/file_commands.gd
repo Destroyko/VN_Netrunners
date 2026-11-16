@@ -18,6 +18,12 @@ func pwd(result: TermResult) -> void:
 
 
 func ls(args: PackedStringArray, result: TermResult) -> void:
+	# Флаги (`ls -la`) понимаем как привычку из настоящих консолей и просто пропускаем.
+	var paths: PackedStringArray = []
+	for arg: String in args:
+		if not arg.begins_with("-"):
+			paths.append(arg)
+	args = paths
 	var files: Filesystem = _t.fs()
 	var path: String = FsPath.resolve(_t.cwd(), args[0]) if not args.is_empty() else _t.cwd()
 

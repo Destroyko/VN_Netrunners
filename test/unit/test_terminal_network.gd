@@ -479,7 +479,7 @@ func test_rootstep_raises_rights_and_leaves_a_trace() -> void:
 	var text: String = run("rootstep")
 	assert_string_contains(text, "подмена уровня доступа")
 	assert_string_contains(text, "права администратора получены")
-	assert_eq(last.request["type"], "progress")
+	assert_false(text.contains("работает…"), "без заглушки прогресса после результата")
 	assert_eq(minute(), before + 3)
 	assert_eq(t.prompt(), "10.0.0.7:/home# ", "решётка вместо доллара")
 	assert_true(logbook("node_training_pc").categories().has(Logbook.CATEGORY_ROOT))
@@ -501,18 +501,40 @@ func test_rootstep_twice() -> void:
 	assert_eq(run("rootstep"), "права уже повышены")
 
 
-func test_rights_do_not_survive_the_session() -> void:
+func test_rights_survive_reconnect_until_the_target_resets() -> void:
+	# Баг со снимка F9 16.11: после dc права пропадали, /sys и /prog снова закрыты.
 	learn_programs()
 	enter("node_training_pc")
 	run("rootstep")
 	run("dc")
+	run("connect 10.0.0.7")
+	assert_true(t.admin(), "права держатся на узле")
+	assert_eq(run("cd /sys"), "")
+	run("dc")
+	Network.for_game().reset_services("node_training_pc")
 	enter("node_training_pc")
-	assert_string_contains(run("cd /sys"), "недостаточно прав")
+	assert_false(t.admin(), "цель перенастроила защиту — прав больше нет")
+
+
+func test_logwipe_needs_admin_rights() -> void:
+	# Баг со снимка F9 16.11: logwipe чистил логи гостю, хотя rm ему отказывал.
+	learn_programs()
+	enter("node_training_pc")
+	assert_string_contains(run("logwipe"), "недостаточно прав")
+	assert_gt(logbook("node_training_pc").count(), 0, "логи на месте")
+
+
+func test_logwipe_keeps_the_log_folders() -> void:
+	learn_programs()
+	enter_as_admin("node_training_pc")
+	run("cd /log/auth")
+	run("logwipe")
+	assert_eq(run("ls"), "пусто", "каталог остался, просто пустой")
 
 
 func test_logwipe_clears_the_whole_log_folder() -> void:
 	learn_programs()
-	enter("node_training_pc")
+	enter_as_admin("node_training_pc")
 	run("rm spisok_pokupok.txt")
 	var text: String = run("logwipe")
 	assert_string_contains(text, "очищено записей")
@@ -904,4 +926,29 @@ func test_without_cover_the_session_is_logged() -> void:
 	run("rm spisok_pokupok.txt")
 	run("dc")
 	assert_gt(logbook("node_training_pc").count(), before)
+
+
+# --- Баги второго прогона (снимки F9, 16.11.2026) ------------------------------------
+
+func test_scan_at_the_door_does_not_run_on_your_own_pc() -> void:
+	# У двери закрытого узла scan молча сканировал свою домашнюю сеть.
+	learn_programs()
+	reveal("node_office_server")
+	Clock.set_time(1, 10 * 60)
+	run("connect 77.61.204.12")
+	assert_eq(t.prompt(), "77.61.204.12> ")
+	for line: String in ["scan", "ls", "cd /home", "cat readme.txt"]:
+		assert_eq(run(line), "вход не выполнен", line)
+	assert_string_contains(run("probe"), "сканирование 77.61.204.12", "разведка цели работает")
+	assert_false(run("passhound 8080").contains("вход не выполнен"), "взломщики работают")
+
+
+func test_cracker_with_nothing_left_to_open_says_so() -> void:
+	learn_programs()
+	enter("node_office_server")
+	assert_eq(run("gridrunner"), "gridrunner: закрытых целей нет")
+
+
+func test_ls_ignores_flags() -> void:
+	assert_false(run("ls -la").contains("нет такого"))
 

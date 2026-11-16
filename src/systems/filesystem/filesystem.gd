@@ -205,6 +205,7 @@ func remove(cwd: String, arg: String, is_admin: bool = false, force: bool = fals
 	if is_system(target) and not force:
 		return FsResult.fail(FsResult.Code.NEEDS_CONFIRM_DELETE, target)
 	_files.erase(target)
+	_keep_parent(target)
 	return FsResult.ok(target)
 
 
@@ -239,6 +240,7 @@ func _remove_by_mask(cwd: String, arg: String, is_admin: bool, force: bool) -> F
 
 	for file_path: String in matched:
 		_files.erase(file_path)
+		_keep_parent(file_path)
 	return FsResult.ok_many(matched)
 
 
@@ -268,6 +270,7 @@ func move(
 		return FsResult.fail(FsResult.Code.NEEDS_CONFIRM_REPLACE, to)
 	_files[to] = _files[from]
 	_files.erase(from)
+	_keep_parent(from)
 	var result := FsResult.ok(to)
 	result.paths = [from, to]
 	result.replaced = was_there
@@ -318,7 +321,10 @@ func put_file(path: String, data: Dictionary) -> void:
 ## Убрать файл напрямую, минуя команды игрока: эффект из данных, уборка по сюжету.
 ## Парная к put_file и так же без вопросов — спрашивать не у кого, это решение игры.
 func erase_file(path: String) -> bool:
-	return _files.erase(FsPath.normalize(path))
+	var normalized: String = FsPath.normalize(path)
+	var erased: bool = _files.erase(normalized)
+	_keep_parent(normalized)
+	return erased
 
 
 ## Создать каталог. Только в /home: игрок раскладывает свою добычу, а не чинит чужую систему.
@@ -359,3 +365,12 @@ func _destination_for(cwd: String, from: String, to_arg: String) -> String:
 	if has_dir(to) and not _files.has(to):
 		return to.path_join(FsPath.name_of(from))
 	return to
+
+
+## Удалили последний файл — каталог остаётся, пустым: как в настоящей файловой системе.
+## Иначе после чистки логов игрок оказывался бы в каталоге, которого «нет».
+func _keep_parent(path: String) -> void:
+	var parent: String = FsPath.parent(path)
+	if parent != FsPath.ROOT and not FsPath.ROOTS.has(parent):
+		_dirs[parent] = true
+

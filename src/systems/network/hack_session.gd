@@ -108,7 +108,7 @@ func connect_to(address: String, now: int) -> NetResult:
 		return login
 
 	_state["connected"] = true
-	if _net.has_admin_login(node_id):
+	if _net.has_admin_login(node_id) or _net.has_root(node_id, now):
 		_state["admin"] = true
 	var result := NetResult.ok(node_id)
 	result.address = address
