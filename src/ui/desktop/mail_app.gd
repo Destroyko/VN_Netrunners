@@ -1,7 +1,8 @@
 class_name MailApp
 extends HBoxContainer
 ## Приложение «Почта»: слева входящие (непрочитанные — с точкой), справа письмо, вложения с
-## «Сохранить к себе» и кнопки ответа. Правил здесь нет: всё делает `Mailbox`.
+## «Сохранить к себе» и кнопки ответа; «Написать» — новое письмо со своего ПК (`MailCompose`).
+## Правил здесь нет: всё делает `Mailbox`.
 
 var _list: ItemList
 var _from: Label
@@ -12,19 +13,36 @@ var _replies: HBoxContainer
 var _status: Label
 var _uids: PackedStringArray = []
 var _open_uid: String = ""
+var _reader: VBoxContainer
+var _compose: MailCompose
 
 
 func _init() -> void:
 	name = "MailApp"
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var left := VBoxContainer.new()
+	add_child(left)
+	var write := Button.new()
+	write.name = "Write"
+	write.text = "Написать"
+	write.pressed.connect(show_compose)
+	left.add_child(write)
 	_list = ItemList.new()
 	_list.name = "Inbox"
 	_list.custom_minimum_size = Vector2(180, 0)
+	_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_list.item_selected.connect(func(index: int) -> void: open(_uids[index]))
-	add_child(_list)
+	left.add_child(_list)
 	var right := VBoxContainer.new()
+	_reader = right
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(right)
+	_compose = MailCompose.new()
+	_compose.visible = false
+	_compose.closed.connect(func() -> void:
+		_compose.visible = false
+		_reader.visible = true)
+	add_child(_compose)
 	_from = Label.new()
 	right.add_child(_from)
 	_subject = Label.new()
@@ -63,8 +81,18 @@ func refresh() -> void:
 		_body.text = "Писем нет"
 
 
+## Новое письмо вместо читалки.
+func show_compose() -> MailCompose:
+	_compose.reset()
+	_reader.visible = false
+	_compose.visible = true
+	return _compose
+
+
 ## Открыть письмо: прочитано, видны вложения и ответы.
 func open(uid: String) -> void:
+	_compose.visible = false
+	_reader.visible = true
 	_open_uid = uid
 	Mailbox.mark_read(uid)
 	var e: Dictionary = Mailbox.entry(uid)

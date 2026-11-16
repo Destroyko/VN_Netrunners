@@ -201,3 +201,16 @@ func test_mail_app_reads_saves_and_replies() -> void:
 	(mail.find_child("Reply_accept", true, false) as Button).emit_signal("pressed")
 	assert_true(GameState.has_flag("world.test_mail_accepted"))
 	assert_null(mail.find_child("Reply_decline", true, false), "после ответа кнопок нет")
+
+
+func test_mail_compose_sends_to_known_address() -> void:
+	Mailbox.deliver("mail_test_order")
+	var path: String = Mailbox.save_attachment(str(Mailbox.inbox()[0]["uid"]), 0)
+	var window: DesktopWindow = desktop.open_app("mail")
+	var mail: MailApp = window.find_child("MailApp", true, false) as MailApp
+	var compose: MailCompose = mail.show_compose()
+	assert_eq((compose.find_child("To", true, false) as OptionButton).item_count, 1, "только известные адреса")
+	compose.pick("dispatch@example.local", path)
+	(compose.find_child("Send", true, false) as Button).emit_signal("pressed")
+	assert_eq(Mailbox.sent().size(), 1)
+	assert_eq(str(Mailbox.sent()[0]["file_id"]), "file_test_instruction")

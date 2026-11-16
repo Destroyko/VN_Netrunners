@@ -18,6 +18,7 @@ const OBJECTIVE_TYPES: PackedStringArray = [
 	"visit_location",
 	"wait_until",
 	"deliver",
+	"file_at",
 ]
 
 const QUEST_TYPES: PackedStringArray = ["main", "side", "radiant"]
@@ -274,6 +275,15 @@ func _validate_effects(where: String, effects: Array, quests: Dictionary) -> voi
 				continue
 			if type == "reveal_node":
 				errors.append_array(NodeValidator.check_reveal(where, effect[type], _nodes))
+			if type == "schedule":
+				var spec: Dictionary = effect[type] as Dictionary if effect[type] is Dictionary else {}
+				if spec.has("at") and Rest.parse_clock(str(spec["at"])) < 0:
+					errors.append("%s: schedule.at — время ЧЧ:ММ, получено '%s'" % [where, spec["at"]])
+				_validate_effects(where + ", schedule", spec.get("effects", []) as Array, quests)
+			if type == "add_file":
+				var file_spec: Dictionary = effect[type] as Dictionary if effect[type] is Dictionary else {}
+				if str(file_spec.get("path", "")).is_empty():
+					errors.append("%s: add_file без path" % where)
 			if type == "quest_choice":
 				errors.append_array(_check_quest_choice(where, effect[type], quests))
 			if type == "send_message" and not _mail.has(str(effect[type])):

@@ -131,12 +131,19 @@ func test_schedule_news_effect_queues_for_morning() -> void:
 
 # --- Цели «по состоянию» --------------------------------------------------------
 
-func test_deliver_objective_is_satisfied_by_file_at_home() -> void:
-	var objective: Dictionary = {"type": "deliver", "what": "file_test_instruction"}
-	assert_false(QuestObjectives.satisfied(objective))
-	Mailbox.deliver("mail_test_order")
-	Mailbox.save_attachment(str(Mailbox.inbox()[0]["uid"]), 0)
+func test_deliver_objective_closes_by_sent_letter() -> void:
+	var objective: Dictionary = {"type": "deliver", "what": "file_test_instruction", "to": "dispatch@example.local"}
+	var sent := {"event": "mail_sent", "to": "dispatch@example.local", "file_id": "file_test_instruction"}
+	assert_true(QuestObjectives.matches(objective, sent))
+	sent["to"] = "boss@client.local"
+	assert_false(QuestObjectives.matches(objective, sent), "не тому")
+
+
+func test_file_at_objective_checks_path_on_node() -> void:
+	var objective: Dictionary = {"type": "file_at", "node": "node_training_pc", "path": "/home/zametka.txt"}
 	assert_true(QuestObjectives.satisfied(objective))
+	objective["path"] = "/home/nope.txt"
+	assert_false(QuestObjectives.satisfied(objective))
 
 
 # --- Триггеры -------------------------------------------------------------------

@@ -27,12 +27,14 @@ const KNOWN_TYPES: PackedStringArray = [
 	"unlock_quest",
 	"quest_choice",
 	"schedule_news",
+	"schedule",
+	"add_file",
+	"add_contact",
 ]
 
 ## Типы из документации, которым нужны системы следующих этапов.
 ## Валидатор их пропускает, применение пока только пишет предупреждение.
 const DEFERRED_TYPES: PackedStringArray = [
-	"add_file",       # filesystem, M1
 	"add_note",       # блокнот заметок, docs/gameplay/notebook.md
 ]
 
@@ -163,6 +165,27 @@ static func _apply_one(type: String, value: Variant) -> bool:
 			var queue: Array = (GameState.get_var_or(VAR_NEWS_QUEUE, []) as Array).duplicate()
 			queue.append({"id": str(ref.get("id", "")), "day": GameState.day + int(ref.get("delay_days", 1))})
 			GameState.set_var(VAR_NEWS_QUEUE, queue)
+			return true
+		"schedule":
+			# Формат: {"schedule": {"delay_days": 1, "at": "09:00", "effects": [...]}} — сделать позже.
+			return Schedule.add(value as Dictionary if value is Dictionary else {})
+		"add_file":
+			# Формат: {"add_file": {"path": "/home/x.txt", "text": "...", "file_id": "file_x"}};
+			# "node" — на какой узел (по умолчанию ПК героя). Остальные поля — поля файла.
+			var spec: Dictionary = (value as Dictionary).duplicate(true) if value is Dictionary else {}
+			var node_id: String = str(spec.get("node", Network.HOME_ID))
+			var path: String = str(spec.get("path", ""))
+			if path.is_empty():
+				push_error("Effects: add_file без path: %s" % [value])
+				return false
+			spec.erase("node")
+			spec.erase("path")
+			var fs: Filesystem = Filesystem.for_node(node_id)
+			fs.put_file(path, spec)
+			GameState.set_filesystem_state(node_id, fs.to_dict())
+			return true
+		"add_contact":
+			Mailbox.learn_contact(str(value))
 			return true
 		"send_message":
 			# Формат: {"send_message": "mail_x"} — письмо из data/mail. Мессенджер — позже (M3).

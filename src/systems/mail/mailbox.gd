@@ -8,7 +8,12 @@ extends RefCounted
 ## Что меняет ответ — решают данные письма (`effects` у ответа) и квесты, слушающие
 ## `mail_replied`; сама почта сюжета не знает.
 ##
-## Ящик — в `GameState.mail_state()`: [{uid, id, day, minute, read, reply}], новые в конце.
+## Ящик — в `GameState.mail_state()`: входящие [{uid, id, day, minute, read, reply}] (новые в
+## конце), отправленные [{to, subject, body, file, file_id, day, minute}] и адресная книга.
+##
+## Отправить письмо можно только на известный адрес (адресная книга): так игрок не отправит
+## файл случайно не туда (разработчик, 16.11.2026). Адреса узнаются из писем — отправитель и
+## поле `contacts` («вот почта босса») — и эффектом `add_contact`.
 
 ## Куда кладутся сохранённые вложения на своём ПК.
 const ATTACHMENTS_DIR: String = "/home/mail"
@@ -38,8 +43,50 @@ static func deliver(id: String) -> bool:
 		"reply": "",
 	}
 	list.append(entry)
+	var def: Dictionary = definition(id)
+	learn_contact(str(def.get("from", "")))
+	for address: Variant in def.get("contacts", []) as Array:
+		learn_contact(str(address))
 	EventBus.mail_received.emit(str(entry["uid"]), id)
 	return true
+
+
+# --- Адресная книга и исходящие ---------------------------------------------------
+
+## Запомнить адрес. Не адрес (нет «@») — не запоминается: «Домовладелец» в поле «от» — это имя.
+static func learn_contact(address: String) -> void:
+	if not address.contains("@"):
+		return
+	var book: Array = _state_list("contacts")
+	if not book.has(address):
+		book.append(address)
+
+
+static func contacts() -> Array:
+	return _state_list("contacts").duplicate()
+
+
+## Отправить письмо со своего ПК. `file` — путь вложения на своём ПК ("" — без вложения).
+## Неизвестный адрес или нет такого файла — false, ничего не ушло.
+static func send(to: String, subject: String, body: String, file: String = "") -> bool:
+	if not contacts().has(to):
+		return false
+	var file_id: String = ""
+	if not file.is_empty():
+		var home: Filesystem = Filesystem.for_node(Network.HOME_ID)
+		if not home.has_file(file):
+			return false
+		file_id = str(home.file_data(file).get("file_id", ""))
+	_state_list("sent").append({
+		"to": to, "subject": subject, "body": body, "file": file, "file_id": file_id,
+		"day": GameState.day, "minute": GameState.minute,
+	})
+	EventBus.mail_sent.emit(to, file_id)
+	return true
+
+
+static func sent() -> Array:
+	return _state_list("sent").duplicate()
 
 
 ## Входящие, новые сверху.
@@ -123,7 +170,11 @@ static func _free_path(fs: Filesystem, path: String) -> String:
 
 
 static func _list() -> Array:
+	return _state_list("inbox")
+
+
+static func _state_list(key: String) -> Array:
 	var state: Dictionary = GameState.mail_state()
-	if not state.has("inbox"):
-		state["inbox"] = []
-	return state["inbox"]
+	if not state.has(key):
+		state[key] = []
+	return state[key]

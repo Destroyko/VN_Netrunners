@@ -94,3 +94,45 @@ func test_validator_checks_letters() -> void:
 	assert_string_contains(text, "несуществующее письмо")
 	assert_string_contains(text, "должен начинаться с 'mail_'")
 	assert_string_contains(text, "нет обязательного поля 'from'")
+
+
+# --- Адресная книга и исходящие -------------------------------------------------
+
+func test_contacts_learned_from_sender_and_letter() -> void:
+	Mailbox.deliver(TEST_MAIL)
+	assert_true(Mailbox.contacts().has("dispatch@example.local"), "отправитель — в адресной книге")
+	Mailbox.deliver("mail_rent_reminder")
+	assert_false(Mailbox.contacts().has("Домовладелец"), "имя без @ — не адрес")
+	Effects.apply({"add_contact": "boss@client.local"})
+	assert_true(Mailbox.contacts().has("boss@client.local"))
+
+
+func test_send_only_to_known_address_with_existing_file() -> void:
+	Mailbox.deliver(TEST_MAIL)
+	assert_false(Mailbox.send("nobody@x.local", "t", "b"), "неизвестный адрес — не уходит")
+	assert_false(Mailbox.send("dispatch@example.local", "t", "b", "/home/nope.txt"))
+	var path: String = Mailbox.save_attachment(_uid(), 0)
+	var got: Dictionary = {"file_id": ""}
+	var spy := func(_to: String, file_id: String) -> void: got["file_id"] = file_id
+	EventBus.mail_sent.connect(spy)
+	assert_true(Mailbox.send("dispatch@example.local", "Отчёт", "Во вложении", path))
+	EventBus.mail_sent.disconnect(spy)
+	assert_eq(str(got["file_id"]), "file_test_instruction")
+	assert_eq(Mailbox.sent().size(), 1)
+
+
+func test_add_file_effect_puts_file_home() -> void:
+	Effects.apply({"add_file": {"path": "/home/dnevnik/01.txt", "text": "Страница", "file_id": "file_page"}})
+	var home: Filesystem = Filesystem.for_node(Network.HOME_ID)
+	assert_true(home.has_file("/home/dnevnik/01.txt"))
+	assert_eq(str(home.file_data("/home/dnevnik/01.txt").get("text", "")), "Страница")
+
+
+func test_schedule_effect_fires_at_given_time() -> void:
+	Clock.set_time(1, 20 * 60)
+	Effects.apply({"schedule": {"delay_days": 1, "at": "09:00", "effects": [{"send_message": TEST_MAIL}]}})
+	Clock.advance(12 * 60)  # 08:00 следующего дня
+	assert_eq(Mailbox.inbox().size(), 0)
+	Clock.advance(60)
+	assert_eq(Mailbox.inbox().size(), 1, "письмо пришло ровно в 9:00")
+	assert_eq(Schedule.pending().size(), 0)

@@ -13,9 +13,10 @@ const BY_EVENT: Dictionary = {
 	"copy_file": "file_copied",
 	"delete_file": "file_deleted",
 	"wipe_logs": "node_disconnected",
+	"deliver": "mail_sent",
 }
 ## Цели, которые закрываются состоянием мира.
-const BY_STATE: PackedStringArray = ["deliver", "wait_until"]
+const BY_STATE: PackedStringArray = ["file_at", "wait_until"]
 ## Цели следующих этапов: валидатор их пропускает, но в M2 они не закрываются (диалогов, карты
 ## и `archmask` ещё нет).
 const NOT_YET: PackedStringArray = ["talk", "visit_location", "mask_backup"]
@@ -32,15 +33,19 @@ static func matches(objective: Dictionary, event: Dictionary) -> bool:
 		return false
 	if type == "wipe_logs":
 		return logs_clean(str(event.get("node", "")))
+	if type == "deliver":
+		# Отправить письмом на адрес `to` файл с `file_id` = `what` — откуда угодно с ПК героя.
+		return str(objective.get("to", "")) == str(event.get("to", "")) \
+			and str(objective.get("what", "")) == str(event.get("file_id", ""))
 	return true
 
 
 ## Выполнена ли цель «по состоянию» прямо сейчас.
 static func satisfied(objective: Dictionary) -> bool:
 	match str(objective.get("type", "")):
-		"deliver":
-			# Файл проверяется по file_id, где бы он ни лежал на ПК героя (quest-format.md).
-			return Filesystem.for_node(Network.HOME_ID).has_file_id(str(objective.get("what", "")))
+		"file_at":
+			# Файл лежит по пути `path` на узле `node` (по умолчанию — ПК героя).
+			return Filesystem.for_node(str(objective.get("node", Network.HOME_ID))).has_file(str(objective.get("path", "")))
 		"wait_until":
 			return Conditions.check_all(objective.get("until", []) as Array)
 	return false

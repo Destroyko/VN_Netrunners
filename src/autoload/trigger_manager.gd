@@ -8,6 +8,8 @@ var _connected: Array = []
 
 func _ready() -> void:
 	connect_events()
+	# Отложенные эффекты (`schedule`) — тоже «при событии»: при наступлении времени.
+	EventBus.time_advanced.connect(func(_m: int, _p: int) -> void: Schedule.on_time_passed())
 
 
 ## Подписаться заново — после правки данных в отладке и в тестах. Аргументы сигнала триггеру не

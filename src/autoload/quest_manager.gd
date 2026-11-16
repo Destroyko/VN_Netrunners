@@ -11,6 +11,8 @@ func _ready() -> void:
 	EventBus.file_deleted.connect(func(node: String, path: String) -> void: _event("file_deleted", node, path))
 	# Цели «по состоянию» (файл у героя, время) перепроверяются, когда что-то могло их выполнить.
 	EventBus.attachment_saved.connect(func(_uid: String, _path: String) -> void: Quests.on_event({}))
+	EventBus.mail_sent.connect(func(to: String, file_id: String) -> void:
+		Quests.on_event({"event": "mail_sent", "to": to, "file_id": file_id}))
 	EventBus.time_advanced.connect(func(_m: int, passed: int) -> void: _on_time(passed))
 	EventBus.day_started.connect(Quests.on_day_started)
 
