@@ -15,6 +15,11 @@ signal bill_overdue(bill_id: String)
 signal bill_paid(bill_id: String)
 ## Доставка еды (gameplay/needs.md): заказано, приехало (лежит в запасе), съедено.
 signal order_placed(item_id: String)
+## Почта: письмо пришло, прочитано, на него ответили (квесты слушают ответ), вложение сохранено.
+signal mail_received(uid: String, mail_id: String)
+signal mail_read(uid: String, mail_id: String)
+signal mail_replied(uid: String, mail_id: String, reply_id: String)
+signal attachment_saved(uid: String, path: String)
 signal order_delivered(item_id: String)
 signal food_consumed(item_id: String)
 signal heat_changed(heat: int, delta: int)

@@ -1,0 +1,14 @@
+{
+  "_note": "Пробное письмо для проверки почты руками (консоль F1: effect {\"send_message\": \"mail_test_order\"}). Настоящие письма приходят квестами и триггерами (шаг 7 M2). Текст — заглушка.",
+  "id": "mail_test_order",
+  "from": "dispatch@example.local",
+  "subject": "Проверка почты",
+  "body": "Это пробное письмо. Во вложении — файл, его можно сохранить к себе.\nНиже — варианты ответа: ответить можно один раз.",
+  "attachments": [
+    { "name": "instrukciya.txt", "file_id": "file_test_instruction", "text": "Пробное вложение." }
+  ],
+  "replies": [
+    { "id": "accept", "text": "Принять", "effects": [{ "set_flag": "world.test_mail_accepted" }] },
+    { "id": "decline", "text": "Отказаться" }
+  ]
+}

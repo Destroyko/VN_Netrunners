@@ -28,13 +28,16 @@ var warnings: PackedStringArray = []
 
 # Узлы нужны проверке эффектов: reveal_node ссылается на узел и его сервисы.
 var _nodes: Dictionary = {}
+# Письма нужны проверке эффектов: send_message ссылается на письмо.
+var _mail: Dictionary = {}
 
 
 ## Проверить все данные из data/. true — ошибок нет.
 func validate_all() -> bool:
 	DataLoader.clear_cache()
 	var ok: bool = validate_data(
-		DataLoader.nodes(), DataLoader.news(), DataLoader.quests(), DataLoader.triggers()
+		DataLoader.nodes(), DataLoader.news(), DataLoader.quests(), DataLoader.triggers(),
+		DataLoader.mail()
 	)
 	_validate_balance()
 	return ok and errors.is_empty()
@@ -42,11 +45,13 @@ func validate_all() -> bool:
 
 ## Та же проверка, но на переданных данных — так валидатор можно проверить тестами.
 func validate_data(
-	nodes: Dictionary, news: Dictionary, quests: Dictionary, triggers: Dictionary
+	nodes: Dictionary, news: Dictionary, quests: Dictionary, triggers: Dictionary,
+	mail: Dictionary = {}
 ) -> bool:
 	errors.clear()
 	warnings.clear()
 	_nodes = nodes
+	_mail = mail
 
 	# Какие узлы открывают заказы: у них вход не через scan, и недостижимыми они не считаются.
 	var revealed: Dictionary = {}
@@ -81,6 +86,8 @@ func validate_data(
 		_validate_quest(id, quests[id] as Dictionary, nodes, news, quests)
 	for id: String in triggers.keys():
 		_validate_trigger(id, triggers[id] as Dictionary, news, quests)
+	for id: String in mail.keys():
+		_validate_mail(id, mail[id] as Dictionary, quests)
 
 	return errors.is_empty()
 
@@ -188,6 +195,33 @@ func _validate_trigger(
 	_validate_news_refs(where, trigger.get("news", []) as Array, news)
 
 
+## Письмо: обязательные поля, id с префиксом, вложения с именем, ответы с уникальным id и
+## проверенными условиями и эффектами.
+func _validate_mail(id: String, letter: Dictionary, quests: Dictionary) -> void:
+	var where: String = "письмо " + id
+	_require_fields(where, letter, ["id", "from", "subject", "body"])
+	if not id.begins_with("mail_"):
+		errors.append("%s: id должен начинаться с 'mail_'" % where)
+	for file_variant: Variant in letter.get("attachments", []) as Array:
+		var file: Dictionary = file_variant as Dictionary
+		if file == null or str(file.get("name", "")).is_empty():
+			errors.append("%s: у вложения нет name" % where)
+	var seen: Dictionary = {}
+	for reply_variant: Variant in letter.get("replies", []) as Array:
+		var reply: Dictionary = reply_variant as Dictionary
+		if reply == null:
+			errors.append("%s: ответ должен быть объектом" % where)
+			continue
+		var reply_id: String = str(reply.get("id", ""))
+		if reply_id.is_empty() or str(reply.get("text", "")).is_empty():
+			errors.append("%s: у ответа нужны id и text" % where)
+		elif seen.has(reply_id):
+			errors.append("%s: два ответа с id '%s'" % [where, reply_id])
+		seen[reply_id] = true
+		_validate_conditions(where + ", ответ " + reply_id, reply.get("requires", []) as Array)
+		_validate_effects(where + ", ответ " + reply_id, reply.get("effects", []) as Array, quests)
+
+
 # --- Общие проверки ----------------------------------------------------------
 
 func _require_fields(where: String, data: Dictionary, fields: Array) -> void:
@@ -219,6 +253,8 @@ func _validate_effects(where: String, effects: Array, quests: Dictionary) -> voi
 				continue
 			if type == "reveal_node":
 				errors.append_array(NodeValidator.check_reveal(where, effect[type], _nodes))
+			if type == "send_message" and not _mail.has(str(effect[type])):
+				errors.append("%s: send_message ссылается на несуществующее письмо '%s'" % [where, effect[type]])
 			if type == "unlock_quest" and not quests.has(str(effect[type])):
 				errors.append("%s: unlock_quest ссылается на несуществующий квест '%s'" % [where, effect[type]])
 

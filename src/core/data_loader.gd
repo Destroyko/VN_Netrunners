@@ -101,6 +101,11 @@ static func shop() -> Dictionary:
 	return data as Dictionary if data is Dictionary else {}
 
 
+## Письма: один файл — одно письмо, по полю id.
+static func mail() -> Dictionary:
+	return load_dir(DATA_ROOT.path_join("mail"))
+
+
 static func quests() -> Dictionary:
 	var all: Dictionary = {}
 	for sub: String in ["main", "side", "radiant"]:

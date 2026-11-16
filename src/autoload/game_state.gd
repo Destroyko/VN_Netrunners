@@ -39,6 +39,9 @@ var _puzzles: Dictionary = {}
 ## Экономика: счета к оплате и история операций банка (docs/gameplay/economy.md). Состояние
 ## мира: после загрузки долг за аренду и пеня должны остаться.
 var _economy: Dictionary = {}
+## Почта: доставленные письма, прочитано ли, что ответил (docs/tech/quest-format.md). Ответ —
+## выбор игрока, после загрузки он должен остаться сделанным.
+var _mail: Dictionary = {}
 
 
 ## Новая игра. Сложность задаётся здесь, потому что менять её потом нельзя.
@@ -55,6 +58,7 @@ func reset(new_difficulty: Difficulty = Difficulty.NORMAL) -> void:
 	_network.clear()
 	_puzzles.clear()
 	_economy.clear()
+	_mail.clear()
 
 
 # --- Флаги -------------------------------------------------------------------
@@ -202,6 +206,10 @@ func set_economy_state(state: Dictionary) -> void:
 	_economy = state
 
 
+func mail_state() -> Dictionary:
+	return _mail
+
+
 func set_puzzle_state(state: Dictionary) -> void:
 	_puzzles = state
 
@@ -223,6 +231,7 @@ func to_dict() -> Dictionary:
 		"network": _network.duplicate(true),
 		"puzzles": _puzzles.duplicate(true),
 		"economy": _economy.duplicate(true),
+		"mail": _mail.duplicate(true),
 	}
 
 
@@ -241,6 +250,7 @@ func from_dict(data: Dictionary) -> void:
 	_puzzles = (data.get("puzzles", {}) as Dictionary).duplicate(true)
 	# Нет ключа (сейв до M2) — пустая экономика: счетов нет, история пустая. Миграция не нужна.
 	_economy = (data.get("economy", {}) as Dictionary).duplicate(true)
+	_mail = (data.get("mail", {}) as Dictionary).duplicate(true)
 
 
 # --- Внутреннее --------------------------------------------------------------

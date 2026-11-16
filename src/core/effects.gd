@@ -23,6 +23,7 @@ const KNOWN_TYPES: PackedStringArray = [
 	"set_energy",
 	"satiety",
 	"set_satiety",
+	"send_message",
 ]
 
 ## Типы из документации, которым нужны системы следующих этапов.
@@ -31,7 +32,6 @@ const DEFERRED_TYPES: PackedStringArray = [
 	"unlock_quest",   # QuestManager, M2
 	"add_file",       # filesystem, M1
 	"schedule_news",  # NewsManager, M2
-	"send_message",   # почта и мессенджер, M2
 	"add_note",       # блокнот заметок, docs/gameplay/notebook.md
 ]
 
@@ -141,6 +141,9 @@ static func _apply_one(type: String, value: Variant) -> bool:
 			Needs.set_satiety(float(value))
 			EventBus.needs_changed.emit()
 			return true
+		"send_message":
+			# Формат: {"send_message": "mail_x"} — письмо из data/mail. Мессенджер — позже (M3).
+			return Mailbox.deliver(str(value))
 		"give_item":
 			return Inventory.give(str(value))
 		"take_item":

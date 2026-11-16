@@ -57,6 +57,9 @@ func _ready() -> void:
 	_build()
 	_add_debug_console()
 	EventBus.passed_out.connect(_on_passed_out)
+	EventBus.mail_received.connect(func(_uid: String, _id: String) -> void: _refresh_mail_icon())
+	EventBus.mail_read.connect(func(_uid: String, _id: String) -> void: _refresh_mail_icon())
+	_refresh_mail_icon()
 	apply_mode()
 
 
@@ -134,6 +137,15 @@ func _make_icon(app: Dictionary) -> Button:
 	return button
 
 
+## Непрочитанные письма — числом на иконке: «Почта (2)».
+func _refresh_mail_icon() -> void:
+	var icon: Button = _icons.get_node_or_null("Icon_mail") as Button
+	if icon == null:
+		return
+	var unread: int = Mailbox.unread_count()
+	icon.text = "Почта (%d)" % unread if unread > 0 else "Почта"
+
+
 func _add_debug_console() -> void:
 	if not OS.is_debug_build():
 		return
@@ -205,6 +217,8 @@ func _make_content(app_id: String) -> Control:
 		return BankApp.new()
 	if app_id == "shop":
 		return ShopApp.new()
+	if app_id == "mail":
+		return MailApp.new()
 	if app_id == "terminal":
 		var view := TerminalView.new()
 		view.setup(terminal)

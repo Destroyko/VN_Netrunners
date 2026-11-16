@@ -183,3 +183,21 @@ func test_shop_orders_and_eats() -> void:
 	assert_not_null(eat, "приехало — в запасе")
 	(eat.find_child("Action", true, false) as Button).emit_signal("pressed")
 	assert_eq(Shop.pantry().size(), 0)
+
+
+# --- Почта ------------------------------------------------------------------------
+
+func test_mail_app_reads_saves_and_replies() -> void:
+	Mailbox.deliver("mail_test_order")
+	var icon: Button = desktop.find_child("Icon_mail", true, false) as Button
+	assert_eq(icon.text, "Почта (1)", "непрочитанное — на иконке")
+	var window: DesktopWindow = desktop.open_app("mail")
+	var mail: MailApp = window.find_child("MailApp", true, false) as MailApp
+	mail.open(str(Mailbox.inbox()[0]["uid"]))
+	assert_eq(icon.text, "Почта")
+	assert_string_contains((mail.find_child("Body", true, false) as Label).text, "пробное")
+	(mail.find_child("Save_0", true, false) as Button).emit_signal("pressed")
+	assert_true(Filesystem.for_node(Network.HOME_ID).has_file("/home/mail/instrukciya.txt"))
+	(mail.find_child("Reply_accept", true, false) as Button).emit_signal("pressed")
+	assert_true(GameState.has_flag("world.test_mail_accepted"))
+	assert_null(mail.find_child("Reply_decline", true, false), "после ответа кнопок нет")
