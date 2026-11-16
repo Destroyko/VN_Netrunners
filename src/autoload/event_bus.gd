@@ -13,6 +13,10 @@ signal money_changed(money: int, delta: int)
 signal bill_issued(bill_id: String)
 signal bill_overdue(bill_id: String)
 signal bill_paid(bill_id: String)
+## Доставка еды (gameplay/needs.md): заказано, приехало (лежит в запасе), съедено.
+signal order_placed(item_id: String)
+signal order_delivered(item_id: String)
+signal food_consumed(item_id: String)
 signal heat_changed(heat: int, delta: int)
 
 # --- Время (шлёт Clock) ------------------------------------------------------

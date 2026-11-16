@@ -71,6 +71,9 @@ text = "Спать"
 layout_mode = 2
 text = "Подождать"
 
+[node name="Kitchen" type="VBoxContainer" parent="Rows"]
+layout_mode = 2
+
 [node name="Inventory" type="VBoxContainer" parent="Rows"]
 layout_mode = 2
 

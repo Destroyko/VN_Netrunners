@@ -1,0 +1,9 @@
+{
+  "_note": "Доставка еды (docs/gameplay/needs.md, docs/gameplay/economy.md). price — ₽, satiety — сколько сытости, energy — сколько энергии сразу (энергетик), crash — на сколько энергия упадёт после действия, crash_after_minutes — через сколько. eat_minutes — сколько игровых минут занимает съесть или выпить. Статы рациона (белки, углеводы, кофеин) — M4. Числа — заглушки.",
+  "items": {
+    "food_noodles": { "title": "Лапша быстрого приготовления", "price": 6, "satiety": 20, "eat_minutes": 10 },
+    "food_sandwich": { "title": "Сэндвич", "price": 9, "satiety": 30, "eat_minutes": 10 },
+    "food_lunch": { "title": "Комплексный обед", "price": 18, "satiety": 55, "eat_minutes": 20 },
+    "drink_energy": { "title": "Энергетик", "price": 5, "satiety": 0, "energy": 10, "crash": 14, "crash_after_minutes": 300, "eat_minutes": 1 }
+  }
+}

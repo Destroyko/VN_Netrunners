@@ -48,6 +48,11 @@
     "_note_pass_out": "Вырубился — сон до полной энергии, но не дольше этого."
   },
 
+  "shop": {
+    "_note": "Доставка еды (data/shop.json — каталог и цены).",
+    "delivery_minutes": 40
+  },
+
   "economy": {
     "_note": "Деньги и синки. Аренда еженедельная (docs/gameplay/economy.md).",
     "start_money": 150,
@@ -56,8 +61,7 @@
     "_note_rent_day": "День недели как в Godot: 0 — воскресенье, 1 — понедельник.",
     "rent_due_days": 3,
     "rent_penalty_per_day": 10,
-    "_note_overdue": "Аренду платят руками в банке; срок — rent_due_days дней с выставления. Просрочка: напоминание (один раз) и пеня за каждый день после срока. Проигрыша нет (docs/gameplay/economy.md).",
-    "food_meal_cost": 12
+    "_note_overdue": "Аренду платят руками в банке; срок — rent_due_days дней с выставления. Просрочка: напоминание (один раз) и пеня за каждый день после срока. Проигрыша нет (docs/gameplay/economy.md)."
   },
 
   "needs": {

@@ -95,6 +95,12 @@ static func needs() -> Dictionary:
 	return data as Dictionary if data is Dictionary else {}
 
 
+## Каталог доставки еды. Нет файла — пустой словарь: магазин пуст.
+static func shop() -> Dictionary:
+	var data: Variant = load_json("res://data/shop.json")
+	return data as Dictionary if data is Dictionary else {}
+
+
 static func quests() -> Dictionary:
 	var all: Dictionary = {}
 	for sub: String in ["main", "side", "radiant"]:

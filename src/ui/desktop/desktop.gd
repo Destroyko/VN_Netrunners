@@ -203,6 +203,8 @@ func _make_content(app_id: String) -> Control:
 		return map
 	if app_id == "bank":
 		return BankApp.new()
+	if app_id == "shop":
+		return ShopApp.new()
 	if app_id == "terminal":
 		var view := TerminalView.new()
 		view.setup(terminal)

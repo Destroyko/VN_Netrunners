@@ -19,6 +19,8 @@ const VAR_WARNED_ENERGY: String = "needs.warned_energy"
 const VAR_WARNED_HUNGER_DAY: String = "needs.warned_hunger_day"
 ## Проснулся после вырубания, а мысль героя ещё не показана: комната покажет её при открытии.
 const VAR_WOKE_AFTER_PASS_OUT: String = "needs.woke_after_pass_out"
+## Откаты энергетиков: [{at: минута игры, amount}] — когда и на сколько упадёт энергия.
+const VAR_CRASHES: String = "needs.crashes"
 
 const EVENT_ENERGY_LOW: String = "energy_low"
 const EVENT_HUNGRY: String = "hungry"
@@ -88,19 +90,34 @@ static func eat(amount: float) -> void:
 	EventBus.needs_changed.emit()
 
 
+## Энергетик: энергия сразу, а через `crash_after` минут — откат: энергия падает сильнее, чем
+## поднялась (gameplay/needs.md, «Энергетики»). Несколько банок — несколько откатов.
+static func drink_energy(amount: float, crash: float, crash_after: int) -> void:
+	set_energy(energy() + amount)
+	if crash > 0.0:
+		var list: Array = (GameState.get_var_or(VAR_CRASHES, []) as Array).duplicate()
+		list.append({"at": Clock.total_minutes() + crash_after, "amount": crash})
+		GameState.set_var(VAR_CRASHES, list)
+	EventBus.needs_changed.emit()
+
+
 ## Прошло `minutes` игровых минут. Считаем по минуте: сытость за это время может перейти порог,
 ## а энергия — дойти до нуля посередине. Возвращает события по порядку: `energy_low`, `hungry`,
 ## `passed_out`.
 static func pass_minutes(minutes: int, asleep: bool) -> Array[String]:
 	var events: Array[String] = []
+	var start: int = Clock.total_minutes() - minutes
 	for i: int in minutes:
+		var before: float = energy()
+		_apply_crashes(start + i + 1)
 		set_satiety(satiety() - _num("satiety_per_hour", 3.0) / 60.0)
 		if asleep:
 			set_energy(energy() + restore_per_hour() / 60.0)
 		elif energy() > 0.0:
 			set_energy(energy() - drain_per_hour() / 60.0)
-			if energy() <= 0.0:
-				events.append(EVENT_PASSED_OUT)
+		# Вырубился — только в ту минуту, когда энергия дошла до нуля (от усталости или отката).
+		if not asleep and before > 0.0 and energy() <= 0.0:
+			events.append(EVENT_PASSED_OUT)
 		_check_warnings(asleep, events)
 	return events
 
@@ -120,6 +137,21 @@ static func _check_warnings(asleep: bool, events: Array[String]) -> void:
 			and int(GameState.get_var_or(VAR_WARNED_HUNGER_DAY, 0)) != GameState.day:
 		GameState.set_var(VAR_WARNED_HUNGER_DAY, GameState.day)
 		events.append(EVENT_HUNGRY)
+
+
+## Откаты, чьё время пришло к минуте `at`, срабатывают и уходят из списка.
+static func _apply_crashes(at: int) -> void:
+	var list: Array = GameState.get_var_or(VAR_CRASHES, []) as Array
+	if list.is_empty():
+		return
+	var left: Array = []
+	for c: Dictionary in list:
+		if int(c["at"]) <= at:
+			set_energy(energy() - float(c["amount"]))
+		else:
+			left.append(c)
+	if left.size() != list.size():
+		GameState.set_var(VAR_CRASHES, left)
 
 
 static func _band_mult(kind: String) -> float:

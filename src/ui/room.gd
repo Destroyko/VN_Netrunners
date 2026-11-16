@@ -10,6 +10,7 @@ extends Control
 @onready var _inventory: VBoxContainer = $Rows/Inventory
 @onready var _clock: Label = $Rows/Clock
 @onready var _bed_panel: HBoxContainer = $Rows/BedPanel
+@onready var _kitchen: VBoxContainer = $Rows/Kitchen
 
 
 func _ready() -> void:
@@ -22,6 +23,9 @@ func _ready() -> void:
 	EventBus.time_advanced.connect(func(_minute: int, _passed: int) -> void: _refresh_clock())
 	EventBus.need_warned.connect(func(kind: String) -> void: _output.text = HeroThoughts.thought(kind))
 	EventBus.passed_out.connect(_on_passed_out)
+	for sig: Signal in [EventBus.order_delivered, EventBus.food_consumed]:
+		sig.connect(func(_id: String) -> void: _refresh_kitchen())
+	_refresh_kitchen()
 	_refresh_clock()
 	EventBus.system_restored.connect(func(_paths: PackedStringArray, _os: bool) -> void: _refresh_inventory())
 	_refresh_inventory()
@@ -84,6 +88,20 @@ func _show_wake(curtain: PassOutCurtain = null) -> void:
 		curtain = PassOutCurtain.new()
 		add_child(curtain)
 	curtain.play_waking_up()
+
+
+## Кухня: по кнопке на каждую еду из запаса (что привезла доставка). Съесть — `Shop.consume`.
+func _refresh_kitchen() -> void:
+	for child: Node in _kitchen.get_children():
+		_kitchen.remove_child(child)
+		child.queue_free()
+	var pantry: Dictionary = Shop.pantry()
+	for id: String in pantry.keys():
+		var button := Button.new()
+		button.name = "Eat_" + id
+		button.text = "Поесть: %s × %d" % [Shop.title_of(id), int(pantry[id])]
+		button.pressed.connect(func() -> void: Shop.consume(id))
+		_kitchen.add_child(button)
 
 
 func _refresh_clock() -> void:

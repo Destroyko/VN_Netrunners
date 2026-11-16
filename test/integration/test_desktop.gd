@@ -167,3 +167,19 @@ func test_bank_pay_button_disabled_without_money() -> void:
 	var window: DesktopWindow = desktop.open_app("bank")
 	var pay: Button = window.find_child("Pay", true, false) as Button
 	assert_true(pay.disabled)
+
+
+# --- Магазин (gameplay/needs.md) --------------------------------------------------
+
+func test_shop_orders_and_eats() -> void:
+	GameState.set_money(100)
+	var window: DesktopWindow = desktop.open_app("shop")
+	var shop: ShopApp = window.find_child("ShopApp", true, false) as ShopApp
+	var order: Button = shop.find_child("Item_food_sandwich", true, false).find_child("Action", true, false) as Button
+	order.emit_signal("pressed")
+	assert_eq(GameState.money, 91)
+	Clock.advance(40)
+	var eat: Node = shop.find_child("Food_food_sandwich", true, false)
+	assert_not_null(eat, "приехало — в запасе")
+	(eat.find_child("Action", true, false) as Button).emit_signal("pressed")
+	assert_eq(Shop.pantry().size(), 0)
