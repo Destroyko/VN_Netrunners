@@ -51,7 +51,7 @@ func _ready() -> void:
 
 
 func refresh() -> void:
-	_time.text = Clock.format_time()
+	_time.text = Clock.format_now()
 	_money.text = "%d ₽" % GameState.money
 
 

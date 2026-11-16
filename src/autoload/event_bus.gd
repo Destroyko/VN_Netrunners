@@ -22,8 +22,13 @@ signal session_advanced(events: Array)
 signal day_started(day: int)
 
 ## Герой выспал столько ночей: заметность спадает на `decay_per_night` за каждую (heat.md).
-## Пока сна как системы нет (M2), в M1 это событие шлёт консоль разработчика: `sleep`.
+## Шлёт `Rest` за засчитанную ночь (gameplay/needs.md), консоль F1 — командой `sleep`.
 signal slept(nights: int)
+## Разбудить героя: звонок, стук в дверь, конец фоновой задачи. Вне сна ничего не делает.
+signal wake_requested(reason: String)
+## Сон или ожидание закончились: `mode` — "sleep" / "wait", сколько минут прошло, что разбудило
+## ("" — будильник).
+signal rested(mode: String, minutes: int, interrupted: String)
 
 ## Флешка починила свой ПК: вернула файлы из /sys и (или) поставила обычную ОС.
 signal system_restored(paths: PackedStringArray, os_changed: bool)

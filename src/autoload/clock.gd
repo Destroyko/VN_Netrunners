@@ -38,6 +38,7 @@ func reload_config() -> void:
 
 func configure(cfg: Dictionary) -> void:
 	minutes_per_day = int(cfg.get("minutes_per_day", DEFAULT_MINUTES_PER_DAY))
+	start_date = str(cfg.get("start_date", DEFAULT_START_DATE))
 	real_seconds_per_minute = maxf(0.1, float(cfg.get("real_seconds_per_minute", 4.0)))
 	var bounds: Dictionary = cfg.get("time_of_day_bounds", {}) as Dictionary
 	for key: String in _bounds.keys():
@@ -138,6 +139,36 @@ func time_of_day() -> String:
 	return "night"
 
 
-## Для интерфейса и логов: «День 3, 14:30».
+# --- Дата (docs/gameplay/time.md, «Дата и календарь») ---------------------------
+# Источник правды — счётчик дней; дата выводится: start_date + (day − 1). Сейв не меняется.
+
+const WEEKDAYS: PackedStringArray = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"]
+const MONTHS: PackedStringArray = [
+	"января", "февраля", "марта", "апреля", "мая", "июня",
+	"июля", "августа", "сентября", "октября", "ноября", "декабря",
+]
+const DEFAULT_START_DATE: String = "2026-04-02"
+
+var start_date: String = DEFAULT_START_DATE
+
+
+## Дата игрового дня `day`: {year, month, day, weekday} (weekday: 0 — воскресенье, как в Godot).
+func date_of(day: int) -> Dictionary:
+	var start: int = Time.get_unix_time_from_datetime_string(start_date + "T12:00:00")
+	return Time.get_datetime_dict_from_unix_time(start + (day - 1) * 86400)
+
+
+## «чт, 2 апреля» — так дата видна игроку везде; год в интерфейсе не мелькает.
+func format_date(day: int = GameState.day) -> String:
+	var d: Dictionary = date_of(day)
+	return "%s, %d %s" % [WEEKDAYS[int(d["weekday"])], int(d["day"]), MONTHS[int(d["month"]) - 1]]
+
+
+## «чт, 2 апреля 14:30» — для панели задач и комнаты.
+func format_now() -> String:
+	return "%s %02d:%02d" % [format_date(), hour(), minute_of_hour()]
+
+
+## Для логов: «День 3, 14:30».
 func format_time() -> String:
 	return "День %d, %02d:%02d" % [GameState.day, hour(), minute_of_hour()]

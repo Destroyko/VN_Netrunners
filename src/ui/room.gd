@@ -3,16 +3,24 @@ extends Control
 ## правил игры здесь нет (docs/gameplay/hacking.md, «Комната»).
 ##
 ## Клик по монитору: рабочий стол или аварийный экран. Клик по системному блоку: что внутри.
-## Предмет из инвентаря подключается к системному блоку кнопкой под ним.
+## Предмет из инвентаря подключается к системному блоку кнопкой под ним. Кровать: будильник и
+## «спать» или «подождать» — правила сна в `Rest` (docs/gameplay/needs.md).
 
 @onready var _output: Label = $Rows/Output
 @onready var _inventory: VBoxContainer = $Rows/Inventory
+@onready var _clock: Label = $Rows/Clock
+@onready var _bed_panel: HBoxContainer = $Rows/BedPanel
 
 
 func _ready() -> void:
 	$Rows/Monitor.pressed.connect(_on_monitor)
 	$Rows/SystemBlock.pressed.connect(_on_system_block)
 	$Rows/Menu.pressed.connect(_on_menu)
+	$Rows/Bed.pressed.connect(_on_bed)
+	$Rows/BedPanel/Sleep.pressed.connect(_on_rest.bind(Rest.MODE_SLEEP))
+	$Rows/BedPanel/Wait.pressed.connect(_on_rest.bind(Rest.MODE_WAIT))
+	EventBus.time_advanced.connect(func(_minute: int, _passed: int) -> void: _refresh_clock())
+	_refresh_clock()
 	EventBus.system_restored.connect(func(_paths: PackedStringArray, _os: bool) -> void: _refresh_inventory())
 	_refresh_inventory()
 	_output.text = "Твоя комната."
@@ -34,6 +42,26 @@ func _on_system_block() -> void:
 func _on_item(item_id: String) -> void:
 	var report: Dictionary = Room.use_item(item_id, Filesystem.for_node(Network.HOME_ID))
 	_show(report["lines"] as PackedStringArray)
+
+
+## Кровать: показать будильник (по умолчанию из баланса) с выбором «спать» или «подождать».
+func _on_bed() -> void:
+	var alarm: int = Rest.default_alarm()
+	$Rows/BedPanel/Hour.value = alarm / 60
+	$Rows/BedPanel/Minute.value = alarm % 60
+	_bed_panel.visible = true
+
+
+func _on_rest(mode: String) -> void:
+	_bed_panel.visible = false
+	var alarm: int = int($Rows/BedPanel/Hour.value) * 60 + int($Rows/BedPanel/Minute.value)
+	var report: Dictionary = Rest.pass_time(Rest.minutes_until(alarm), mode)
+	var reason: String = str(report["interrupted"])
+	_output.text = Clock.format_now() if reason.is_empty() else "%s — %s" % [Clock.format_now(), reason]
+
+
+func _refresh_clock() -> void:
+	_clock.text = Clock.format_now()
 
 
 func _on_menu() -> void:

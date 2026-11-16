@@ -93,7 +93,7 @@ func test_desktop_opens() -> void:
 
 func test_room_has_its_objects() -> void:
 	var room: Node = _open(Screens.ROOM)
-	for node_name: String in ["Monitor", "SystemBlock", "Inventory", "Output", "Menu"]:
+	for node_name: String in ["Clock", "Monitor", "SystemBlock", "Bed", "Inventory", "Output", "Menu"]:
 		assert_not_null(room.get_node_or_null("Rows/" + node_name), "на месте: " + node_name)
 
 
@@ -102,3 +102,19 @@ func test_room_lists_inventory_items_as_buttons() -> void:
 	Inventory.give("item_flash_backup")
 	var room: Node = _open(Screens.ROOM)
 	assert_eq(room.get_node("Rows/Inventory").get_child_count(), 1)
+
+
+func test_room_bed_sleeps_until_alarm() -> void:
+	GameState.reset()
+	Clock.set_time(1, 22 * 60)
+	var room: Node = _open(Screens.ROOM)
+	room.get_node("Rows/Bed").emit_signal("pressed")
+	assert_true(room.get_node("Rows/BedPanel").visible, "кровать спрашивает будильник")
+	room.get_node("Rows/BedPanel/Hour").value = 9
+	room.get_node("Rows/BedPanel/Minute").value = 0
+	room.get_node("Rows/BedPanel/Sleep").emit_signal("pressed")
+	assert_eq(GameState.day, 2)
+	assert_eq(GameState.minute, 9 * 60)
+	assert_false(room.get_node("Rows/BedPanel").visible)
+	assert_string_contains(room.get_node("Rows/Clock").text, "пт, 3 апреля 09:00")
+

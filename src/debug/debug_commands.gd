@@ -15,6 +15,7 @@ const HELP: Dictionary = {
 	"money": "money <±сколько> | money =<значение> — изменить или задать деньги",
 	"heat": "heat <±сколько> | heat =<значение> — изменить или задать заметность",
 	"sleep": "sleep [ночей] — выспать ночи: заметность спадает (по умолчанию одна)",
+	"bed": "bed <sleep|wait> <чч:мм> — лечь в кровать до будильника: спать или подождать (как кровать в комнате)",
 	"time": "time | time +<минут> | time <день> <чч:мм> — показать, продвинуть или перевести время",
 	"seed": "seed [значение] — показать или задать сид случайности",
 	"effect": "effect <json> — применить эффект, например: effect {\"money\": 500}",
@@ -53,6 +54,8 @@ static func run(line: String) -> String:
 			return _change_number(args, "heat")
 		"sleep":
 			return _sleep(args)
+		"bed":
+			return _bed(args)
 		"time":
 			return _time(args)
 		"seed":
@@ -234,7 +237,23 @@ static func _puzzle(args: PackedStringArray) -> String:
 	return PuzzleReport.describe(kind, level, int(args[2]))
 
 
-## Выспать ночи. Системы сна пока нет, поэтому это единственный способ спада заметности руками.
+## Кровать из консоли: на рабочем столе кровати нет, а проверять сон удобнее не выходя в комнату.
+static func _bed(args: PackedStringArray) -> String:
+	if args.size() != 2 or not (args[0] in [Rest.MODE_SLEEP, Rest.MODE_WAIT]):
+		return "bed: " + str(HELP["bed"])
+	var alarm: int = Rest.parse_clock(args[1])
+	if alarm < 0:
+		return "bed: время — чч:мм, например 08:00"
+	var report: Dictionary = Rest.pass_time(Rest.minutes_until(alarm), args[0])
+	var line: String = "прошло %d мин → %s" % [int(report["minutes"]), Clock.format_now()]
+	if not str(report["interrupted"]).is_empty():
+		line += ", разбудило: " + str(report["interrupted"])
+	if bool(report["night"]):
+		line += ", ночь засчитана"
+	return line
+
+
+## Выспать ночи без промотки времени — быстрый спад заметности руками (настоящий сон — `bed`).
 static func _sleep(args: PackedStringArray) -> String:
 	var nights: int = 1
 	if args.size() > 0:

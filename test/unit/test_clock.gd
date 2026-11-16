@@ -121,3 +121,22 @@ func test_dialog_pauses_the_clock() -> void:
 	Clock.tick(4.0)
 	assert_eq(GameState.minute, 1)
 
+
+# --- Дата ------------------------------------------------------------------
+
+func test_first_day_is_thursday_2_april() -> void:
+	Clock.reload_config()
+	assert_eq(Clock.format_date(1), "чт, 2 апреля")
+
+
+func test_date_follows_day_counter_across_month() -> void:
+	Clock.reload_config()
+	assert_eq(Clock.format_date(5), "пн, 6 апреля", "аренда по понедельникам — на пятый день")
+	assert_eq(Clock.format_date(30), "пт, 1 мая")
+
+
+func test_format_now_has_date_and_time() -> void:
+	Clock.reload_config()
+	Clock.set_time(1, 14 * 60 + 30)
+	assert_eq(Clock.format_now(), "чт, 2 апреля 14:30")
+
