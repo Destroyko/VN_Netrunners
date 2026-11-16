@@ -92,7 +92,8 @@ static func collect_revealed(data: Variant, found: Dictionary) -> void:
 static func _apply_one(type: String, value: Variant) -> bool:
 	match type:
 		"money":
-			GameState.add_money(int(value))
+			# Через экономику — чтобы перевод остался строкой в истории банка.
+			Economy.apply_delta(int(value), "Перевод")
 			return true
 		"heat":
 			GameState.add_heat(int(value))

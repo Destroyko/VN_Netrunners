@@ -143,3 +143,27 @@ func test_hero_thought_appears_on_warning() -> void:
 	assert_true(thoughts.visible)
 	assert_string_contains(thoughts.text(), "отдыхать")
 
+
+
+# --- Банк (gameplay/economy.md) ---------------------------------------------------
+
+func test_bank_shows_bill_and_pays_it() -> void:
+	GameState.set_money(300)
+	Economy.issue(Economy.KIND_RENT, "Аренда квартиры", 200)
+	var window: DesktopWindow = desktop.open_app("bank")
+	var bank: BankApp = window.find_child("BankApp", true, false) as BankApp
+	assert_string_contains((bank.find_child("Balance", true, false) as Label).text, "300")
+	var pay: Button = bank.find_child("Pay", true, false) as Button
+	assert_false(pay.disabled)
+	pay.emit_signal("pressed")
+	assert_eq(GameState.money, 100)
+	assert_null(bank.find_child("Pay", true, false), "оплаченный счёт ушёл из списка")
+	assert_eq((bank.find_child("History", true, false) as ItemList).item_count, 1)
+
+
+func test_bank_pay_button_disabled_without_money() -> void:
+	GameState.set_money(50)
+	Economy.issue(Economy.KIND_RENT, "Аренда квартиры", 200)
+	var window: DesktopWindow = desktop.open_app("bank")
+	var pay: Button = window.find_child("Pay", true, false) as Button
+	assert_true(pay.disabled)

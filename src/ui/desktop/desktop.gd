@@ -201,6 +201,8 @@ func _make_content(app_id: String) -> Control:
 		var map := MapView.new()
 		map.setup(terminal)
 		return map
+	if app_id == "bank":
+		return BankApp.new()
 	if app_id == "terminal":
 		var view := TerminalView.new()
 		view.setup(terminal)

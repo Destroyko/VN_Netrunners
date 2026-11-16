@@ -9,6 +9,10 @@ extends Node
 signal flag_changed(flag: String, value: bool)
 signal var_changed(key: String, value: Variant)
 signal money_changed(money: int, delta: int)
+## Счета банка (gameplay/economy.md): выставлен, просрочен (напоминание — один раз), оплачен.
+signal bill_issued(bill_id: String)
+signal bill_overdue(bill_id: String)
+signal bill_paid(bill_id: String)
 signal heat_changed(heat: int, delta: int)
 
 # --- Время (шлёт Clock) ------------------------------------------------------

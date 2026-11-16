@@ -75,6 +75,7 @@ func _select(difficulty: GameState.Difficulty) -> void:
 func _on_start() -> void:
 	# Новая игра: чистое состояние с выбранной сложностью и свой сид случайности.
 	GameState.reset(_selected)
+	Economy.start_new_game()
 	Rng.randomize_seed()
 	get_tree().change_scene_to_file(Screens.DESKTOP)
 

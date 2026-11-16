@@ -53,6 +53,10 @@
     "start_money": 150,
     "rent_per_week": 200,
     "rent_day_of_week": 1,
+    "_note_rent_day": "День недели как в Godot: 0 — воскресенье, 1 — понедельник.",
+    "rent_due_days": 3,
+    "rent_penalty_per_day": 10,
+    "_note_overdue": "Аренду платят руками в банке; срок — rent_due_days дней с выставления. Просрочка: напоминание (один раз) и пеня за каждый день после срока. Проигрыша нет (docs/gameplay/economy.md).",
     "food_meal_cost": 12
   },
 
