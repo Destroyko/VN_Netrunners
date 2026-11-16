@@ -290,6 +290,7 @@ func _dispatch(text: String, confirmed: bool, result: TermResult) -> TermResult:
 		"clear": result.clear_screen = true
 		"history": _show_history(result)
 		"reboot": _reboot(result)
+		"decrypt": _decrypt(args, result)
 		_:
 			if Programs.is_program(command):
 				_programs.launch(command, args, result)
@@ -431,12 +432,41 @@ func _show_history(result: TermResult) -> void:
 
 ## Перезагрузка своего ПК: применяет тему, пересобирает рабочий стол, обрывает всё запущенное.
 ## Чужую машину перезагружать нельзя: это было бы то же, что `dc`, но с лишним шумом.
+## Расшифровать архив на своём ПК. `-auto` — поставить подбор на фон (идёт, пока игрок живёт).
+## Без ключа ручная расшифровка (мини-игра) пока не готова — см. docs/open-questions.md.
+func _decrypt(args: PackedStringArray, result: TermResult) -> void:
+	if is_remote():
+		result.add("архивы расшифровываются только на своём ПК")
+		return
+	if args.is_empty():
+		var running: Array = BackgroundTasks.tasks()
+		if running.is_empty():
+			result.add("использование: decrypt <файл> -auto")
+		else:
+			for t: Dictionary in running:
+				result.add("подбор идёт: %s" % str(t["path"]))
+		return
+	var path: String = FsPath.resolve(home_cwd(), args[0])
+	var auto: bool = args.has("-auto")
+	if not auto:
+		result.add("ручная расшифровка пока недоступна. Запусти подбор: decrypt %s -auto" % args[0])
+		return
+	var report: Dictionary = BackgroundTasks.start_decrypt(path)
+	if not bool(report["ok"]):
+		result.add("decrypt: %s" % str(report["reason"]))
+		return
+	result.add("подбор пароля запущен, займёт около %d мин. Можно заняться другими делами." % int(report["minutes"]))
+
+
 func _reboot(result: TermResult) -> void:
 	if is_remote():
 		result.add("перезагрузка недоступна на удалённом узле")
 		return
 	session.disconnect_now()
+	var stopped: int = BackgroundTasks.cancel_all()
 	result.add("перезагрузка...")
+	if stopped > 0:
+		result.add("прервано фоновых задач: %d" % stopped)
 	var report: Dictionary = SystemFiles.reboot(home_fs())
 	if bool(report["theme_changed"]):
 		result.add("применена тема: %s" % str(report["theme"]))

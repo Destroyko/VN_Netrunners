@@ -413,3 +413,27 @@ func test_without_cover_the_session_is_logged() -> void:
 	run("rm spisok_pokupok.txt")
 	run("dc")
 	assert_gt(logbook("node_training_pc").count(), before)
+
+
+# --- Расшифровка архива (шаг 10, docs/gameplay/hacking-loop.md) --------------------
+
+func test_cat_shows_encrypted_marker() -> void:
+	t.home_fs().put_file("/home/dump/arhiv.enc", {"encrypted": true, "size_kb": 500,
+		"locked": {"text": "секрет"}})
+	assert_string_contains(run("cat /home/dump/arhiv.enc"), "зашифрован")
+	assert_false(run("cat /home/dump/arhiv.enc").contains("секрет"), "содержимое скрыто")
+
+
+func test_decrypt_auto_starts_bruteforce() -> void:
+	t.home_fs().put_file("/home/dump/arhiv.enc", {"encrypted": true, "size_kb": 500,
+		"locked": {"text": "секрет"}})
+	assert_string_contains(run("decrypt /home/dump/arhiv.enc"), "недоступна", "без -auto — заглушка")
+	assert_string_contains(run("decrypt /home/dump/arhiv.enc -auto"), "подбор")
+	assert_true(BackgroundTasks.is_running("/home/dump/arhiv.enc"))
+
+
+func test_reboot_reports_stopped_tasks() -> void:
+	t.home_fs().put_file("/home/dump/arhiv.enc", {"encrypted": true,
+		"locked": {"text": "x"}})
+	run("decrypt /home/dump/arhiv.enc -auto")
+	assert_string_contains(run("reboot"), "прервано")

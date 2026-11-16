@@ -62,7 +62,13 @@ func cat(args: PackedStringArray, result: TermResult) -> void:
 	if args.is_empty():
 		result.add("использование: cat <файл>")
 		return
-	var read: FsResult = _t.fs().read(FsPath.resolve(_t.cwd(), args[0]), _t.admin())
+	var path: String = FsPath.resolve(_t.cwd(), args[0])
+	if _t.fs().has_file(path) and bool(_t.fs().file_data(path).get("encrypted", false)):
+		var kb: int = int(_t.fs().file_data(path).get("size_kb", 0))
+		result.add("[файл зашифрован, %d КБ] расшифровать: decrypt <файл> -auto" % kb)
+		_t.spend(_t.minutes_of("terminal_command"), result)
+		return
+	var read: FsResult = _t.fs().read(path, _t.admin())
 	if not read.is_ok():
 		result.add(read.message())
 		return

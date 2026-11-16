@@ -40,6 +40,8 @@ signal day_started(day: int)
 signal news_published(news_id: String)
 ## Новость прочитана: иконка обновляется.
 signal news_read(news_id: String)
+## Фоновый подбор пароля к архиву закончился: архив расшифрован (gameplay/hacking-loop.md).
+signal decrypt_done(path: String)
 ## Началась новая игра (не загрузка): на нём висит стартовый триггер первой подработки. Шлётся
 ## один раз из «Новой игры», отдельно от day_started — чтобы не срабатывать при любой смене дня.
 signal game_started
