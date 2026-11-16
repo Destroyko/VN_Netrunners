@@ -222,6 +222,27 @@ func _validate_mail(id: String, letter: Dictionary, quests: Dictionary) -> void:
 		_validate_effects(where + ", ответ " + reply_id, reply.get("effects", []) as Array, quests)
 
 
+## `quest_choice` ведёт в существующий квест и существующий выбор одного из его этапов.
+func _check_quest_choice(where: String, value: Variant, quests: Dictionary) -> PackedStringArray:
+	var found: PackedStringArray = []
+	var pick: Array = value as Array
+	if pick == null or pick.size() != 2:
+		found.append("%s: quest_choice ожидает [квест, выбор]" % where)
+		return found
+	if quests.is_empty():
+		return found  # проверка без квестов (тесты частей валидатора)
+	var quest: Dictionary = quests.get(str(pick[0]), {}) as Dictionary
+	if quest.is_empty():
+		found.append("%s: quest_choice ссылается на несуществующий квест '%s'" % [where, pick[0]])
+		return found
+	for stage: Dictionary in quest.get("stages", []) as Array:
+		for choice: Dictionary in stage.get("choices", []) as Array:
+			if str(choice.get("id", "")) == str(pick[1]):
+				return found
+	found.append("%s: в квесте '%s' нет выбора '%s'" % [where, pick[0], pick[1]])
+	return found
+
+
 # --- Общие проверки ----------------------------------------------------------
 
 func _require_fields(where: String, data: Dictionary, fields: Array) -> void:
@@ -253,6 +274,8 @@ func _validate_effects(where: String, effects: Array, quests: Dictionary) -> voi
 				continue
 			if type == "reveal_node":
 				errors.append_array(NodeValidator.check_reveal(where, effect[type], _nodes))
+			if type == "quest_choice":
+				errors.append_array(_check_quest_choice(where, effect[type], quests))
 			if type == "send_message" and not _mail.has(str(effect[type])):
 				errors.append("%s: send_message ссылается на несуществующее письмо '%s'" % [where, effect[type]])
 			if type == "unlock_quest" and not quests.has(str(effect[type])):

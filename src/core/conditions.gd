@@ -19,12 +19,12 @@ const KNOWN_TYPES: PackedStringArray = [
 	"episode_at_least",
 	"skill_at_least",
 	"has_item",
+	"has_file",
 ]
 
 ## Типы из документации, которым нужны системы следующих этапов.
 ## Валидатор их пропускает, проверка пока возвращает false с предупреждением.
 const DEFERRED_TYPES: PackedStringArray = [
-	"has_file",  # нужна файловая система игрока, M1
 ]
 
 ## Где в GameState лежат ранг и эпизод: обычные числовые переменные состояния.
@@ -95,6 +95,9 @@ static func _check_one(type: String, value: Variant) -> bool:
 			return int(GameState.get_var_or(VAR_SKILL_PREFIX + str(pair[0]), 0)) >= int(pair[1])
 		"has_item":
 			return Inventory.has(str(value))
+		"has_file":
+			# По file_id, где бы файл ни лежал на ПК героя (quest-format.md).
+			return Filesystem.for_node(Network.HOME_ID).has_file_id(str(value))
 		_:
 			if DEFERRED_TYPES.has(type):
 				push_warning("Conditions: условие '%s' ещё не реализовано (нужна система следующего этапа)" % type)

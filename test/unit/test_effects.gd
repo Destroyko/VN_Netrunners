@@ -94,6 +94,6 @@ func test_known_types_cover_documented_dictionary() -> void:
 
 
 func test_deferred_types_are_known_but_not_implemented() -> void:
-	assert_true(Effects.is_known("schedule_news"))
-	assert_false(Effects.is_implemented("schedule_news"), "нужен NewsManager из M2")
+	assert_true(Effects.is_known("add_note"))
+	assert_false(Effects.is_implemented("add_note"), "нужен блокнот")
 	assert_true(Effects.is_implemented("money"))

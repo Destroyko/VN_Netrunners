@@ -162,6 +162,18 @@ func set_quest_completed(quest_id: String, outcome: String = "done") -> void:
 	_notify("quest_completed", [quest_id, outcome])
 
 
+## Запись квеста целиком (этап, выполненные цели, день начала, исход) — для QuestManager.
+## Изменяемая: правила квестов пишут в неё прямо, сигналы шлют сами.
+func quest_entry(quest_id: String) -> Dictionary:
+	if not _quests.has(quest_id):
+		_quests[quest_id] = {}
+	return _quests[quest_id]
+
+
+func quest_ids() -> Array:
+	return _quests.keys()
+
+
 func is_quest_completed(quest_id: String) -> bool:
 	var entry: Dictionary = _quests.get(quest_id, {}) as Dictionary
 	return entry.get("completed", false) as bool

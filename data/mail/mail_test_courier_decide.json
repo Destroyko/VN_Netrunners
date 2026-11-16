@@ -1,0 +1,11 @@
+{
+  "_note": "Пробный квест side_test_courier: выбор ответом на письмо (эффект quest_choice). Заглушка.",
+  "id": "mail_test_courier_decide",
+  "from": "dispatch@example.local",
+  "subject": "Пробный заказ: файл",
+  "body": "Файл у вас? Отправьте его ответом.",
+  "replies": [
+    { "id": "send", "text": "Отправить", "effects": [{ "quest_choice": ["side_test_courier", "send"] }] },
+    { "id": "keep", "text": "Оставить себе", "effects": [{ "quest_choice": ["side_test_courier", "keep"] }] }
+  ]
+}

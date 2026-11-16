@@ -24,16 +24,20 @@ const KNOWN_TYPES: PackedStringArray = [
 	"satiety",
 	"set_satiety",
 	"send_message",
+	"unlock_quest",
+	"quest_choice",
+	"schedule_news",
 ]
 
 ## Типы из документации, которым нужны системы следующих этапов.
 ## Валидатор их пропускает, применение пока только пишет предупреждение.
 const DEFERRED_TYPES: PackedStringArray = [
-	"unlock_quest",   # QuestManager, M2
 	"add_file",       # filesystem, M1
-	"schedule_news",  # NewsManager, M2
 	"add_note",       # блокнот заметок, docs/gameplay/notebook.md
 ]
+
+## Очередь новостей-последствий: [{id, day}] — публикует NewsManager (шаг 9 M2).
+const VAR_NEWS_QUEUE: String = "news.queue"
 
 ## Репутация хранится как переменная состояния: rep.<кто>.
 const VAR_REP_PREFIX: String = "rep."
@@ -140,6 +144,25 @@ static func _apply_one(type: String, value: Variant) -> bool:
 		"set_satiety":
 			Needs.set_satiety(float(value))
 			EventBus.needs_changed.emit()
+			return true
+		"unlock_quest":
+			# Формат: {"unlock_quest": "side_x"} — начать квест (если выполнены его requires).
+			return Quests.start(str(value))
+		"quest_choice":
+			# Формат: {"quest_choice": ["side_x", "choice_id"]} — выбор на текущем этапе квеста;
+			# обычно стоит в ответе на письмо.
+			var pick: Array = value as Array
+			if pick == null or pick.size() != 2:
+				push_error("Effects: quest_choice ожидает [квест, выбор], получено: %s" % [value])
+				return false
+			return Quests.choose(str(pick[0]), str(pick[1]))
+		"schedule_news":
+			# Формат: {"schedule_news": {"id": "news_x", "delay_days": 1}} или просто "news_x" (на
+			# завтра). Новость встаёт в очередь; публикует её NewsManager утром нужного дня (шаг 9).
+			var ref: Dictionary = value as Dictionary if value is Dictionary else {"id": str(value)}
+			var queue: Array = (GameState.get_var_or(VAR_NEWS_QUEUE, []) as Array).duplicate()
+			queue.append({"id": str(ref.get("id", "")), "day": GameState.day + int(ref.get("delay_days", 1))})
+			GameState.set_var(VAR_NEWS_QUEUE, queue)
 			return true
 		"send_message":
 			# Формат: {"send_message": "mail_x"} — письмо из data/mail. Мессенджер — позже (M3).

@@ -52,10 +52,12 @@ signal woke_after_pass_out(minutes: int)
 ## Флешка починила свой ПК: вернула файлы из /sys и (или) поставила обычную ОС.
 signal system_restored(paths: PackedStringArray, os_changed: bool)
 
-# --- Квесты (шлёт QuestManager, M2) -----------------------------------------
+# --- Квесты (шлёт Quests через QuestManager, M2) -----------------------------
 
 signal quest_stage_changed(quest_id: String, stage_id: String)
 signal quest_completed(quest_id: String, outcome: String)
+## Цель этапа выполнена: `key` — "o<номер>" (обязательная) или "p<номер>" (необязательная).
+signal quest_objective_done(quest_id: String, key: String, optional: bool)
 
 # --- Взлом (M1) --------------------------------------------------------------
 

@@ -1,0 +1,7 @@
+{
+  "_note": "Пробный квест side_test_courier: задание. Заглушка.",
+  "id": "mail_test_courier_brief",
+  "from": "dispatch@example.local",
+  "subject": "Пробный заказ",
+  "body": "Зайти на 10.0.0.7 и скопировать /home/zametka.txt. Срок — два дня."
+}

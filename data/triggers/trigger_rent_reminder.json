@@ -1,0 +1,6 @@
+{
+  "_note": "Просрочка аренды — письмо домовладельца (docs/gameplay/economy.md, «Аренда в M2»). bill_overdue приходит один раз на счёт, поэтому once не нужен.",
+  "id": "trigger_rent_reminder",
+  "on": "bill_overdue",
+  "effects": [{ "send_message": "mail_rent_reminder" }]
+}

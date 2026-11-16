@@ -95,7 +95,7 @@ func test_effect_rejects_unknown_type() -> void:
 
 
 func test_effect_reports_not_implemented() -> void:
-	assert_string_contains(DebugCommands.run('effect {"schedule_news": "news_x"}'), "не реализован")
+	assert_string_contains(DebugCommands.run('effect {"add_note": "x"}'), "не реализован")
 
 
 func test_effect_rejects_broken_json() -> void:

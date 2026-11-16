@@ -1,0 +1,56 @@
+class_name QuestObjectives
+extends RefCounted
+## Цели этапа квеста (docs/tech/quest-format.md, «Словарь»): какое событие шины закрывает какую
+## цель. Чистые правила: на вход — цель из данных и случившееся событие, на выход — да или нет.
+##
+## Событие — словарь {"event": имя сигнала, "node": ..., "path": ...}. Цели «по состоянию»
+## (`deliver`, `wait_until`) проверяются без события: выполнено ли условие сейчас.
+
+## Цели, которые закрываются событием шины.
+const BY_EVENT: Dictionary = {
+	"hack_node": "node_connected",
+	"read_file": "file_read",
+	"copy_file": "file_copied",
+	"delete_file": "file_deleted",
+	"wipe_logs": "node_disconnected",
+}
+## Цели, которые закрываются состоянием мира.
+const BY_STATE: PackedStringArray = ["deliver", "wait_until"]
+## Цели следующих этапов: валидатор их пропускает, но в M2 они не закрываются (диалогов, карты
+## и `archmask` ещё нет).
+const NOT_YET: PackedStringArray = ["talk", "visit_location", "mask_backup"]
+
+
+## Закрывает ли событие `event` цель `objective`.
+static func matches(objective: Dictionary, event: Dictionary) -> bool:
+	var type: String = str(objective.get("type", ""))
+	if str(BY_EVENT.get(type, "")) != str(event.get("event", "")):
+		return false
+	if objective.has("node") and str(objective["node"]) != str(event.get("node", "")):
+		return false
+	if objective.has("file") and str(objective["file"]) != str(event.get("path", "")):
+		return false
+	if type == "wipe_logs":
+		return logs_clean(str(event.get("node", "")))
+	return true
+
+
+## Выполнена ли цель «по состоянию» прямо сейчас.
+static func satisfied(objective: Dictionary) -> bool:
+	match str(objective.get("type", "")):
+		"deliver":
+			# Файл проверяется по file_id, где бы он ни лежал на ПК героя (quest-format.md).
+			return Filesystem.for_node(Network.HOME_ID).has_file_id(str(objective.get("what", "")))
+		"wait_until":
+			return Conditions.check_all(objective.get("until", []) as Array)
+	return false
+
+
+static func is_state_objective(objective: Dictionary) -> bool:
+	return BY_STATE.has(str(objective.get("type", "")))
+
+
+## Следы почищены: в логе узла осталась только неустранимая запись о сеансе (heat.md).
+static func logs_clean(node_id: String) -> bool:
+	var weights: Dictionary = Logbook.weights_from_balance()
+	return Logbook.for_node(node_id).heat_weight() <= int(weights.get(Logbook.CATEGORY_SESSION, 1))

@@ -1,0 +1,36 @@
+{
+  "_note": "Пробный квест: проверка исполнителя квестов руками и в тестах (консоль F1: quest start side_test_courier). Настоящие заказы — шаг 8 M2. Текст — заглушка.",
+  "id": "side_test_courier",
+  "title": "Пробный заказ",
+  "type": "side",
+  "giver": "test",
+  "channel": "email",
+  "deadline_days": 2,
+  "stages": [
+    {
+      "id": "get_in",
+      "effects": [{ "send_message": "mail_test_courier_brief" }],
+      "objectives": [{ "type": "hack_node", "node": "node_training_pc" }]
+    },
+    {
+      "id": "collect",
+      "objectives": [{ "type": "copy_file", "node": "node_training_pc", "file": "/home/zametka.txt" }],
+      "optional": [
+        { "type": "wipe_logs", "node": "node_training_pc", "on_done": [{ "money": 10 }] }
+      ]
+    },
+    {
+      "id": "decide",
+      "effects": [{ "send_message": "mail_test_courier_decide" }],
+      "choices": [
+        { "id": "send", "text": "Отправить", "outcome": "done" },
+        { "id": "keep", "text": "Оставить себе", "outcome": "kept" }
+      ]
+    }
+  ],
+  "outcomes": {
+    "done": { "effects": [{ "money": 50 }] },
+    "kept": { "effects": [{ "set_flag": "world.test_courier_kept" }] },
+    "expired": { "effects": [{ "set_flag": "world.test_courier_expired" }] }
+  }
+}

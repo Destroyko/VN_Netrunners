@@ -98,8 +98,10 @@ func test_known_types_cover_documented_dictionary() -> void:
 	assert_false(Conditions.is_known("flagg"), "опечатка не проходит")
 
 
-func test_has_file_is_known_but_not_implemented() -> void:
-	# Условие ищет файл по file_id где угодно на ПК героя — нужна файловая система (M1).
-	assert_true(Conditions.is_known("has_file"))
-	assert_false(Conditions.is_implemented("has_file"), "нужна файловая система из M1")
-	assert_true(Conditions.is_implemented("flag"))
+func test_has_file_finds_file_by_id_anywhere_at_home() -> void:
+	GameState.reset()
+	assert_false(Conditions.check({"has_file": "file_x"}))
+	var home: Filesystem = Filesystem.for_node(Network.HOME_ID)
+	home.put_file("/home/deep/renamed.txt", {"text": "a", "file_id": "file_x"})
+	GameState.set_filesystem_state(Network.HOME_ID, home.to_dict())
+	assert_true(Conditions.check({"has_file": "file_x"}), "переименован и переложен — всё равно найден")
