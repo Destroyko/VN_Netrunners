@@ -22,5 +22,8 @@ mono_crash.*.json
 # Python-кэш от инструментов в tools/
 __pycache__/
 
+# Блокауты: .blend и рендеры собираются скриптом за секунды, истина — в tools/blockout/
+/assets/_source/blockout/
+
 # Журналы сессий и снимки «здесь баг» (F9): локальные, у каждого свои
 /bugreports/
