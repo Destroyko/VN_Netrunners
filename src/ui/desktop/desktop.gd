@@ -284,9 +284,10 @@ func _on_remote_requested(request: Dictionary, view: TerminalView) -> void:
 	window.set_minimum(Vector2(420, 300))
 	window.closed.connect(_on_window_closed)
 	window.closed.connect(func(_w: DesktopWindow) -> void:
-		# Закрыли трансляцию у экрана блокировки — это отказ от входа, как пустая строка в консоли.
-		if terminal.login_pending() and is_instance_valid(view):
-			view.submit(""))
+		# Закрыть трансляцию — отключиться от узла, как в Radmin (вердикт гейта M1, 16.11.2026).
+		# Если окно закрылось само из-за dc или обрыва, цели уже нет — второй раз не отключаемся.
+		if terminal.session.target_id() == node and is_instance_valid(view):
+			view.submit("dc"))
 	window.focus_requested.connect(focus)
 	window.state_changed.connect(func(_w: DesktopWindow) -> void: _sync_taskbar())
 	_windows.add_child(window)

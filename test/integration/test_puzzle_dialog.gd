@@ -701,3 +701,14 @@ func test_matrix_round_time_out_is_like_a_dead_end() -> void:
 	assert_ne(panel.puzzle, first, "время слоя вышло — попытка потрачена, новая сетка")
 	assert_false(panel.is_done(), "попытки ещё есть")
 
+
+func test_closing_the_remote_window_disconnects() -> void:
+	# Баг вердикта гейта M1: окно трансляции закрыли, а консоль осталась подключённой к узлу.
+	var setup: Array = await _explorer_in_home()
+	var desktop: Desktop = setup[0] as Desktop
+	assert_true(desktop.terminal.session.has_connection())
+	desktop.window_of("remote").close()
+	await wait_frames(2)
+	assert_false(desktop.terminal.session.has_connection(), "закрыть трансляцию = отключиться")
+	assert_true(desktop.terminal.session.target_id().is_empty(), "и у двери тоже не стоим")
+
