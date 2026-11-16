@@ -44,6 +44,8 @@ PALETTE = {
     "road":     (0.22, 0.22, 0.25),
     "pavement": (0.44, 0.44, 0.47),
     "green":    (0.27, 0.42, 0.26),
+    "water":    (0.16, 0.26, 0.36),
+    "bridge":   (0.34, 0.34, 0.38),
     "roof":     (0.30, 0.31, 0.35),
     "facade_a": (0.60, 0.58, 0.54),
     "facade_b": (0.52, 0.54, 0.58),
@@ -136,6 +138,26 @@ def box(name, pos, size, key="wall", shade="flat", coll=None):
     ob.color = (*PALETTE.get(key, (0.7, 0.7, 0.7)), 1.0)
     (coll or bpy.context.scene.collection).objects.link(ob)
     return ob
+
+
+def slab(name, centre, size, angle=0.0, key="road", shade="flat", coll=None):
+    """Плашка от центра, повёрнутая вокруг Z на angle градусов.
+
+    Нужна для того, что не ложится на сетку: диагональный проспект, река, мосты.
+    Город без таких линий выглядит как шахматная доска.
+    """
+    w, d, h = size
+    ob = box(name, (-w / 2, -d / 2, 0.0), (w, d, h), key, shade, coll)
+    ob.location = centre
+    ob.rotation_euler = (0.0, 0.0, math.radians(angle))
+    return ob
+
+
+def dist_to_axis(point, centre, angle):
+    """Расстояние от точки до оси, заданной центром и углом (градусы)."""
+    a = math.radians(angle)
+    dx, dy = point[0] - centre[0], point[1] - centre[1]
+    return abs(-math.sin(a) * dx + math.cos(a) * dy)
 
 
 def wall(name, p1, p2, height, thick=0.12, key="wall", shade="flat",

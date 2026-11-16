@@ -1,26 +1,27 @@
 # Блокаут города для карты навигации (docs/art/ai-pipeline.md, раздел 8).
 #
-# Карта — изометрия, а не «вид сверху под углом»: ортографическая камера под углом,
-# один и тот же ракурс у всех зданий. Блокаут нужен именно за этим — генератор
-# не держит единый угол между отдельными прогонами.
+# Карта — изометрия: ортографическая камера под углом, один ракурс у всех зданий.
 #
-# Два правила, которые задал разработчик:
+# Три правила, которые задал разработчик:
 #
-# 1. **Город больше кадра.** Строим заведомо больше, чем видно, и кадрируем так,
-#    чтобы по краям дома обрезались. Карта должна читаться как кусок города,
-#    а не как остров с границами, за которыми пустота.
-# 2. **Район — не однородная застройка.** Офисы стоят в высотках, торговый центр —
-#    длинная коробка с парковкой, трущобы — плотная мелкая застройка. Иначе все дома
-#    одной высоты и место ничем не отличается от соседнего.
+# 1. **Город больше кадра.** Строим заведомо больше, чем видно, и кадрируем так, чтобы
+#    по краям дома обрезались: карта — кусок города, а не остров с границами.
+# 2. **Район неоднороден.** Офисы — в высотках, торговый центр — длинная коробка
+#    с парковкой, трущобы — плотная мелкая застройка.
+# 3. **Город не в клеточку.** Кварталы разного размера, проспект идёт по диагонали,
+#    есть река с мостами, а жилой квартал — это дома по периметру с двором внутри,
+#    а не кубик посреди участка. Ровная сетка одинаковых квадратов — первое, что
+#    выдаёт сгенерированный город.
 #
 # Кликабельные локации (список — docs/world/locations.md) стоят внутри кадра и разнесены
-# по разным кварталам: между ними обычная застройка, и дорога стоит времени
-# (../gameplay/core-loop.md). Фоновые дома не кликаются и живут в подложке.
+# по разным кварталам: между ними обычная застройка, и дорога стоит времени.
+# Фоновые дома не кликаются и живут в подложке.
 #
 # Запуск (PowerShell):
 #   & "C:\Program Files\Blender Foundation\Blender 5.3\blender.exe" -b `
 #     --python tools\blockout\city.py -- --render map
-#   ... -- --sprites            # кликабельные здания отдельными кадрами
+#   ... -- --sprites   # кликабельные здания отдельными кадрами
+#   ... -- --mark      # подсветить кликабельные: все ли в кадре
 
 import math
 import os
@@ -32,216 +33,362 @@ import bpy
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import bl_common as B  # noqa: E402
 
-# Клетка 12 м: дом в три клетки — это 36 м по фасаду, обычная пятиэтажка. Мельче
-# брать нельзя: при клетке 8 м весь район укладывался в 300 м и дорога от дома
-# до вокзала занимала три минуты — то есть ничего.
-CELL = 12.0        # клетка плана в метрах; на карте это 32 px (раздел 8.2)
-FLOOR = 3.0        # высота этажа
-BLOCK = 8          # квартал — 8×8 клеток, внутри четыре участка 4×4
-ROAD = 2           # ширина улицы в клетках
-COLS, ROWS = 7, 7  # кварталов с нашей застройкой; в кадр попадает примерно пять на пять
-PAD = 2            # кварталы вокруг: город обязан продолжаться за краем кадра
-VIEW = 800.0       # ширина кадра в метрах: по ней режутся края города
-WALK_KMH = 4.5     # пешком; отсюда считается время дороги
+FLOOR = 3.0          # высота этажа
+COLS, ROWS = 11, 11  # кварталов; в кадр попадает примерно пять на пять
+VIEW = 820.0         # ширина кадра в метрах: по ней режутся края города
+WALK_KMH = 4.5       # пешком; отсюда считается время дороги
 
-# Зоны застройки: что за место и как оно выглядит.
-# (этажи от, этажи до, участков в ряд, тона) — «участков в ряд» дробит участок 4×4
-# на мелкие: 2 — это четыре домика вместо одного дома.
+BLOCK_SIZES = [84, 96, 108, 120, 132]   # сторона квартала в метрах — разная
+STREET_W = [20, 22, 24, 24, 28]         # обычные улицы
+AVENUE_W = 46                           # проспект: шире и заметнее
+AVENUE_AT = 5                           # индекс улицы-проспекта в каждом направлении
+
+# Диагональный проспект и река: (точка на оси, угол в градусах, ширина)
+DIAGONAL = ((660.0, 560.0), 28.0, 42.0)
+RIVER = ((520.0, 980.0), -22.0, 90.0)
+BRIDGES = [0.25, 0.62, 0.88]            # где мосты, доля вдоль реки
+
+# Зоны. (этажи от, этажи до, как застраивается)
 ZONE_RULES = {
-    # Разрыв между зонами должен быть заметным. Когда жильё поднялось до 11 этажей,
-    # высотки перестали читаться как высотки, а трущобы — как трущобы.
-    "downtown":   (11, 20, 1, ["facade_b", "facade_c"]),
-    "residential": (4, 8, 1, ["facade_a", "facade_b", "facade_c"]),
-    "slums":      (2, 3, 2, ["facade_c", "facade_a"]),
-    "commercial": (1, 3, 1, ["facade_a", "facade_b"]),
+    "downtown":   (11, 21, "towers"),
+    "residential": (4, 8, "perimeter"),
+    "slums":      (2, 3, "slums"),
+    "commercial": (1, 3, "big"),
+    "industrial": (1, 2, "sheds"),
 }
-# Квартал -> зона. Не перечисленные кварталы — жилые.
 ZONES = {
-    (4, 3): "downtown", (5, 3): "downtown", (4, 4): "downtown", (5, 4): "downtown",
-    (5, 2): "downtown", (6, 3): "downtown",
-    (1, 1): "slums", (2, 1): "slums", (1, 2): "slums", (0, 1): "slums",
-    (3, 2): "commercial", (4, 1): "commercial",
+    (6, 5): "downtown", (7, 5): "downtown", (6, 6): "downtown", (7, 6): "downtown",
+    (7, 4): "downtown", (8, 5): "downtown", (6, 4): "downtown",
+    (3, 3): "slums", (4, 3): "slums", (3, 4): "slums", (2, 3): "slums", (3, 2): "slums",
+    (5, 4): "commercial", (6, 2): "commercial",
+    (8, 2): "industrial", (9, 2): "industrial", (9, 3): "industrial",
 }
-PARK_BLOCK = (2, 4)   # целый квартал зелени: скамейка — «ждать вне дома»
+PARK_BLOCK = (4, 6)
 
-# Кликабельные локации: ключ -> (квартал, участок, участков, этажей, тон, что это)
-# Участок — индекс 0..3 внутри квартала: 0 ЮЗ, 1 ЮВ, 2 СЗ, 3 СВ.
-# Все они внутри кадра; фоновая застройка вокруг уходит за его край.
+# Кликабельные локации: ключ -> (квартал, четверть, четвертей, этажей, тон, что это)
+# Четверть квартала: 0 ЮЗ, 1 ЮВ, 2 СЗ, 3 СВ. «Четвертей» 2 — занимает половину квартала.
 LANDMARKS = {
-    "home":     ((1, 3), 0, 1, 5, "facade_a", "жилой дом героя: ПК, сон, еда"),
-    "school":   ((2, 2), 3, 1, 3, "facade_c", "вечерняя школа: обучение"),
-    "market":   ((1, 1), 1, 1, 1, "facade_c", "барахолка: задел, стоит в трущобах"),
-    "station":  ((3, 1), 0, 2, 3, "facade_b", "вокзал: задел"),
-    "hospital": ((2, 3), 2, 2, 6, "facade_b", "больница: мать героя"),
-    "mall":     ((3, 2), 2, 2, 2, "facade_a", "торговый центр: хаб, спортзал, парковка"),
-    "tower_b":  ((4, 3), 1, 1, 14, "facade_c", "бизнес-центр"),
-    "tower_a":  ((5, 3), 3, 1, 20, "facade_b", "высотка: офисы и узлы сети"),
-    "elite":    ((3, 4), 2, 2, 8, "facade_a", "элитный квартал: задел, окнами в парк"),
+    "home":     ((3, 5), 0, 1, 5, "facade_a", "жилой дом героя: ПК, сон, еда"),
+    "school":   ((4, 4), 3, 1, 3, "facade_c", "вечерняя школа: обучение"),
+    "market":   ((3, 3), 1, 1, 1, "facade_c", "барахолка: задел, стоит в трущобах"),
+    "station":  ((5, 2), 0, 2, 3, "facade_b", "вокзал: задел"),
+    "hospital": ((4, 5), 2, 2, 6, "facade_b", "больница: мать героя"),
+    "mall":     ((5, 4), 2, 2, 2, "facade_a", "торговый центр: хаб, спортзал, парковка"),
+    "tower_b":  ((6, 5), 1, 1, 15, "facade_c", "бизнес-центр"),
+    "tower_a":  ((7, 5), 3, 1, 21, "facade_b", "высотка: офисы и узлы сети"),
+    "elite":    ((4, 7), 2, 2, 8, "facade_a", "элитный квартал: задел, окнами в парк"),
 }
-MALL_PARKING = ((3, 2), 0)   # квартал и участок под парковку торгового центра
+MALL_PARKING = ((5, 4), 0)
 
-STEP = BLOCK + ROAD
-GRID = ((COLS + 2 * PAD) * STEP + ROAD, (ROWS + 2 * PAD) * STEP + ROAD)
-# Кварталы с отрицательными индексами — это рамка PAD: обычная жилая застройка,
-# которая попадает в кадр только краем.
-SPAN_COLS = range(-PAD, COLS + PAD)
-SPAN_ROWS = range(-PAD, ROWS + PAD)
+placed = []      # занятые прямоугольники: (x0, y0, x1, y1)
 
 
-def zone_of(col, row):
-    return ZONES.get((col, row), "residential")
+# --- сетка улиц ---------------------------------------------------------------
+
+def street_lines(rnd, count):
+    """Улицы по одной оси: позиция и ширина. Шаг между ними гуляет."""
+    lines, x = [], 0.0
+    for i in range(count + 1):
+        w = AVENUE_W if i == AVENUE_AT else rnd.choice(STREET_W)
+        lines.append((x, w))
+        x += w + rnd.choice(BLOCK_SIZES)
+    return lines
 
 
-def block_origin(col, row):
-    return ROAD + (col + PAD) * STEP, ROAD + (row + PAD) * STEP
+def blocks_of(lines):
+    """Кварталы между улицами: (начало, длина)."""
+    out = []
+    for i in range(len(lines) - 1):
+        start = lines[i][0] + lines[i][1]
+        out.append((start, lines[i + 1][0] - start))
+    return out
 
 
-def plot_origin(col, row, plot):
-    bx, by = block_origin(col, row)
-    return bx + (plot % 2) * (BLOCK // 2), by + (plot // 2) * (BLOCK // 2)
+def block_rect(col, row):
+    x, w = BX[col]
+    y, d = BY[row]
+    return x, y, w, d
 
 
-def ground(shade):
-    w, d = GRID[0] * CELL, GRID[1] * CELL
-    B.box("ground", (0, 0, -0.3), (w, d, 0.3), "road", shade)
-    for col in SPAN_COLS:
-        for row in SPAN_ROWS:
-            bx, by = block_origin(col, row)
-            B.box(f"pave_{col}_{row}", (bx * CELL, by * CELL, 0.0),
-                  (BLOCK * CELL, BLOCK * CELL, 0.05), "pavement", shade)
+def quarter_rect(col, row, q, span=1):
+    """Четверть квартала (или половина при span=2) с отступом от улицы."""
+    x, y, w, d = block_rect(col, row)
+    hw, hd = w / 2, d / 2
+    qx = x + (q % 2) * hw
+    qy = y + (q // 2) * hd
+    return qx + 3, qy + 3, hw * span - 6, hd - 6
 
 
-def park(shade):
-    col, row = PARK_BLOCK
-    bx, by = block_origin(col, row)
-    x, y = bx * CELL, by * CELL
-    size = BLOCK * CELL
-    B.box("park_lawn", (x, y, 0.06), (size, size, 0.06), "green", shade)
-    for i in range(9):
-        tx = x + 9 + (i % 3) * 30
-        ty = y + 9 + (i // 3) * 30
-        B.box(f"park_trunk_{i}", (tx, ty, 0.0), (1.0, 1.0, 3.0), "roof", shade)
-        B.box(f"park_crown_{i}", (tx - 2.5, ty - 2.5, 3.0), (6.0, 6.0, 5.0), "green", shade)
-    B.box("park_bench", (x + 6, y + size - 8, 0.1), (3.0, 0.8, 0.5), "accent", shade)
+# --- что мешает ставить дома --------------------------------------------------
+
+def blocked(x, y, w, d):
+    """Пересекается ли пятно с рекой, проспектом или уже поставленным домом."""
+    cx, cy = x + w / 2, y + d / 2
+    reach = max(w, d) / 2
+    for centre, angle, width in (DIAGONAL, RIVER):
+        if B.dist_to_axis((cx, cy), centre, angle) < width / 2 + reach * 0.7:
+            return True
+    for px0, py0, px1, py1 in placed:
+        if x < px1 and px0 < x + w and y < py1 and py0 < y + d:
+            return True
+    return False
 
 
-def parking(shade):
-    """Парковка торгового центра: асфальт и ряды машин.
-
-    Машины мельче тумбочки, но без них площадка читается как пустырь, а масштаб
-    здания теряется — это тот случай, когда мелочь работает на композицию.
-    """
-    (col, row), plot = MALL_PARKING
-    px, py = plot_origin(col, row, plot)
-    x, y = px * CELL, py * CELL
-    size = (BLOCK // 2) * CELL - CELL
-    B.box("mall_lot", (x, y, 0.06), (size, size, 0.06), "road", shade)
-    for r in range(4):
-        for c in range(7):
-            B.box(f"mall_car_{r}_{c}", (x + 3 + c * 2.6, y + 4 + r * 11.0, 0.12),
-                  (1.9, 4.4, 1.5), "appl", shade)
-
-
-def house(name, x, y, w, d, floors, tone, shade, entry=True):
+def put(name, x, y, w, d, floors, tone, shade, entry=False, force=False):
+    if not force and blocked(x, y, w, d):
+        return 0
+    placed.append((x, y, x + w, y + d))
     h = floors * FLOOR
     B.box(f"{name}_body", (x, y, 0.0), (w, d, h), tone, shade)
     B.box(f"{name}_roof", (x - 0.4, y - 0.4, h), (w + 0.8, d + 0.8, 0.7), "roof", shade)
     if entry:
-        # Вход на южном фасаде: камера стоит с юго-востока, оттуда он и виден
         B.box(f"{name}_entry", (x + w / 2 - 1.5, y - 0.5, 0.0), (3.0, 0.7, 3.2),
               "accent", shade)
     if floors >= 10:
-        # Высоткам — ступень и надстройка, иначе они просто длинные бруски
         B.box(f"{name}_step", (x + w * 0.18, y + d * 0.18, h + 0.7),
               (w * 0.64, d * 0.64, FLOOR * 2.5), tone, shade)
         B.box(f"{name}_cap", (x + w * 0.36, y + d * 0.36, h + 0.7 + FLOOR * 2.5),
               (w * 0.28, d * 0.28, FLOOR * 1.2), "roof", shade)
+    return 1
+
+
+# --- земля, вода, дороги ------------------------------------------------------
+
+def ground(shade):
+    w = BX[-1][0] + BX[-1][1] + 60
+    d = BY[-1][0] + BY[-1][1] + 60
+    B.box("ground", (-30, -30, -0.3), (w, d, 0.3), "road", shade)
+    for col in range(COLS):
+        for row in range(ROWS):
+            x, y, bw, bd = block_rect(col, row)
+            B.box(f"pave_{col}_{row}", (x, y, 0.0), (bw, bd, 0.05), "pavement", shade)
+    # Проспект и река кладутся поверх кварталов: они режут сетку, а не обходят её
+    long_side = max(w, d) * 1.6
+    B.slab("avenue", (*DIAGONAL[0], 0.09), (long_side, DIAGONAL[2], 0.06),
+           DIAGONAL[1], "road", shade)
+    # Разделительная полоса: без неё проспект не отличить от обычной улицы
+    B.slab("avenue_median", (*DIAGONAL[0], 0.16), (long_side, 5.0, 0.3),
+           DIAGONAL[1], "green", shade)
+    B.slab("river", (*RIVER[0], 0.04), (long_side, RIVER[2], 0.06),
+           RIVER[1], "water", shade)
+    # Набережные по обеим сторонам реки
+    a = math.radians(RIVER[1])
+    for i, side in enumerate((-1, 1)):
+        off = side * (RIVER[2] / 2 + 5)
+        c = (RIVER[0][0] - math.sin(a) * off, RIVER[0][1] + math.cos(a) * off)
+        B.slab(f"quay_{i}", (*c, 0.1), (long_side, 10.0, 0.1), RIVER[1], "pavement", shade)
+    for i, t in enumerate(BRIDGES):
+        bx = RIVER[0][0] + math.cos(a) * (t - 0.5) * long_side * 0.6
+        by = RIVER[0][1] + math.sin(a) * (t - 0.5) * long_side * 0.6
+        # Мост поднят над водой и с перилами: вровень с рекой он читается
+        # как плот, а не как переправа
+        span_d = RIVER[2] + 46
+        B.slab(f"bridge_{i}", (bx, by, 1.4), (24.0, span_d, 1.6),
+               RIVER[1] + 90, "bridge", shade)
+        for side in (-1, 1):
+            ra = math.radians(RIVER[1] + 90)
+            ox = -math.sin(ra) * side * 11.0
+            oy = math.cos(ra) * side * 11.0
+            B.slab(f"bridge_{i}_rail{side}", (bx + ox, by + oy, 3.0),
+                   (2.0, span_d, 1.4), RIVER[1] + 90, "pavement", shade)
+
+
+def avenue_front(shade, rnd):
+    """Фронт проспекта: дома стоят вдоль него, повёрнутые по его оси.
+
+    Без этого диагональ выглядит просекой через пустырь: обычная застройка
+    в клетку к ней не прилегает, и вдоль проспекта остаются дыры.
+    """
+    (cx, cy), angle, width = DIAGONAL
+    a = math.radians(angle)
+    n, depth = 0, 19.0
+    reach = max(BX[-1][0] + BX[-1][1], BY[-1][0] + BY[-1][1])
+    t = -reach * 0.7
+    while t < reach * 0.7:
+        length = rnd.uniform(34.0, 56.0)
+        floors = rnd.randint(5, 9)
+        for side in (-1, 1):
+            off = side * (width / 2 + depth / 2 + 2.0)
+            bx = cx + math.cos(a) * t - math.sin(a) * off
+            by = cy + math.sin(a) * t + math.cos(a) * off
+            if B.dist_to_axis((bx, by), RIVER[0], RIVER[1]) < RIVER[2] / 2 + depth:
+                continue
+            half = max(length, depth) / 2
+            if any(bx - half < p2 and p0 < bx + half and by - half < p3 and p1 < by + half
+                   for p0, p1, p2, p3 in placed):
+                continue
+            placed.append((bx - half, by - half, bx + half, by + half))
+            h = floors * FLOOR
+            B.slab(f"av_{n}", (bx, by, 0.0), (length, depth, h), angle,
+                   rnd.choice(TONES), shade)
+            B.slab(f"av_{n}_roof", (bx, by, h), (length + 0.8, depth + 0.8, 0.7),
+                   angle, "roof", shade)
+            n += 1
+        t += length + rnd.uniform(6.0, 16.0)
+    return n
+
+
+def park(shade):
+    x, y, w, d = block_rect(*PARK_BLOCK)
+    placed.append((x, y, x + w, y + d))
+    B.box("park_lawn", (x, y, 0.06), (w, d, 0.06), "green", shade)
+    rows = int(d // 34)
+    cols = int(w // 34)
+    for i in range(rows * cols):
+        tx = x + 14 + (i % cols) * 34
+        ty = y + 14 + (i // cols) * 34
+        B.box(f"park_trunk_{i}", (tx, ty, 0.0), (1.0, 1.0, 3.0), "roof", shade)
+        B.box(f"park_crown_{i}", (tx - 2.5, ty - 2.5, 3.0), (6.0, 6.0, 5.0), "green", shade)
+    B.box("park_bench", (x + 8, y + d - 10, 0.1), (3.0, 0.8, 0.5), "accent", shade)
+
+
+def parking(shade):
+    (col, row), q = MALL_PARKING
+    x, y, w, d = quarter_rect(col, row, q)
+    placed.append((x, y, x + w, y + d))
+    B.box("mall_lot", (x, y, 0.06), (w, d, 0.06), "road", shade)
+    for r in range(int(d // 12)):
+        for c in range(int(w // 2.7)):
+            B.box(f"mall_car_{r}_{c}", (x + 3 + c * 2.7, y + 4 + r * 12.0, 0.12),
+                  (1.9, 4.4, 1.5), "appl", shade)
+
+
+# --- типы застройки -----------------------------------------------------------
+
+def build_perimeter(name, x, y, w, d, lo, hi, tones, rnd, shade):
+    """Жилой квартал: пластины вдоль улиц, двор внутри.
+
+    Так застроена половина реальных городов, и именно этого не хватало: кубик
+    посреди участка читается как макет, а периметр — как квартал.
+    """
+    n, depth = 0, rnd.choice([14.0, 16.0, 18.0])
+    gap = rnd.choice([8.0, 12.0, 16.0])      # разрыв в углу: двор должен дышать
+    sides = [
+        (x, y, w - gap, depth),
+        (x + w - depth, y, depth, d - gap),
+        (x + gap, y + d - depth, w - gap, depth),
+        (x, y + gap, depth, d - gap),
+    ]
+    for i, (sx, sy, sw, sd) in enumerate(sides):
+        if sw < 18 or sd < 10:
+            continue
+        # Длинную пластину режем на секции разной этажности — дом не монолит
+        along = sw if sw > sd else sd
+        cuts = max(1, int(along // rnd.choice([34, 42, 50])))
+        for c in range(cuts):
+            if sw > sd:
+                px, pw = sx + c * sw / cuts, sw / cuts - 1.5
+                py, pd = sy, sd
+            else:
+                px, pw = sx, sw
+                py, pd = sy + c * sd / cuts, sd / cuts - 1.5
+            n += put(f"{name}_p{i}{c}", px, py, pw, pd,
+                     rnd.randint(lo, hi), rnd.choice(tones), shade)
+    if rnd.random() < 0.4 and w > 70 and d > 70:
+        n += put(f"{name}_yard", x + w / 2 - 12, y + d / 2 - 10, 24, 20,
+                 rnd.randint(lo, lo + 1), rnd.choice(tones), shade)
+    return n
+
+
+def build_towers(name, x, y, w, d, lo, hi, tones, rnd, shade):
+    """Даунтаун: башни с разрывами, разного пятна и высоты."""
+    n = 0
+    for i in range(rnd.choice([2, 3, 3, 4])):
+        tw = rnd.uniform(0.28, 0.44) * w
+        td = rnd.uniform(0.28, 0.44) * d
+        tx = x + rnd.uniform(0, max(1.0, w - tw))
+        ty = y + rnd.uniform(0, max(1.0, d - td))
+        n += put(f"{name}_t{i}", tx, ty, tw, td,
+                 rnd.randint(lo, hi), rnd.choice(tones), shade)
+    return n
+
+
+def build_slums(name, x, y, w, d, lo, hi, tones, rnd, shade):
+    """Трущобы: мелкие дома почти вплотную, проходы вместо улиц."""
+    n, step = 0, rnd.choice([18.0, 20.0, 22.0])
+    for i in range(int(w // step)):
+        for j in range(int(d // step)):
+            if rnd.random() < 0.12:        # пустыри и проходы
+                continue
+            sw = step - rnd.uniform(3.0, 6.0)
+            sd = step - rnd.uniform(3.0, 6.0)
+            n += put(f"{name}_s{i}{j}", x + i * step, y + j * step, sw, sd,
+                     rnd.randint(lo, hi), rnd.choice(tones), shade)
+    return n
+
+
+def build_big(name, x, y, w, d, lo, hi, tones, rnd, shade):
+    """Торговля: один крупный объём, место вокруг остаётся под подъезды."""
+    bw, bd = w * rnd.uniform(0.6, 0.8), d * rnd.uniform(0.5, 0.7)
+    return put(f"{name}_b", x + (w - bw) / 2, y + (d - bd) / 2, bw, bd,
+               rnd.randint(lo, hi), rnd.choice(tones), shade)
+
+
+def build_sheds(name, x, y, w, d, lo, hi, tones, rnd, shade):
+    """Промзона: длинные ангары поперёк квартала."""
+    n, count = 0, rnd.choice([2, 3])
+    for i in range(count):
+        sd = d / count - 8
+        n += put(f"{name}_h{i}", x + 4, y + i * (d / count), w - 8, sd,
+                 rnd.randint(lo, hi), rnd.choice(tones), shade)
+    return n
+
+
+BUILDERS = {"perimeter": build_perimeter, "towers": build_towers, "slums": build_slums,
+            "big": build_big, "sheds": build_sheds}
+TONES = ["facade_a", "facade_b", "facade_c"]
 
 
 def landmarks(shade, mark=False):
-    """mark — покрасить кликабельные акцентным тоном: проверка, видно ли их в кадре.
-
-    Для подачи генератору не годится, это служебный режим.
-    """
-    taken = {(MALL_PARKING[0][0], MALL_PARKING[0][1], MALL_PARKING[1])}
-    for key, (blk, plot, span, floors, tone, _what) in LANDMARKS.items():
-        col, row = blk
-        px, py = plot_origin(col, row, plot)
-        w = (BLOCK // 2) * span - 1
-        d = (BLOCK // 2) - 1
-        house(f"bld_{key}", px * CELL, py * CELL, w * CELL, d * CELL,
-              floors, "accent" if mark else tone, shade)
-        for s in range(span):
-            taken.add((col, row, plot + s))
-    return taken
+    for key, (blk, q, span, floors, tone, _what) in LANDMARKS.items():
+        x, y, w, d = quarter_rect(blk[0], blk[1], q, span)
+        put(f"bld_{key}", x, y, w, d, floors,
+            "accent" if mark else tone, shade, entry=True, force=True)
 
 
-def filler(shade, taken, seed=7):
-    """Фоновая застройка по зонам. Не кликается, живёт в подложке.
-
-    Её задача двойная: развести важные здания друг от друга и показать, что город
-    продолжается за кадром.
-    """
-    rnd = random.Random(seed)
+def filler(shade, rnd):
     count = 0
-    for col in SPAN_COLS:
-        for row in SPAN_ROWS:
+    for col in range(COLS):
+        for row in range(ROWS):
             if (col, row) == PARK_BLOCK:
                 continue
-            lo, hi, split, tones = ZONE_RULES[zone_of(col, row)]
-            for plot in range(4):
-                if (col, row, plot) in taken:
-                    continue
-                px, py = plot_origin(col, row, plot)
-                half = BLOCK // 2
-                for sx in range(split):
-                    for sy in range(split):
-                        cellw = half / split
-                        w = cellw - (1.0 if split == 1 else 0.4)
-                        d = cellw - (1.0 if split == 1 else 0.4)
-                        if split == 1:
-                            w -= rnd.choice([0.0, 0.0, 1.0])
-                            d -= rnd.choice([0.0, 1.0])
-                        x = (px + sx * cellw + rnd.choice([0.0, 0.3])) * CELL
-                        y = (py + sy * cellw + rnd.choice([0.0, 0.3])) * CELL
-                        house(f"fill_{col}{row}{plot}_{sx}{sy}", x, y,
-                              w * CELL, d * CELL, rnd.randint(lo, hi),
-                              rnd.choice(tones), shade, entry=False)
-                        count += 1
+            zone = ZONES.get((col, row), "residential")
+            lo, hi, kind = ZONE_RULES[zone]
+            x, y, w, d = block_rect(col, row)
+            count += BUILDERS[kind](f"fill_{col}_{row}", x + 2, y + 2, w - 4, d - 4,
+                                    lo, hi, TONES, rnd, shade)
     return count
 
 
-def walk_report():
-    def centre(key):
-        blk, plot, span, *_ = LANDMARKS[key]
-        px, py = plot_origin(blk[0], blk[1], plot)
-        return (px + (BLOCK // 2) * span / 2) * CELL, (py + BLOCK // 4) * CELL
+# --- отчёт и кадр -------------------------------------------------------------
 
-    hx, hy = centre("home")
+def centre_of(key):
+    blk, q, span, *_ = LANDMARKS[key]
+    x, y, w, d = quarter_rect(blk[0], blk[1], q, span)
+    return x + w / 2, y + d / 2
+
+
+def walk_report():
+    hx, hy = centre_of("home")
     speed = WALK_KMH * 1000 / 60
-    print(f"[blockout] город {GRID[0]}x{GRID[1]} клеток = "
-          f"{GRID[0] * CELL:.0f}x{GRID[1] * CELL:.0f} м, "
+    w = BX[-1][0] + BX[-1][1]
+    print(f"[blockout] город {w:.0f}x{BY[-1][0] + BY[-1][1]:.0f} м, "
           f"в кадре {VIEW:.0f} м по горизонтали — края домов обрезаются")
     print("[blockout] пешком от дома героя (по улицам, не напрямую):")
     for key in LANDMARKS:
         if key == "home":
             continue
-        x, y = centre(key)
+        x, y = centre_of(key)
         dist = abs(x - hx) + abs(y - hy)
         print(f"  {key:9} {dist:5.0f} м — {dist / speed:4.1f} мин")
-    px, py = block_origin(*PARK_BLOCK)
-    dist = abs(px * CELL - hx) + abs(py * CELL - hy)
+    x, y, bw, bd = block_rect(*PARK_BLOCK)
+    dist = abs(x + bw / 2 - hx) + abs(y + bd / 2 - hy)
     print(f"  {'park':9} {dist:5.0f} м — {dist / speed:4.1f} мин")
 
 
 def view_centre():
-    """Кадр строим вокруг середины между кликабельными локациями, а не города."""
-    xs, ys = [], []
-    for blk, plot, span, *_ in LANDMARKS.values():
-        px, py = plot_origin(blk[0], blk[1], plot)
-        xs.append((px + (BLOCK // 2) * span / 2) * CELL)
-        ys.append((py + BLOCK // 4) * CELL)
-    return sum(xs) / len(xs), sum(ys) / len(ys)
+    pts = [centre_of(k) for k in LANDMARKS]
+    return sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts)
 
 
 def main():
@@ -250,7 +397,7 @@ def main():
                        help="кликабельные здания отдельными кадрами, прозрачный фон (8.1)")
         p.add_argument("--iso", choices=["dimetric", "true"], default="dimetric",
                        help="dimetric 2:1 — пиксельная сетка; true — истинная изометрия")
-        p.add_argument("--seed", type=int, default=7, help="сид фоновой застройки")
+        p.add_argument("--seed", type=int, default=7, help="сид сетки улиц и застройки")
         p.add_argument("--view", type=float, default=VIEW,
                        help="ширина кадра в метрах: чем меньше, тем ближе план")
         p.add_argument("--mark", action="store_true",
@@ -258,11 +405,18 @@ def main():
 
     a = B.args(extra)
     B.reset()
+    placed.clear()
+    rnd = random.Random(a.seed)
+    global BX, BY
+    BX = blocks_of(street_lines(rnd, COLS))
+    BY = blocks_of(street_lines(rnd, ROWS))
+
     ground(a.shade)
     park(a.shade)
     parking(a.shade)
-    taken = landmarks(a.shade, a.mark)
-    fills = filler(a.shade, taken, a.seed)
+    landmarks(a.shade, a.mark)
+    fills = avenue_front(a.shade, rnd)      # фронт проспекта — до квартальной застройки
+    fills += filler(a.shade, rnd)
     B.light(a.phase, a.shade)
 
     elev = 26.565 if a.iso == "dimetric" else 35.264
@@ -275,7 +429,7 @@ def main():
     out = B.resolve(a.out) or os.path.join(root, "renders_city")
 
     print(f"[blockout] кликабельных зданий {len(LANDMARKS)}, фоновых {fills}, "
-          f"всего {len(LANDMARKS) + fills}, плюс парк и парковка")
+          f"плюс парк, парковка, река с {len(BRIDGES)} мостами и проспект")
     walk_report()
 
     if a.sprites:
@@ -285,24 +439,19 @@ def main():
 
 
 def sprites(out, a, elev):
-    """По спрайту на кликабельное здание: один ракурс, один масштаб, прозрачный фон.
-
-    Масштаб общий — иначе здания окажутся разного размера на карте, а это главная
-    ошибка, которую блокаут и должен снять. Фоновая застройка сюда не идёт.
-    """
+    """По спрайту на кликабельное здание: один ракурс, один масштаб, прозрачный фон."""
     sc = bpy.context.scene
     sc.render.film_transparent = True
     sc.render.resolution_x = sc.render.resolution_y = 512
     span = max(b[3] for b in LANDMARKS.values()) * FLOOR * 1.6
     cams = {}
-    for key, (blk, plot, sp, *_rest) in LANDMARKS.items():
-        px, py = plot_origin(blk[0], blk[1], plot)
-        cx = (px + (BLOCK // 2) * sp / 2) * CELL
-        cy = (py + BLOCK // 4) * CELL
+    for key in LANDMARKS:
+        cx, cy = centre_of(key)
         cams[key] = B.iso_camera(f"spr_{key}", (cx, cy, 14.0), span, elev)
     others = tuple(f"bld_{o}_" for o in LANDMARKS)
     hide = {key: tuple(m for m in others if m != f"bld_{key}_") +
-            ("ground", "pave_", "park_", "fill_", "mall_") for key in LANDMARKS}
+            ("ground", "pave_", "park_", "fill_", "mall_", "avenue", "river",
+             "quay_", "bridge_") for key in LANDMARKS}
     files = B.render(cams, out, f"_spr_{a.shade}", "all", hide)
     print(f"[blockout] спрайтов: {len(files)}")
 
