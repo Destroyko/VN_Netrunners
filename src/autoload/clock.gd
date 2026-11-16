@@ -109,6 +109,11 @@ func set_time(day: int, minute: int) -> void:
 	GameState.minute = clampi(minute, 0, minutes_per_day - 1)
 
 
+## Сколько минут прошло с начала игры — для отсчётов длиннее суток (тихие сутки заметности).
+func total_minutes() -> int:
+	return (GameState.day - 1) * minutes_per_day + GameState.minute
+
+
 ## Сколько минут до начала следующего дня.
 func minutes_until_next_day() -> int:
 	return minutes_per_day - GameState.minute

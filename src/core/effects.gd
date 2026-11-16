@@ -92,6 +92,8 @@ static func _apply_one(type: String, value: Variant) -> bool:
 			return true
 		"heat":
 			GameState.add_heat(int(value))
+			if int(value) > 0:
+				Heat.restart_quiet()
 			return true
 		"set_flag":
 			GameState.set_flag(str(value), true)

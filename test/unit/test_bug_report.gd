@@ -48,13 +48,13 @@ func test_line_shows_real_and_game_time() -> void:
 
 func test_session_log_records_what_happens() -> void:
 	log_node.call("write", "term", "home:/home$ scan")
-	EventBus.slept.emit(2)
+	EventBus.rested.emit("sleep", 2, "")
 	var sessions: String = ProjectSettings.globalize_path(TEST_DIR).path_join(BugReport.SESSIONS_SUBDIR)
 	var files: PackedStringArray = DirAccess.get_files_at(sessions)
 	assert_eq(files.size(), 1)
 	var text: String = FileAccess.get_file_as_string(sessions.path_join(files[0]))
 	assert_string_contains(text, "home:/home$ scan")
-	assert_string_contains(text, "slept(2)", "события шины пишутся сами")
+	assert_string_contains(text, "rested(sleep, 2, )", "события шины пишутся сами")
 
 
 func test_snapshot_keeps_state_log_and_note() -> void:

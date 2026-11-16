@@ -5,7 +5,8 @@ extends RefCounted
 ## слушает шину HeatManager, а считает и меняет `GameState.heat` этот класс.
 ##
 ## Источники растут только за воротами `gate.pressure` (docs/tech/gates.md): пока они закрыты,
-## взломы ничего не стоят. Спад от сна работает всегда.
+## взломы ничего не стоят. Спад работает всегда: за каждые полные сутки без нового начисления
+## (решено 16.11.2026, разработчик) — чтобы сбросить заметность, надо реально залечь на дно.
 ## Все числа — в `data/balance.json`, раздел `heat`.
 
 const FALLBACK_STAGE_SIZE: int = 20
@@ -13,6 +14,10 @@ const FALLBACK_DECAY: int = 5
 const FALLBACK_FAILED: int = 5
 const FALLBACK_RETRY_STEP: int = 2
 const FALLBACK_TRACE: int = 20
+const FALLBACK_QUIET_MINUTES: int = 1440
+## С какой минуты игры (`Clock.total_minutes`) считаются тихие сутки: последнее начисление или
+## последний спад.
+const VAR_QUIET_SINCE: String = "heat.quiet_since"
 ## Делений в полоске панели задач: одно деление — десять единиц.
 const BAR_CELLS: int = 10
 
@@ -48,16 +53,34 @@ static func gain(amount: int) -> int:
 		return 0
 	var before: int = GameState.heat
 	GameState.add_heat(amount)
+	restart_quiet()
 	return GameState.heat - before
 
 
-## Спад за выспанные ночи (−5 за ночь, линейно; heat.md, открытый вопрос 2).
-## Возвращает, на сколько упала заметность.
-static func rest(nights: int) -> int:
-	if nights <= 0:
+## Любое начисление — даже 1 за аккуратный взлом, эффект квеста или консоль — заново запускает
+## отсчёт тихих суток.
+static func restart_quiet() -> void:
+	GameState.set_var(VAR_QUIET_SINCE, Clock.total_minutes())
+
+
+## Прошло время: за каждые полные тихие сутки (`quiet_minutes`) с последнего начисления или
+## спада — спад на `decay_per_quiet_day`, линейно, до нуля. Возвращает, на сколько упала.
+static func on_time_passed() -> int:
+	var period: int = maxi(_num("quiet_minutes", FALLBACK_QUIET_MINUTES), 1)
+	var since: int = int(GameState.get_var_or(VAR_QUIET_SINCE, 0))
+	var days: int = (Clock.total_minutes() - since) / period
+	if days <= 0:
+		return 0
+	GameState.set_var(VAR_QUIET_SINCE, since + days * period)
+	return decay(days)
+
+
+## Спад за `days` тихих суток. Возвращает, на сколько упала заметность.
+static func decay(days: int) -> int:
+	if days <= 0:
 		return 0
 	var before: int = GameState.heat
-	GameState.add_heat(-nights * _num("decay_per_night", FALLBACK_DECAY))
+	GameState.add_heat(-days * _num("decay_per_quiet_day", FALLBACK_DECAY))
 	return before - GameState.heat
 
 

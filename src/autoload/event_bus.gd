@@ -21,9 +21,6 @@ signal session_advanced(events: Array)
 ## Начался новый день: NewsManager публикует новости, TriggerManager проверяет триггеры.
 signal day_started(day: int)
 
-## Герой выспал столько ночей: заметность спадает на `decay_per_night` за каждую (heat.md).
-## Шлёт `Rest` за засчитанную ночь (gameplay/needs.md), консоль F1 — командой `sleep`.
-signal slept(nights: int)
 ## Разбудить героя: звонок, стук в дверь, конец фоновой задачи. Вне сна ничего не делает.
 signal wake_requested(reason: String)
 ## Сон или ожидание закончились: `mode` — "sleep" / "wait", сколько минут прошло, что разбудило

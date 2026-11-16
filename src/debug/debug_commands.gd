@@ -14,7 +14,6 @@ const HELP: Dictionary = {
 	"set_flag": "set_flag <имя> [0|1] — поставить или снять флаг",
 	"money": "money <±сколько> | money =<значение> — изменить или задать деньги",
 	"heat": "heat <±сколько> | heat =<значение> — изменить или задать заметность",
-	"sleep": "sleep [ночей] — выспать ночи: заметность спадает (по умолчанию одна)",
 	"bed": "bed <sleep|wait> <чч:мм> — лечь в кровать до будильника: спать или подождать (как кровать в комнате)",
 	"time": "time | time +<минут> | time <день> <чч:мм> — показать, продвинуть или перевести время",
 	"seed": "seed [значение] — показать или задать сид случайности",
@@ -52,8 +51,6 @@ static func run(line: String) -> String:
 			return _change_number(args, "money")
 		"heat":
 			return _change_number(args, "heat")
-		"sleep":
-			return _sleep(args)
 		"bed":
 			return _bed(args)
 		"time":
@@ -145,10 +142,13 @@ static func _change_number(args: PackedStringArray, what: String) -> String:
 			GameState.add_money(value)
 		return "деньги: %d" % GameState.money
 
+	var before: int = GameState.heat
 	if absolute:
 		GameState.set_heat(value)
 	else:
 		GameState.add_heat(value)
+	if GameState.heat > before:
+		Heat.restart_quiet()
 	return "заметность: %d" % GameState.heat
 
 
@@ -248,18 +248,5 @@ static func _bed(args: PackedStringArray) -> String:
 	var line: String = "прошло %d мин → %s" % [int(report["minutes"]), Clock.format_now()]
 	if not str(report["interrupted"]).is_empty():
 		line += ", разбудило: " + str(report["interrupted"])
-	if bool(report["night"]):
-		line += ", ночь засчитана"
 	return line
 
-
-## Выспать ночи без промотки времени — быстрый спад заметности руками (настоящий сон — `bed`).
-static func _sleep(args: PackedStringArray) -> String:
-	var nights: int = 1
-	if args.size() > 0:
-		if not args[0].is_valid_int() or int(args[0]) < 1:
-			return "sleep: нужно целое число ночей от 1"
-		nights = int(args[0])
-	var before: int = GameState.heat
-	EventBus.slept.emit(nights)
-	return "заметность: %d (было %d)" % [GameState.heat, before]

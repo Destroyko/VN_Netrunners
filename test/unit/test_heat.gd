@@ -1,5 +1,5 @@
 extends "res://test/unit/terminal_fixture.gd"
-## Заметность: цены источников, ворота `gate.pressure`, спад ото сна, этапы
+## Заметность: цены источников, ворота `gate.pressure`, спад за тихие сутки, этапы
 ## (docs/gameplay/heat.md). Слушатель HeatManager проверяем настоящими событиями шины.
 
 
@@ -80,36 +80,82 @@ func test_heat_is_capped_at_the_maximum() -> void:
 	assert_eq(GameState.heat, 100)
 
 
-# --- Спад ---------------------------------------------------------------------
+# --- Спад: за каждые полные сутки без нового начисления ----------------------
 
-func test_a_night_of_sleep_lowers_heat_by_five() -> void:
-	GameState.set_heat(12)
-	EventBus.slept.emit(1)
+const DAY: int = 24 * 60
+
+
+## Заметность «только что начислена»: отсчёт тихих суток идёт с этой минуты.
+func _heat(value: int) -> void:
+	GameState.set_heat(value)
+	GameState.set_var(Heat.VAR_QUIET_SINCE, Clock.total_minutes())
+
+
+func test_a_quiet_day_lowers_heat_by_five() -> void:
+	_heat(12)
+	Clock.advance(DAY)
 	assert_eq(GameState.heat, 7)
 
 
-func test_nights_add_up_and_stop_at_zero() -> void:
-	GameState.set_heat(12)
-	EventBus.slept.emit(5)
+func test_less_than_a_day_does_nothing() -> void:
+	_heat(12)
+	Clock.advance(DAY - 1)
+	assert_eq(GameState.heat, 12)
+
+
+func test_quiet_days_add_up_and_stop_at_zero() -> void:
+	_heat(12)
+	Clock.advance(5 * DAY)
 	assert_eq(GameState.heat, 0)
 
 
-func test_decay_works_even_with_a_closed_gate() -> void:
-	GameState.set_heat(10)
-	assert_eq(Heat.rest(1), 5)
+func test_decay_is_counted_by_the_minute_not_by_midnight() -> void:
+	Clock.set_time(1, 23 * 60)
+	_heat(20)
+	Clock.advance(120)
+	assert_eq(GameState.heat, 20, "полночь сама по себе заметность не снижает")
+
+
+func test_new_gain_restarts_the_quiet_day() -> void:
+	open_gate()
+	_heat(20)
+	Clock.advance(DAY - 60)
+	EventBus.trace_finished.emit("node_x")
+	assert_eq(GameState.heat, 40)
+	Clock.advance(DAY - 1)
+	assert_eq(GameState.heat, 40, "сутки считаются от последнего начисления")
+	Clock.advance(1)
+	assert_eq(GameState.heat, 35)
+
+
+func test_even_a_clean_hack_restarts_the_quiet_day() -> void:
+	open_gate()
+	_heat(10)
+	Clock.advance(DAY - 10)
+	assert_eq(Heat.gain(1), 1)
+	Clock.advance(10)
+	assert_eq(GameState.heat, 11)
+
+
+func test_gain_behind_closed_gate_does_not_restart() -> void:
+	_heat(10)
+	Clock.advance(DAY - 10)
+	assert_eq(Heat.gain(5), 0)
+	Clock.advance(10)
 	assert_eq(GameState.heat, 5)
 
 
-func test_no_decay_without_sleep() -> void:
-	GameState.set_heat(30)
-	Clock.advance(3 * 24 * 60)
-	assert_eq(GameState.heat, 30, "время идёт само, спад только ото сна")
+func test_decay_works_even_with_a_closed_gate() -> void:
+	_heat(10)
+	assert_eq(Heat.decay(1), 5)
+	assert_eq(GameState.heat, 5)
 
 
-func test_rest_with_no_nights_does_nothing() -> void:
-	GameState.set_heat(30)
-	assert_eq(Heat.rest(0), 0)
-	assert_eq(GameState.heat, 30)
+func test_sleep_does_not_lower_heat_by_itself() -> void:
+	Clock.set_time(1, 22 * 60)
+	_heat(30)
+	Rest.sleep_until(8 * 60)
+	assert_eq(GameState.heat, 30, "сон не снимает заметность, только тихие сутки")
 
 
 # --- Как это видно ------------------------------------------------------------
@@ -131,19 +177,14 @@ func test_bar_has_ten_cells() -> void:
 	assert_eq(Heat.bar_cells(100), 10)
 
 
-# --- Консоль ------------------------------------------------------------------
+func test_quest_effect_and_console_restart_the_quiet_day() -> void:
+	_heat(0)
+	Clock.advance(DAY - 10)
+	Effects.apply({"heat": 10})
+	Clock.advance(10)
+	assert_eq(GameState.heat, 10, "эффект квеста — тоже начисление")
+	Clock.advance(DAY - 20)
+	DebugCommands.run("heat +5")
+	Clock.advance(10)
+	assert_eq(GameState.heat, 15, "консоль F1 тоже")
 
-func test_sleep_command_lowers_heat() -> void:
-	GameState.set_heat(20)
-	assert_string_contains(DebugCommands.run("sleep 2"), "10")
-	assert_eq(GameState.heat, 10)
-
-
-func test_sleep_command_defaults_to_one_night() -> void:
-	GameState.set_heat(20)
-	DebugCommands.run("sleep")
-	assert_eq(GameState.heat, 15)
-
-
-func test_sleep_command_rejects_garbage() -> void:
-	assert_string_contains(DebugCommands.run("sleep many"), "sleep:")

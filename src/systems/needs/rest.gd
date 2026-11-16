@@ -12,11 +12,8 @@ const MODE_WAIT: String = "wait"
 
 ## Герой спит прямо сейчас: потребности (шаг 3 M2) по нему решают, тратить энергию или копить.
 const VAR_ASLEEP: String = "rest.asleep"
-## День, за который уже засчитана выспанная ночь: вторая за те же сутки заметность не снимает.
-const VAR_LAST_NIGHT_DAY: String = "rest.last_night_day"
 
 const DEFAULT_ALARM: int = 480
-const DEFAULT_NIGHT_MINUTES: int = 360
 
 
 ## Будильник по умолчанию в окне кровати (минуты от начала суток).
@@ -45,8 +42,8 @@ static func is_asleep() -> bool:
 	return bool(GameState.get_var_or(VAR_ASLEEP, false))
 
 
-## Промотать `minutes` сна или ожидания. Возвращает {minutes, interrupted, night}: сколько
-## прошло, что разбудило ("" — будильник) и засчитана ли выспанная ночь.
+## Промотать `minutes` сна или ожидания. Возвращает {minutes, interrupted}: сколько прошло и
+## что разбудило ("" — будильник). Заметность ото сна не зависит: она спадает за тихие сутки (Heat).
 static func pass_time(minutes: int, mode: String) -> Dictionary:
 	# Словарь, а не локальная строка: лямбда захватывает локальные значения копией.
 	var woke: Dictionary = {"reason": ""}
@@ -63,22 +60,8 @@ static func pass_time(minutes: int, mode: String) -> Dictionary:
 	EventBus.wake_requested.disconnect(on_wake)
 	GameState.set_var(VAR_ASLEEP, false)
 
-	var night: bool = mode == MODE_SLEEP and _count_night(passed)
-	if night:
-		EventBus.slept.emit(1)
 	EventBus.rested.emit(mode, passed, str(woke["reason"]))
-	return {"minutes": passed, "interrupted": str(woke["reason"]), "night": night}
-
-
-## Выспанная ночь — сон не короче `rest.night_min_minutes` и не больше одной за сутки (по дню
-## пробуждения). Иначе заметность снималась бы короткими снами подряд (heat.md, «Спад»).
-static func _count_night(passed: int) -> bool:
-	if passed < int(_cfg().get("night_min_minutes", DEFAULT_NIGHT_MINUTES)):
-		return false
-	if int(GameState.get_var_or(VAR_LAST_NIGHT_DAY, 0)) == GameState.day:
-		return false
-	GameState.set_var(VAR_LAST_NIGHT_DAY, GameState.day)
-	return true
+	return {"minutes": passed, "interrupted": str(woke["reason"])}
 
 
 ## «08:00» → 480; не время — -1.

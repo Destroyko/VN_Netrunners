@@ -7,7 +7,7 @@ func _ready() -> void:
 	EventBus.puzzle_failed.connect(_on_puzzle_failed)
 	EventBus.trace_finished.connect(_on_trace_finished)
 	EventBus.node_disconnected.connect(_on_node_disconnected)
-	EventBus.slept.connect(_on_slept)
+	EventBus.time_advanced.connect(func(_minute: int, _passed: int) -> void: Heat.on_time_passed())
 
 
 func _on_puzzle_failed(_kind: String, _difficulty: int, _node_id: String, _service_id: String, attempt: int) -> void:
@@ -22,6 +22,3 @@ func _on_trace_finished(_node_id: String) -> void:
 func _on_node_disconnected(node_id: String) -> void:
 	Heat.gain(Heat.traces_cost(node_id))
 
-
-func _on_slept(nights: int) -> void:
-	Heat.rest(nights)
