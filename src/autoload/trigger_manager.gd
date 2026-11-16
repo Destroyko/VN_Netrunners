@@ -23,7 +23,11 @@ func connect_events() -> void:
 		var argc: int = _arg_count(event)
 		if argc < 0:
 			continue
-		var handler: Callable = _on_event.bind(event).unbind(argc)
+		# bind(event) делает обработчик 0-арным; лишние аргументы сигнала отбрасываем unbind,
+		# но для сигнала без аргументов unbind(0) недопустим — тогда обходимся без него.
+		var handler: Callable = _on_event.bind(event)
+		if argc > 0:
+			handler = handler.unbind(argc)
 		EventBus.connect(event, handler)
 		_connected.append([event, handler])
 
