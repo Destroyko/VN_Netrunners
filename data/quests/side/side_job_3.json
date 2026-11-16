@@ -1,0 +1,59 @@
+{
+  "_note": "Заказ первой подработки (docs/story/side-quests/first-job.md). Тексты — заглушки.",
+  "id": "side_job_3",
+  "title": "Заказ: чистка бэкапов",
+  "type": "side",
+  "giver": "autsors",
+  "channel": "email",
+  "stages": [
+    {
+      "id": "do",
+      "effects": [
+        {
+          "send_message": "mail_job_3"
+        },
+        {
+          "reveal_node": {
+            "node": "node_job3_server",
+            "open": [
+              "svc_login"
+            ],
+            "admin": true
+          }
+        }
+      ],
+      "objectives": [
+        {
+          "type": "delete_file",
+          "node": "node_job3_server",
+          "file": "/home/backup/2025-01-10.bak"
+        },
+        {
+          "type": "delete_file",
+          "node": "node_job3_server",
+          "file": "/home/backup/2025-02-02.bak"
+        }
+      ]
+    }
+  ],
+  "outcomes": {
+    "done": {
+      "effects": [
+        {
+          "money": 80
+        },
+        {
+          "schedule": {
+            "delay_days": 1,
+            "at": "09:00",
+            "effects": [
+              {
+                "unlock_quest": "side_job_4"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

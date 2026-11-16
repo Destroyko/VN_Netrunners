@@ -36,6 +36,9 @@ signal time_advanced(minute: int, minutes_passed: int)
 signal session_advanced(events: Array)
 ## Начался новый день: NewsManager публикует новости, TriggerManager проверяет триггеры.
 signal day_started(day: int)
+## Началась новая игра (не загрузка): на нём висит стартовый триггер первой подработки. Шлётся
+## один раз из «Новой игры», отдельно от day_started — чтобы не срабатывать при любой смене дня.
+signal game_started
 
 ## Разбудить героя: звонок, стук в дверь, конец фоновой задачи. Вне сна ничего не делает.
 signal wake_requested(reason: String)

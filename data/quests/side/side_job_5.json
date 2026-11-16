@@ -1,0 +1,64 @@
+{
+  "_note": "Заказ первой подработки (docs/story/side-quests/first-job.md). Тексты — заглушки.",
+  "id": "side_job_5",
+  "title": "Заказ: закрыть проект",
+  "type": "side",
+  "giver": "autsors",
+  "channel": "email",
+  "stages": [
+    {
+      "id": "do",
+      "effects": [
+        {
+          "send_message": "mail_job_5"
+        },
+        {
+          "reveal_node": {
+            "node": "node_job5_pc",
+            "open": [
+              "svc_login"
+            ],
+            "admin": true
+          }
+        }
+      ],
+      "objectives": [
+        {
+          "type": "delete_file",
+          "node": "node_job5_pc",
+          "file": "/home/proekt/klient_anketa.txt"
+        },
+        {
+          "type": "delete_file",
+          "node": "node_job5_pc",
+          "file": "/home/proekt/klient_dogovor.doc"
+        },
+        {
+          "type": "delete_file",
+          "node": "node_job5_pc",
+          "file": "/home/proekt/perepiska.txt"
+        }
+      ]
+    }
+  ],
+  "outcomes": {
+    "done": {
+      "effects": [
+        {
+          "money": 110
+        },
+        {
+          "schedule": {
+            "delay_days": 1,
+            "at": "09:00",
+            "effects": [
+              {
+                "unlock_quest": "side_job_6"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

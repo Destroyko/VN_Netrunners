@@ -1,0 +1,39 @@
+{
+  "_note": "Старт первой подработки (first-job.md): первые страницы дневника и первый заказ в 9:00.",
+  "id": "trigger_job_start",
+  "on": "game_started",
+  "once": true,
+  "effects": [
+    {
+      "add_file": {
+        "node": "node_home_pc",
+        "path": "/home/dnevnik/01_nachalo.txt",
+        "text": "Устроился в аутсорс по удалёнке. Задачи присылают на почту каждое утро. Веду этот дневник, чтобы не запутаться в командах."
+      }
+    },
+    {
+      "add_file": {
+        "node": "node_home_pc",
+        "path": "/home/dnevnik/02_vhod.txt",
+        "text": "connect <адрес> — подключиться к рабочему месту. dc — отключиться. ls / cd / cat — смотреть папки и файлы."
+      }
+    },
+    {
+      "add_file": {
+        "node": "node_home_pc",
+        "path": "/home/dnevnik/03_faily.txt",
+        "text": "put <файл> <куда> — положить файл на чужой ПК. cp <файл> — забрать файл себе. rm <файл> — удалить."
+      }
+    },
+    {
+      "schedule": {
+        "at": "09:00",
+        "effects": [
+          {
+            "unlock_quest": "side_job_1"
+          }
+        ]
+      }
+    }
+  ]
+}

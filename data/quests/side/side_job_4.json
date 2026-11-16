@@ -1,0 +1,53 @@
+{
+  "_note": "Заказ первой подработки (docs/story/side-quests/first-job.md). Тексты — заглушки.",
+  "id": "side_job_4",
+  "title": "Заказ: отправить отчёт",
+  "type": "side",
+  "giver": "kolleg",
+  "channel": "email",
+  "stages": [
+    {
+      "id": "do",
+      "effects": [
+        {
+          "send_message": "mail_job_4"
+        },
+        {
+          "reveal_node": {
+            "node": "node_job4_pc",
+            "open": [
+              "svc_login"
+            ]
+          }
+        }
+      ],
+      "objectives": [
+        {
+          "type": "deliver",
+          "what": "file_job4_otchet",
+          "to": "boss@firma.local"
+        }
+      ]
+    }
+  ],
+  "outcomes": {
+    "done": {
+      "effects": [
+        {
+          "money": 90
+        },
+        {
+          "schedule": {
+            "delay_days": 1,
+            "at": "09:00",
+            "effects": [
+              {
+                "unlock_quest": "side_job_5"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

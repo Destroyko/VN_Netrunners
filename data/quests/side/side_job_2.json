@@ -1,0 +1,64 @@
+{
+  "_note": "Заказ первой подработки (docs/story/side-quests/first-job.md). Тексты — заглушки.",
+  "id": "side_job_2",
+  "title": "Заказ: подготовить ПК",
+  "type": "side",
+  "giver": "autsors",
+  "channel": "email",
+  "stages": [
+    {
+      "id": "do",
+      "effects": [
+        {
+          "send_message": "mail_job_2"
+        },
+        {
+          "reveal_node": {
+            "node": "node_job2_pc",
+            "open": [
+              "svc_login"
+            ],
+            "admin": true
+          }
+        }
+      ],
+      "objectives": [
+        {
+          "type": "delete_file",
+          "node": "node_job2_pc",
+          "file": "/home/lichnoe/foto_s_dachi.jpg"
+        },
+        {
+          "type": "delete_file",
+          "node": "node_job2_pc",
+          "file": "/home/lichnoe/spisok_del.txt"
+        },
+        {
+          "type": "delete_file",
+          "node": "node_job2_pc",
+          "file": "/home/work/staryj_otchet.doc"
+        }
+      ]
+    }
+  ],
+  "outcomes": {
+    "done": {
+      "effects": [
+        {
+          "money": 70
+        },
+        {
+          "schedule": {
+            "delay_days": 1,
+            "at": "09:00",
+            "effects": [
+              {
+                "unlock_quest": "side_job_3"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

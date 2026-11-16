@@ -1,0 +1,40 @@
+{
+  "_note": "Контент первой подработки (docs/story/side-quests/first-job.md). Тексты — заглушки (разработчик вычитает). При работе над интерфейсом квесты придётся подправить.",
+  "id": "node_job2_pc",
+  "title": "Рабочий ПК (под замену)",
+  "address": "203.0.113.21",
+  "device": "pc",
+  "desktop": {
+    "user": "freelancer_old",
+    "wallpaper": "#33405a",
+    "apps": [
+      "files"
+    ]
+  },
+  "difficulty": 1,
+  "trace_minutes": 0,
+  "required_services": 1,
+  "root_required": false,
+  "known_from_start": false,
+  "services": [
+    {
+      "id": "svc_login",
+      "port": 22,
+      "name": "Вход по паролю",
+      "puzzle": "password",
+      "difficulty": 1,
+      "program": "passhound"
+    }
+  ],
+  "files": {
+    "/home/lichnoe/foto_s_dachi.jpg": {
+      "size_kb": 1500
+    },
+    "/home/lichnoe/spisok_del.txt": {
+      "text": "Забрать трудовую. Вернуть пропуск."
+    },
+    "/home/work/staryj_otchet.doc": {
+      "size_kb": 210
+    }
+  }
+}

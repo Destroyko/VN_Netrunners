@@ -1,0 +1,36 @@
+{
+  "_note": "Контент первой подработки (docs/story/side-quests/first-job.md). Тексты — заглушки (разработчик вычитает). При работе над интерфейсом квесты придётся подправить.",
+  "id": "node_job3_server",
+  "title": "Файловый сервер клиента",
+  "address": "203.0.113.31",
+  "device": "server",
+  "difficulty": 1,
+  "trace_minutes": 0,
+  "required_services": 1,
+  "root_required": false,
+  "known_from_start": false,
+  "services": [
+    {
+      "id": "svc_login",
+      "port": 22,
+      "name": "Вход по паролю",
+      "puzzle": "password",
+      "difficulty": 1,
+      "program": "passhound"
+    }
+  ],
+  "files": {
+    "/home/backup/2025-01-10.bak": {
+      "size_kb": 4200,
+      "text": "Бэкап от 10.01.2025. Старше 90 дней."
+    },
+    "/home/backup/2025-02-02.bak": {
+      "size_kb": 4350,
+      "text": "Бэкап от 02.02.2025. Старше 90 дней."
+    },
+    "/home/backup/2026-03-20.bak": {
+      "size_kb": 5100,
+      "text": "Бэкап от 20.03.2026. Свежий, не трогать."
+    }
+  }
+}

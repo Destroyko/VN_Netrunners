@@ -1,0 +1,111 @@
+{
+  "_note": "Заказ первой подработки (docs/story/side-quests/first-job.md). Тексты — заглушки.",
+  "id": "side_job_1",
+  "title": "Заказ: установка ПО",
+  "type": "side",
+  "giver": "autsors",
+  "channel": "email",
+  "stages": [
+    {
+      "id": "do",
+      "effects": [
+        {
+          "send_message": "mail_job_1"
+        },
+        {
+          "add_file": {
+            "node": "node_home_pc",
+            "path": "/home/job/programma.bin",
+            "size_kb": 40,
+            "file_id": "file_job1_prog"
+          }
+        },
+        {
+          "add_file": {
+            "node": "node_home_pc",
+            "path": "/home/job/instrukciya.txt",
+            "text": "Отправляйте еженедельные отчёты через эту программу. Руководство дополнительно не уведомлять."
+          }
+        },
+        {
+          "reveal_node": {
+            "node": "node_job1_pc_a",
+            "open": [
+              "svc_login"
+            ],
+            "admin": true
+          }
+        },
+        {
+          "reveal_node": {
+            "node": "node_job1_pc_b",
+            "open": [
+              "svc_login"
+            ],
+            "admin": true
+          }
+        },
+        {
+          "reveal_node": {
+            "node": "node_job1_pc_c",
+            "open": [
+              "svc_login"
+            ],
+            "admin": true
+          }
+        },
+        {
+          "reveal_node": {
+            "node": "node_job1_pc_d",
+            "open": [
+              "svc_login"
+            ],
+            "admin": true
+          }
+        }
+      ],
+      "objectives": [
+        {
+          "type": "file_at",
+          "node": "node_job1_pc_a",
+          "path": "/home/work/programma.bin"
+        },
+        {
+          "type": "file_at",
+          "node": "node_job1_pc_b",
+          "path": "/home/work/programma.bin"
+        },
+        {
+          "type": "file_at",
+          "node": "node_job1_pc_c",
+          "path": "/home/work/programma.bin"
+        },
+        {
+          "type": "file_at",
+          "node": "node_job1_pc_d",
+          "path": "/home/work/programma.bin"
+        }
+      ]
+    }
+  ],
+  "outcomes": {
+    "done": {
+      "effects": [
+        {
+          "money": 60
+        },
+        {
+          "schedule": {
+            "delay_days": 1,
+            "at": "09:00",
+            "effects": [
+              {
+                "unlock_quest": "side_job_2"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

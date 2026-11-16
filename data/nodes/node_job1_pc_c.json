@@ -1,0 +1,34 @@
+{
+  "_note": "Контент первой подработки (docs/story/side-quests/first-job.md). Тексты — заглушки (разработчик вычитает). При работе над интерфейсом квесты придётся подправить.",
+  "id": "node_job1_pc_c",
+  "title": "Рабочий ПК (sidorov)",
+  "address": "203.0.113.13",
+  "device": "pc",
+  "desktop": {
+    "user": "sidorov",
+    "wallpaper": "#33405a",
+    "apps": [
+      "files"
+    ]
+  },
+  "difficulty": 1,
+  "trace_minutes": 0,
+  "required_services": 1,
+  "root_required": false,
+  "known_from_start": false,
+  "services": [
+    {
+      "id": "svc_login",
+      "port": 22,
+      "name": "Вход по паролю",
+      "puzzle": "password",
+      "difficulty": 1,
+      "program": "passhound"
+    }
+  ],
+  "files": {
+    "/home/work/readme.txt": {
+      "text": "Рабочая папка сотрудника."
+    }
+  }
+}

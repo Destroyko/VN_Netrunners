@@ -77,6 +77,9 @@ func _on_start() -> void:
 	GameState.reset(_selected)
 	Economy.start_new_game()
 	Rng.randomize_seed()
+	# Новая игра началась: на этом событии висят стартовые триггеры (первая подработка). Отдельно
+	# от day_started, который Clock шлёт только при переходе через полночь.
+	EventBus.game_started.emit()
 	get_tree().change_scene_to_file(Screens.DESKTOP)
 
 

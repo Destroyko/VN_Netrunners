@@ -1,0 +1,84 @@
+{
+  "_note": "Заказ первой подработки (docs/story/side-quests/first-job.md). Тексты — заглушки.",
+  "id": "side_job_6",
+  "title": "Заказ: возврат ноутбука",
+  "type": "side",
+  "giver": "autsors",
+  "channel": "email",
+  "stages": [
+    {
+      "id": "collect",
+      "effects": [
+        {
+          "send_message": "mail_job_6"
+        },
+        {
+          "reveal_node": {
+            "node": "node_job6_laptop",
+            "open": [
+              "svc_login"
+            ],
+            "admin": true
+          }
+        }
+      ],
+      "objectives": [
+        {
+          "type": "copy_file",
+          "node": "node_job6_laptop",
+          "file": "/home/work/proekt_itog.doc"
+        },
+        {
+          "type": "delete_file",
+          "node": "node_job6_laptop",
+          "file": "/home/corp/baza_klientov.db"
+        }
+      ]
+    },
+    {
+      "id": "decide",
+      "effects": [
+        {
+          "send_message": "mail_job_6_decide"
+        }
+      ],
+      "choices": [
+        {
+          "id": "send",
+          "text": "Сдать как есть",
+          "outcome": "done"
+        },
+        {
+          "id": "keep",
+          "text": "Оставить копию себе",
+          "outcome": "kept"
+        }
+      ]
+    }
+  ],
+  "outcomes": {
+    "done": {
+      "effects": [
+        {
+          "money": 150
+        },
+        {
+          "set_flag": "story.first_job_done"
+        }
+      ]
+    },
+    "kept": {
+      "effects": [
+        {
+          "money": 150
+        },
+        {
+          "set_flag": "story.first_job_done"
+        },
+        {
+          "set_flag": "world.job6_kept"
+        }
+      ]
+    }
+  }
+}
