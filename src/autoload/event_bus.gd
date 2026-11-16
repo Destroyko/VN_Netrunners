@@ -36,6 +36,10 @@ signal time_advanced(minute: int, minutes_passed: int)
 signal session_advanced(events: Array)
 ## Начался новый день: NewsManager публикует новости, TriggerManager проверяет триггеры.
 signal day_started(day: int)
+## Опубликована новость (NewsManager): лента и иконка обновляются (gameplay/news.md).
+signal news_published(news_id: String)
+## Новость прочитана: иконка обновляется.
+signal news_read(news_id: String)
 ## Началась новая игра (не загрузка): на нём висит стартовый триггер первой подработки. Шлётся
 ## один раз из «Новой игры», отдельно от day_started — чтобы не срабатывать при любой смене дня.
 signal game_started

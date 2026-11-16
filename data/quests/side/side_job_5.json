@@ -58,6 +58,12 @@
             ]
           }
         }
+      ],
+      "news": [
+        {
+          "id": "news_project_closed",
+          "delay_days": 1
+        }
       ]
     }
   }

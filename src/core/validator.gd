@@ -31,6 +31,8 @@ var warnings: PackedStringArray = []
 var _nodes: Dictionary = {}
 # Письма нужны проверке эффектов: send_message ссылается на письмо.
 var _mail: Dictionary = {}
+# Новости нужны проверке эффектов: schedule_news ссылается на новость.
+var _news: Dictionary = {}
 
 
 ## Проверить все данные из data/. true — ошибок нет.
@@ -53,6 +55,7 @@ func validate_data(
 	warnings.clear()
 	_nodes = nodes
 	_mail = mail
+	_news = news
 
 	# Какие узлы открывают заказы: у них вход не через scan, и недостижимыми они не считаются.
 	var revealed: Dictionary = {}
@@ -275,6 +278,10 @@ func _validate_effects(where: String, effects: Array, quests: Dictionary) -> voi
 				continue
 			if type == "reveal_node":
 				errors.append_array(NodeValidator.check_reveal(where, effect[type], _nodes))
+			if type == "schedule_news":
+				var news_id: String = str((effect[type] as Dictionary).get("id", "")) if effect[type] is Dictionary else str(effect[type])
+				if not _news.has(news_id):
+					errors.append("%s: schedule_news ссылается на несуществующую новость '%s'" % [where, news_id])
 			if type == "schedule":
 				var spec: Dictionary = effect[type] as Dictionary if effect[type] is Dictionary else {}
 				if spec.has("at") and Rest.parse_clock(str(spec["at"])) < 0:

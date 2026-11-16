@@ -60,6 +60,9 @@ func _ready() -> void:
 	EventBus.mail_received.connect(func(_uid: String, _id: String) -> void: _refresh_mail_icon())
 	EventBus.mail_read.connect(func(_uid: String, _id: String) -> void: _refresh_mail_icon())
 	_refresh_mail_icon()
+	EventBus.news_published.connect(func(_id: String) -> void: _refresh_news_icon())
+	EventBus.news_read.connect(func(_id: String) -> void: _refresh_news_icon())
+	_refresh_news_icon()
 	apply_mode()
 
 
@@ -135,6 +138,15 @@ func _make_icon(app: Dictionary) -> Button:
 	button.tooltip_text = "" if is_available(app) else "Пока недоступно"
 	button.pressed.connect(open_app.bind(str(app["id"])))
 	return button
+
+
+## Непрочитанные новости — числом на иконке.
+func _refresh_news_icon() -> void:
+	var icon: Button = _icons.get_node_or_null("Icon_news") as Button
+	if icon == null:
+		return
+	var unread: int = News.unread_count()
+	icon.text = "Новости (%d)" % unread if unread > 0 else "Новости"
 
 
 ## Непрочитанные письма — числом на иконке: «Почта (2)».
@@ -219,6 +231,8 @@ func _make_content(app_id: String) -> Control:
 		return ShopApp.new()
 	if app_id == "mail":
 		return MailApp.new()
+	if app_id == "news":
+		return NewsApp.new()
 	if app_id == "terminal":
 		var view := TerminalView.new()
 		view.setup(terminal)

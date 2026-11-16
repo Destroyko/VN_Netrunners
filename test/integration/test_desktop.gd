@@ -226,3 +226,14 @@ func test_mail_compose_sends_to_known_address() -> void:
 	(compose.find_child("Send", true, false) as Button).emit_signal("pressed")
 	assert_eq(Mailbox.sent().size(), 1)
 	assert_true((Mailbox.sent()[0]["file_ids"] as Array).has("file_test_instruction"))
+
+
+func test_news_app_shows_feed_and_marks_read() -> void:
+	News.publish("news_weather", 1)
+	var icon: Button = desktop.find_child("Icon_news", true, false) as Button
+	assert_eq(icon.text, "Новости (1)")
+	var window: DesktopWindow = desktop.open_app("news")
+	var app: NewsApp = window.find_child("NewsApp", true, false) as NewsApp
+	app.open("news_weather")
+	assert_eq(icon.text, "Новости")
+	assert_string_contains((app.find_child("Body", true, false) as Label).text, "осадк")
