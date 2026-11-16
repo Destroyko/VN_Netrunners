@@ -20,6 +20,9 @@ func _ready() -> void:
 	$Rows/BedPanel/Sleep.pressed.connect(_on_rest.bind(Rest.MODE_SLEEP))
 	$Rows/BedPanel/Wait.pressed.connect(_on_rest.bind(Rest.MODE_WAIT))
 	EventBus.time_advanced.connect(func(_minute: int, _passed: int) -> void: _refresh_clock())
+	EventBus.need_warned.connect(func(kind: String) -> void: _output.text = HeroThoughts.thought(kind))
+	EventBus.woke_after_pass_out.connect(func(_minutes: int) -> void:
+		_output.text = HeroThoughts.thought("woke_after_pass_out") % Clock.format_now())
 	_refresh_clock()
 	EventBus.system_restored.connect(func(_paths: PackedStringArray, _os: bool) -> void: _refresh_inventory())
 	_refresh_inventory()

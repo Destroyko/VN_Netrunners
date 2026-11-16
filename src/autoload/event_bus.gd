@@ -26,6 +26,15 @@ signal wake_requested(reason: String)
 ## Сон или ожидание закончились: `mode` — "sleep" / "wait", сколько минут прошло, что разбудило
 ## ("" — будильник).
 signal rested(mode: String, minutes: int, interrupted: String)
+## Герой что-то почувствовал: "energy_low" — скоро пора отдыхать, "hungry" — пора поесть
+## (gameplay/needs.md). Интерфейс показывает мысль героя.
+signal need_warned(kind: String)
+## Шкалы изменились не от хода времени (поел, консоль) — виджету перечитать.
+signal needs_changed
+## Энергия кончилась: героя выкидывает из-за ПК, начинается сон до полного восстановления.
+signal passed_out
+## Проснулся после вырубания: сколько минут проспал.
+signal woke_after_pass_out(minutes: int)
 
 ## Флешка починила свой ПК: вернула файлы из /sys и (или) поставила обычную ОС.
 signal system_restored(paths: PackedStringArray, os_changed: bool)

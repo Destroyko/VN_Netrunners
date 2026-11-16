@@ -123,3 +123,23 @@ func test_heat_bar_colors_follow_stages() -> void:
 	assert_eq(HeatBar.color_of_cell(0), HeatBar.color_of_cell(1), "этап = два деления")
 	assert_ne(HeatBar.color_of_cell(1), HeatBar.color_of_cell(2))
 	assert_eq(HeatBar.color_of_cell(9), HeatBar.STAGE_COLORS[4])
+
+
+# --- Самочувствие и мысли героя (gameplay/needs.md) -------------------------------------
+
+func test_needs_widget_shows_bars_and_closes() -> void:
+	var widget: NeedsWidget = desktop.find_child("NeedsWidget", true, false) as NeedsWidget
+	assert_not_null(widget)
+	assert_eq(widget.energy_bar().value, 80.0)
+	Needs.eat(10.0)
+	assert_eq(widget.satiety_bar().value, 80.0, "поел — виджет перечитал")
+	(widget.find_child("Close", true, false) as Button).emit_signal("pressed")
+	assert_false(widget.visible)
+
+
+func test_hero_thought_appears_on_warning() -> void:
+	var thoughts: HeroThoughts = desktop.find_child("HeroThoughts", true, false) as HeroThoughts
+	EventBus.need_warned.emit(Needs.EVENT_ENERGY_LOW)
+	assert_true(thoughts.visible)
+	assert_string_contains(thoughts.text(), "отдыхать")
+

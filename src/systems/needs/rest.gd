@@ -38,6 +38,13 @@ static func wait_until(alarm: int) -> Dictionary:
 	return pass_time(minutes_until(alarm), MODE_WAIT)
 
 
+## Вырубился: сон без будильника, пока энергия не станет полной (не дольше `rest.pass_out_max_minutes`
+## на случай, если голод почти не даёт восстановиться). Будящие события прерывают и его.
+static func sleep_until_rested() -> Dictionary:
+	var cap: int = int(_cfg().get("pass_out_max_minutes", 1440))
+	return _run(MODE_SLEEP, func(passed: int) -> bool: return passed < cap and Needs.energy() < Needs.energy_max())
+
+
 static func is_asleep() -> bool:
 	return bool(GameState.get_var_or(VAR_ASLEEP, false))
 
@@ -45,6 +52,11 @@ static func is_asleep() -> bool:
 ## Промотать `minutes` сна или ожидания. Возвращает {minutes, interrupted}: сколько прошло и
 ## что разбудило ("" — будильник). Заметность ото сна не зависит: она спадает за тихие сутки (Heat).
 static func pass_time(minutes: int, mode: String) -> Dictionary:
+	return _run(mode, func(passed: int) -> bool: return passed < minutes)
+
+
+## Общий ход сна и ожидания: по минуте, пока `go_on(прошло)` и никто не разбудил.
+static func _run(mode: String, go_on: Callable) -> Dictionary:
 	# Словарь, а не локальная строка: лямбда захватывает локальные значения копией.
 	var woke: Dictionary = {"reason": ""}
 	var on_wake := func(reason: String) -> void:
@@ -54,7 +66,7 @@ static func pass_time(minutes: int, mode: String) -> Dictionary:
 	if mode == MODE_SLEEP:
 		GameState.set_var(VAR_ASLEEP, true)
 	var passed: int = 0
-	while passed < minutes and str(woke["reason"]).is_empty():
+	while go_on.call(passed) and str(woke["reason"]).is_empty():
 		Clock.advance(1)
 		passed += 1
 	EventBus.wake_requested.disconnect(on_wake)

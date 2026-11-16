@@ -14,6 +14,7 @@ const HELP: Dictionary = {
 	"set_flag": "set_flag <имя> [0|1] — поставить или снять флаг",
 	"money": "money <±сколько> | money =<значение> — изменить или задать деньги",
 	"heat": "heat <±сколько> | heat =<значение> — изменить или задать заметность",
+	"needs": "needs | needs <energy|satiety> <±сколько|=значение> — показать или изменить энергию и сытость",
 	"bed": "bed <sleep|wait> <чч:мм> — лечь в кровать до будильника: спать или подождать (как кровать в комнате)",
 	"time": "time | time +<минут> | time <день> <чч:мм> — показать, продвинуть или перевести время",
 	"seed": "seed [значение] — показать или задать сид случайности",
@@ -53,6 +54,8 @@ static func run(line: String) -> String:
 			return _change_number(args, "heat")
 		"bed":
 			return _bed(args)
+		"needs":
+			return _needs(args)
 		"time":
 			return _time(args)
 		"seed":
@@ -250,3 +253,21 @@ static func _bed(args: PackedStringArray) -> String:
 		line += ", разбудило: " + str(report["interrupted"])
 	return line
 
+
+## Энергия и сытость руками: проверить предупреждение и вырубание, не дожидаясь двух суток.
+static func _needs(args: PackedStringArray) -> String:
+	if args.size() == 2 and args[0] in ["energy", "satiety"]:
+		var raw: String = args[1].trim_prefix("=")
+		if not raw.lstrip("+-").is_valid_float():
+			return "needs: нужно число, получено '%s'" % args[1]
+		var current: float = Needs.energy() if args[0] == "energy" else Needs.satiety()
+		var value: float = float(raw) if args[1].begins_with("=") else current + float(raw)
+		if args[0] == "energy":
+			Needs.set_energy(value)
+		else:
+			Needs.set_satiety(value)
+		EventBus.needs_changed.emit()
+	elif not args.is_empty():
+		return "needs: " + str(HELP["needs"])
+	return "энергия: %.1f / %.0f (хватит на %.1f ч), сытость: %.1f (%s)" % [
+		Needs.energy(), Needs.energy_max(), Needs.hours_left(), Needs.satiety(), Needs.band()]

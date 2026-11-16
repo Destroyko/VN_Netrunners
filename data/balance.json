@@ -43,7 +43,9 @@
 
   "rest": {
     "_note": "Сон и ожидание (docs/gameplay/needs.md, «Сон и будильник»). Время в минутах от начала суток.",
-    "alarm_default": 480
+    "alarm_default": 480,
+    "pass_out_max_minutes": 1440,
+    "_note_pass_out": "Вырубился — сон до полной энергии, но не дольше этого."
   },
 
   "economy": {
@@ -55,12 +57,24 @@
   },
 
   "needs": {
-    "_note": "Расход сытости и энергии. Диапазон 0-100 (docs/gameplay/systems.md).",
+    "_note": "Энергия и сытость (docs/gameplay/needs.md). Диапазон 0-100. На взлом не влияют.",
     "satiety_max": 100,
+    "satiety_start": 70,
     "satiety_per_hour": 3,
     "energy_max": 100,
-    "energy_per_hour_awake": 4,
-    "energy_restored_per_hour_sleep": 12
+    "energy_start": 80,
+    "energy_per_hour_awake": 2,
+    "_note_energy": "За ПК энергия тает медленно: со 100 без сна — ~50 часов (около двух суток).",
+    "energy_restored_per_hour_sleep": 12,
+    "warn_hours": 2,
+    "_note_warn": "Реплика «скоро пора отдыхать», когда энергии осталось на столько часов бодрствования.",
+    "hungry_threshold": 20,
+    "fed_threshold": 60,
+    "fed_drain_mult": 0.8,
+    "fed_restore_mult": 1.2,
+    "hungry_drain_mult": 1.5,
+    "hungry_restore_mult": 0.5,
+    "_note_bands": "Сытый (сытость >= fed_threshold): энергия тает и копится с этими множителями; голодный (<= hungry_threshold) — со своими. Других последствий голода нет."
   },
 
   "heat": {

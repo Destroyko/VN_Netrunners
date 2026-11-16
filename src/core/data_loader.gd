@@ -89,6 +89,12 @@ static func items() -> Dictionary:
 	return (data as Dictionary) if data is Dictionary else {}
 
 
+## Мысли героя о потребностях. Нет файла — пустой словарь: реплики просто не показываются.
+static func needs() -> Dictionary:
+	var data: Variant = load_json("res://data/needs.json")
+	return data as Dictionary if data is Dictionary else {}
+
+
 static func quests() -> Dictionary:
 	var all: Dictionary = {}
 	for sub: String in ["main", "side", "radiant"]:

@@ -90,10 +90,23 @@ func _build() -> void:
 	for app: Dictionary in APPS:
 		_icons.add_child(_make_icon(app))
 
+	# Самочувствие — в правом верхнем углу стола, мысли героя — внизу по центру.
+	var needs := NeedsWidget.new()
+	needs.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 12)
+	needs.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_area.add_child(needs)
+
 	_windows = Control.new()
 	_windows.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_windows.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_area.add_child(_windows)
+
+	# Мысль поверх окон: её должно быть видно, даже когда стол завален окнами.
+	var thoughts := HeroThoughts.new()
+	thoughts.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 16)
+	thoughts.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	thoughts.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_area.add_child(thoughts)
 
 	_taskbar = Taskbar.new()
 	_taskbar.window_button_pressed.connect(_on_taskbar_button)
