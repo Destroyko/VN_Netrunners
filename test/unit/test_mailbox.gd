@@ -110,15 +110,16 @@ func test_contacts_learned_from_sender_and_letter() -> void:
 func test_send_only_to_known_address_with_existing_file() -> void:
 	Mailbox.deliver(TEST_MAIL)
 	assert_false(Mailbox.send("nobody@x.local", "t", "b"), "неизвестный адрес — не уходит")
-	assert_false(Mailbox.send("dispatch@example.local", "t", "b", "/home/nope.txt"))
+	assert_false(Mailbox.send("dispatch@example.local", "t", "b", PackedStringArray(["/home/nope.txt"])))
 	var path: String = Mailbox.save_attachment(_uid(), 0)
-	var got: Dictionary = {"file_id": ""}
-	var spy := func(_to: String, file_id: String) -> void: got["file_id"] = file_id
+	var second: String = Mailbox.save_attachment(_uid(), 0)
+	var got: Dictionary = {"ids": PackedStringArray()}
+	var spy := func(_to: String, file_ids: PackedStringArray) -> void: got["ids"] = file_ids
 	EventBus.mail_sent.connect(spy)
-	assert_true(Mailbox.send("dispatch@example.local", "Отчёт", "Во вложении", path))
+	assert_true(Mailbox.send("dispatch@example.local", "Отчёт", "Во вложении", PackedStringArray([path, second])))
 	EventBus.mail_sent.disconnect(spy)
-	assert_eq(str(got["file_id"]), "file_test_instruction")
-	assert_eq(Mailbox.sent().size(), 1)
+	assert_true((got["ids"] as PackedStringArray).has("file_test_instruction"))
+	assert_eq((Mailbox.sent()[0]["files"] as Array).size(), 2, "несколько вложений")
 
 
 func test_add_file_effect_puts_file_home() -> void:

@@ -210,7 +210,19 @@ func test_mail_compose_sends_to_known_address() -> void:
 	var mail: MailApp = window.find_child("MailApp", true, false) as MailApp
 	var compose: MailCompose = mail.show_compose()
 	assert_eq((compose.find_child("To", true, false) as OptionButton).item_count, 1, "только известные адреса")
-	compose.pick("dispatch@example.local", path)
+	compose.pick("dispatch@example.local")
+	# Мини-проводник: открыть папку, выделить файл, «Прикрепить выбранные».
+	(compose.find_child("Attach", true, false) as Button).emit_signal("pressed")
+	var picker: HomeFilePicker = compose.picker()
+	assert_true(picker.visible)
+	picker.open_dir("/home/mail")
+	picker.select_names(PackedStringArray(["instrukciya.txt"]))
+	(picker.find_child("Choose", true, false) as Button).emit_signal("pressed")
+	assert_eq(compose.attached(), PackedStringArray([path]))
+	# Перетаскивание: то же, что бросить файл в письмо.
+	assert_true(compose._can_drop_data(Vector2.ZERO, {HomeFilePicker.DRAG_KEY: PackedStringArray([path])}))
+	compose._drop_data(Vector2.ZERO, {HomeFilePicker.DRAG_KEY: PackedStringArray([path])})
+	assert_eq(compose.attached().size(), 1, "тот же файл второй раз не прикрепляется")
 	(compose.find_child("Send", true, false) as Button).emit_signal("pressed")
 	assert_eq(Mailbox.sent().size(), 1)
-	assert_eq(str(Mailbox.sent()[0]["file_id"]), "file_test_instruction")
+	assert_true((Mailbox.sent()[0]["file_ids"] as Array).has("file_test_instruction"))

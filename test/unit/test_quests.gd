@@ -133,7 +133,7 @@ func test_schedule_news_effect_queues_for_morning() -> void:
 
 func test_deliver_objective_closes_by_sent_letter() -> void:
 	var objective: Dictionary = {"type": "deliver", "what": "file_test_instruction", "to": "dispatch@example.local"}
-	var sent := {"event": "mail_sent", "to": "dispatch@example.local", "file_id": "file_test_instruction"}
+	var sent := {"event": "mail_sent", "to": "dispatch@example.local", "file_ids": PackedStringArray(["file_x", "file_test_instruction"])}
 	assert_true(QuestObjectives.matches(objective, sent))
 	sent["to"] = "boss@client.local"
 	assert_false(QuestObjectives.matches(objective, sent), "не тому")

@@ -9,7 +9,7 @@ extends RefCounted
 ## `mail_replied`; сама почта сюжета не знает.
 ##
 ## Ящик — в `GameState.mail_state()`: входящие [{uid, id, day, minute, read, reply}] (новые в
-## конце), отправленные [{to, subject, body, file, file_id, day, minute}] и адресная книга.
+## конце), отправленные [{to, subject, body, files, file_ids, day, minute}] и адресная книга.
 ##
 ## Отправить письмо можно только на известный адрес (адресная книга): так игрок не отправит
 ## файл случайно не туда (разработчик, 16.11.2026). Адреса узнаются из писем — отправитель и
@@ -66,22 +66,24 @@ static func contacts() -> Array:
 	return _state_list("contacts").duplicate()
 
 
-## Отправить письмо со своего ПК. `file` — путь вложения на своём ПК ("" — без вложения).
-## Неизвестный адрес или нет такого файла — false, ничего не ушло.
-static func send(to: String, subject: String, body: String, file: String = "") -> bool:
+## Отправить письмо со своего ПК. `files` — пути вложений на своём ПК (можно несколько или ни
+## одного). Неизвестный адрес или хоть одного файла нет — false, ничего не ушло.
+static func send(to: String, subject: String, body: String, files: PackedStringArray = []) -> bool:
 	if not contacts().has(to):
 		return false
-	var file_id: String = ""
-	if not file.is_empty():
-		var home: Filesystem = Filesystem.for_node(Network.HOME_ID)
+	var home: Filesystem = Filesystem.for_node(Network.HOME_ID)
+	var file_ids: PackedStringArray = []
+	for file: String in files:
 		if not home.has_file(file):
 			return false
-		file_id = str(home.file_data(file).get("file_id", ""))
+		var file_id: String = str(home.file_data(file).get("file_id", ""))
+		if not file_id.is_empty():
+			file_ids.append(file_id)
 	_state_list("sent").append({
-		"to": to, "subject": subject, "body": body, "file": file, "file_id": file_id,
+		"to": to, "subject": subject, "body": body, "files": Array(files), "file_ids": Array(file_ids),
 		"day": GameState.day, "minute": GameState.minute,
 	})
-	EventBus.mail_sent.emit(to, file_id)
+	EventBus.mail_sent.emit(to, file_ids)
 	return true
 
 
