@@ -109,24 +109,24 @@
     },
 
     "matrix": {
-      "_note": "«Матрица» по уровням (docs/tech/puzzles-spec.md). size — сторона сетки, buffer — клеток в буфере, sequences — сколько последовательностей собрать, seq_min/seq_max — их длина, noise — шумных ячеек, slack — допустимый запас B - min_moves. Калибруем отчётом на плейтесте. tries — сколько раз можно упереться в тупик за партию (после тупика сетка слоя меняется).",
+      "_note": "«Матрица» по уровням (docs/tech/puzzles-spec.md). size — сторона сетки, buffer — клеток в буфере, sequences — сколько последовательностей собрать, seq_min/seq_max — их длина, noise — шумных ячеек, slack — допустимый запас B - min_moves. Калибруем отчётом на плейтесте. tries — сколько раз можно упереться в тупик за партию (после тупика сетка слоя меняется). round_seconds — мягкий таймер на каждый слой в реальных секундах; вышло — как тупик.",
       "max_tries": 60,
       "tries": 3,
       "solutions_cap": 200,
       "nodes_cap": 20000,
       "levels": {
-        "2": { "size": 5, "buffer": 8, "sequences": 2, "seq_min": 4, "seq_max": 5, "noise": 0, "slack": [3, 4] },
-        "3": { "size": 6, "buffer": 8, "sequences": 2, "seq_min": 5, "seq_max": 5, "noise": 0, "slack": [2, 2] },
-        "4": { "size": 7, "buffer": 7, "sequences": 3, "seq_min": 5, "seq_max": 6, "noise": 0, "slack": [0, 1] }
+        "2": { "size": 5, "buffer": 8, "sequences": 2, "seq_min": 4, "seq_max": 5, "noise": 0, "slack": [3, 4], "round_seconds": 45 },
+        "3": { "size": 6, "buffer": 8, "sequences": 2, "seq_min": 5, "seq_max": 5, "noise": 0, "slack": [2, 2], "round_seconds": 40 },
+        "4": { "size": 7, "buffer": 7, "sequences": 3, "seq_min": 5, "seq_max": 6, "noise": 0, "slack": [0, 1], "round_seconds": 40 }
       }
     },
     "dump": {
-      "_note": "«Перехват в дампе» (docs/tech/puzzles-spec.md, раздел 3). width/rows — размер экрана дампа, length — длина куска хэша (3 или 5: нечётная, чтобы лупа была симметрична вокруг курсора; сложность растёт числом кусков), pieces — сколько кусков собрать, match_every — раз в сколько строк в дампе появляется нужный кусок, decoy_chance — доля строк с ловушкой (почти совпадение), scroll_seconds — сколько реальных секунд одна строка (дамп ползёт плавно). lens — подсветка клетки и соседей при наведении мыши (true/false), на пробу. Пока только для пробы: play dump в консоли F1.",
+      "_note": "«Перехват в дампе» (docs/tech/puzzles-spec.md, раздел 3). width/rows — размер экрана дампа, length — длина куска хэша (3 или 5: нечётная, чтобы лупа была симметрична вокруг курсора; сложность растёт числом кусков), pieces — сколько кусков собрать, match_every — раз в сколько строк в дампе появляется нужный кусок, decoy_chance — доля строк с ловушкой (почти совпадение), scroll_seconds — сколько реальных секунд одна строка (дамп ползёт плавно). lens — подсветка клетки и соседей при наведении мыши (true/false), на пробу. time_limit — мягкий таймер на всю головоломку в реальных секундах (вдвое от замеренного прохождения); вышло — провал. Пока только для пробы: play dump в консоли F1.",
       "lens": true,
       "levels": {
-        "2": { "width": 8, "rows": 8, "length": 3, "pieces": 3, "match_every": 4, "decoy_chance": 0.2, "scroll_seconds": 1.8 },
-        "3": { "width": 8, "rows": 8, "length": 3, "pieces": 4, "match_every": 5, "decoy_chance": 0.35, "scroll_seconds": 1.35 },
-        "4": { "width": 10, "rows": 8, "length": 5, "pieces": 3, "match_every": 6, "decoy_chance": 0.5, "scroll_seconds": 1.05 }
+        "2": { "width": 8, "rows": 8, "length": 3, "pieces": 3, "match_every": 4, "decoy_chance": 0.2, "scroll_seconds": 1.8, "time_limit": 70 },
+        "3": { "width": 8, "rows": 8, "length": 3, "pieces": 4, "match_every": 5, "decoy_chance": 0.35, "scroll_seconds": 1.35, "time_limit": 90 },
+        "4": { "width": 10, "rows": 8, "length": 5, "pieces": 3, "match_every": 6, "decoy_chance": 0.5, "scroll_seconds": 1.05, "time_limit": 110 }
       }
     }
   },

@@ -48,6 +48,10 @@ var _done: bool = false
 var _lens_enabled: bool = true
 ## Клетка под мышью (номер ребёнка сетки) или -1.
 var _hovered: int = -1
+var _time_left: float = 0.0
+var _timer_label: Label
+## Что отдаст «Дальше»: 1 — хэш собран, 0 — время вышло.
+var _outcome: int = 1
 var _password: String = ""
 
 
@@ -57,6 +61,9 @@ func setup(game: DumpPuzzle, password: String = "") -> void:
 	_password = password
 	var config: Dictionary = PuzzleLevels.dump(puzzle.level)
 	_scroll_seconds = maxf(0.2, float(config.get("scroll_seconds", 1.0)))
+	# Мягкий таймер (разработчик, 16.11.2026): с запасом вдвое от замеренного прохождения, чтобы
+	# длинный трейс не располагал тратить на головоломку всё время. 0 — без таймера.
+	_time_left = float(config.get("time_limit", 0))
 	_lens_enabled = bool(config.get("lens", true))
 	_cell = cell_size_for(puzzle.width)
 
@@ -93,13 +100,17 @@ func setup(game: DumpPuzzle, password: String = "") -> void:
 			cell.mouse_exited.connect(_on_hover.bind(-1))
 			_grid.add_child(cell)
 
+	_timer_label = Label.new()
+	_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_timer_label.visible = _time_left > 0.0
+	add_child(_timer_label)
 	_note = Label.new()
 	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_note)
 	_next_button = Button.new()
 	_next_button.text = "Дальше"
 	_next_button.visible = false
-	_next_button.pressed.connect(func() -> void: finished.emit(1))
+	_next_button.pressed.connect(func() -> void: finished.emit(_outcome))
 	add_child(_next_button)
 	_refresh()
 
@@ -128,11 +139,31 @@ static func cell_size_for(columns: int) -> Vector2:
 func _process(delta: float) -> void:
 	if _done:
 		return
+	tick_timer(delta)
+	if _done:
+		return
 	_elapsed += delta
 	while _elapsed >= _scroll_seconds:
 		_elapsed -= _scroll_seconds
 		step()
 	_grid.position.y = -(_elapsed / _scroll_seconds) * (_cell.y + GAP)
+
+
+## Время партии идёт. Отдельно от кадров, чтобы тест мог «прокрутить» секунды. Вышло — провал:
+## хэш не собран, слоя нет.
+func tick_timer(seconds: float) -> void:
+	if _done or _time_left <= 0.0:
+		return
+	_time_left = maxf(0.0, _time_left - seconds)
+	_timer_label.text = "осталось %d:%02d" % [int(ceil(_time_left)) / 60, int(ceil(_time_left)) % 60]
+	if _time_left <= 0.0:
+		_done = true
+		_hovered = -1
+		_grid.modulate = Color(1.0, 0.4, 0.4)
+		_note.text = "Время вышло."
+		_outcome = 0
+		_next_button.visible = true
+		_refresh()
 
 
 ## Экран сдвинулся на строку. Отдельно от кадров, чтобы тест мог двигать дамп сам.

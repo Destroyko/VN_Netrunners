@@ -40,6 +40,9 @@ var _tries_total: int = DEFAULT_TRIES
 var _retries_used: int = 0
 ## Идёт анимация перехода: ходы на это время закрыты.
 var _busy: bool = false
+var _round_seconds: float = 0.0
+var _time_left: float = 0.0
+var _timer_label: Label
 
 
 ## `rounds` — сколько раундов осталось сыграть, `next_round(index)` отдаёт головоломку раунда
@@ -50,9 +53,15 @@ func setup(game: MatrixPuzzle, rounds: int = 1, next_round: Callable = Callable(
 	_offset = layers_done
 	_tries_total = int(PuzzleLevels.section("matrix").get("tries", DEFAULT_TRIES))
 	_tries_left = _tries_total
+	# Мягкий таймер на каждый слой (разработчик, 16.11.2026); вышло время — как тупик. 0 — без таймера.
+	_round_seconds = float(PuzzleLevels.matrix(game.level).get("round_seconds", 0))
 
+	_timer_label = Label.new()
+	_timer_label.visible = false
 	_round_label = Label.new()
 	add_child(_round_label)
+	_timer_label.visible = _round_seconds > 0.0
+	add_child(_timer_label)
 	# Цель — крупно и по центру над сеткой; набранная часть окрашивается по ходу выбора.
 	_targets = RichTextLabel.new()
 	_targets.bbcode_enabled = true
@@ -83,6 +92,7 @@ func setup(game: MatrixPuzzle, rounds: int = 1, next_round: Callable = Callable(
 func _start_round(game: MatrixPuzzle) -> void:
 	puzzle = game
 	_round_over = false
+	_time_left = _round_seconds
 	_note.text = ""
 	_next_button.visible = false
 	for child: Node in _grid.get_children():
@@ -116,11 +126,26 @@ func pick(cell: int) -> Dictionary:
 	return result
 
 
-func _end_round() -> void:
+## Время слоя идёт (кроме анимации перехода). Отдельно от кадров — для тестов.
+func tick_timer(seconds: float) -> void:
+	if _done or _round_over or _busy or _time_left <= 0.0:
+		return
+	_time_left = maxf(0.0, _time_left - seconds)
+	_timer_label.text = "осталось %d:%02d" % [int(ceil(_time_left)) / 60, int(ceil(_time_left)) % 60]
+	if _time_left <= 0.0:
+		# Время слоя вышло — как тупик: попытка тратится, сетка меняется.
+		_end_round(true)
+
+
+func _process(delta: float) -> void:
+	tick_timer(delta)
+
+
+func _end_round(timed_out: bool = false) -> void:
 	_round_over = true
 	for child: Node in _grid.get_children():
 		(child as Button).disabled = true
-	var won: bool = puzzle.layers() == puzzle.targets.size()
+	var won: bool = puzzle.layers() == puzzle.targets.size() and not timed_out
 	if won:
 		_gained += puzzle.layers()
 		if _round + 1 < _rounds and _next_round.is_valid():
@@ -143,7 +168,7 @@ func _end_round() -> void:
 		return
 	_gained += puzzle.layers()
 	_done = true
-	_note.text = "Тупик. Попытки кончились."
+	_note.text = "Время вышло. Попытки кончились." if timed_out else "Тупик. Попытки кончились."
 	_grid.modulate = TINT_FAIL
 	_next_button.visible = true
 

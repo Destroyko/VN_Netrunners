@@ -678,3 +678,26 @@ func test_open_shows_the_file_in_a_notepad() -> void:
 	var expected: String = str(Filesystem.for_node("node_training_pc").file_data("/home/spisok_pokupok.txt").get("text", ""))
 	assert_eq((viewer.body.get_child(0) as TextEdit).text, expected)
 
+
+# --- Мягкие таймеры головоломок (16.11.2026) ---------------------------------------
+
+func test_dump_time_out_is_a_failure() -> void:
+	var panel := DumpPanel.new()
+	panel.setup(DumpPuzzle.generate(2, 4))
+	panel.finished.connect(_on_finished)
+	add_child_autofree(panel)
+	panel.tick_timer(float(PuzzleLevels.dump(2)["time_limit"]) + 1.0)
+	assert_true(panel.is_done(), "время вышло — партия кончилась")
+	(panel.get_children().filter(func(c: Node) -> bool: return c is Button).back() as Button).pressed.emit()
+	assert_eq(_gained, 0, "хэш не собран — слоя нет")
+
+
+func test_matrix_round_time_out_is_like_a_dead_end() -> void:
+	var first: MatrixPuzzle = MatrixPuzzle.generate_round(2, 5, 0)
+	var panel := MatrixPanel.new()
+	panel.setup(first, 1, func(index: int) -> MatrixPuzzle: return MatrixPuzzle.generate_round(2, 5, index))
+	add_child_autofree(panel)
+	panel.tick_timer(float(PuzzleLevels.matrix(2)["round_seconds"]) + 1.0)
+	assert_ne(panel.puzzle, first, "время слоя вышло — попытка потрачена, новая сетка")
+	assert_false(panel.is_done(), "попытки ещё есть")
+

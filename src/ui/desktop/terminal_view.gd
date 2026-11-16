@@ -96,6 +96,10 @@ func _build() -> void:
 		_entry.set("emoji_menu_enabled", false)
 	_entry.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
 	_entry.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	# После Enter строка остаётся в редактировании (в Godot 4.4+ по умолчанию она его покидает) —
+	# иначе после каждой команды приходилось бы снова щёлкать по полю.
+	if "keep_editing_on_text_submit" in _entry:
+		_entry.set("keep_editing_on_text_submit", true)
 	_entry.text_submitted.connect(_on_submitted)
 	_entry.gui_input.connect(_on_entry_input)
 	input_row.add_child(_entry)

@@ -71,3 +71,20 @@ func test_closing_the_window_keeps_the_terminal_history() -> void:
 	desktop.window_of("terminal").close()
 	await wait_frames(2)
 	assert_eq(desktop.terminal.history(), PackedStringArray(["pwd"]))
+
+
+func test_entry_keeps_focus_after_a_command() -> void:
+	# Баг второго прогона: после каждой команды приходилось снова щёлкать по строке ввода.
+	assert_true(view.entry().get("keep_editing_on_text_submit"), "после Enter строка остаётся в редактировании")
+	view.focus_entry()
+	view.entry().text_submitted.emit("pwd")
+	await wait_frames(2)
+	assert_true(view.entry().has_focus())
+
+
+func test_activating_the_terminal_window_focuses_the_entry() -> void:
+	view.entry().release_focus()
+	desktop.focus(desktop.window_of("terminal"))
+	await wait_frames(2)
+	assert_true(view.entry().has_focus())
+

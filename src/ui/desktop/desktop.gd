@@ -209,6 +209,11 @@ func focus(window: DesktopWindow) -> void:
 	for other: DesktopWindow in open_windows():
 		other.is_focused = other == window
 	window.move_to_front()
+	# Как в настоящей консоли: окно терминала стало активным — курсор сразу в строке ввода.
+	if window.app_id == "terminal" and window.body.get_child_count() > 0:
+		var view: TerminalView = window.body.get_child(0) as TerminalView
+		if view != null:
+			view.focus_entry.call_deferred()
 	_sync_taskbar()
 
 
