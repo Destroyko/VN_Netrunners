@@ -17,6 +17,8 @@ const VAR_ENERGY_MAX: String = "needs.energy_max"
 const VAR_WARNED_ENERGY: String = "needs.warned_energy"
 ## День, когда герой уже сказал, что голоден: одна реплика на сутки (time.md).
 const VAR_WARNED_HUNGER_DAY: String = "needs.warned_hunger_day"
+## Проснулся после вырубания, а мысль героя ещё не показана: комната покажет её при открытии.
+const VAR_WOKE_AFTER_PASS_OUT: String = "needs.woke_after_pass_out"
 
 const EVENT_ENERGY_LOW: String = "energy_low"
 const EVENT_HUNGRY: String = "hungry"

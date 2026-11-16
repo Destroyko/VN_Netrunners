@@ -36,10 +36,13 @@ func _schedule_pass_out() -> void:
 	call_deferred("pass_out_now")
 
 
-## Герой вырубился: сон до полного восстановления, без будильника. ПК сам ничего не делает —
-## всё остаётся как было, а время идёт (трейс на чужом узле доходит до конца).
+## Герой вырубился: сон до полного восстановления, без будильника. Стол уводит героя в комнату
+## (спать за монитором странно); подключение к узлу никто не закрывает — трейс идёт.
 func pass_out_now() -> void:
 	_pass_out_pending = false
 	EventBus.passed_out.emit()
 	var report: Dictionary = Rest.sleep_until_rested()
+	# Комната может открыться уже после сигнала (стол меняет сцену в конце кадра): она прочтёт
+	# эту отметку сама и покажет мысль героя.
+	GameState.set_var(Needs.VAR_WOKE_AFTER_PASS_OUT, true)
 	EventBus.woke_after_pass_out.emit(int(report["minutes"]))

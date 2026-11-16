@@ -56,6 +56,8 @@ func _ready() -> void:
 	terminal.ticked.connect(func(_result: TermResult) -> void: _on_result_shown())
 	_build()
 	_add_debug_console()
+	# Вырубился — проснётся в комнате, а не за монитором (gameplay/needs.md, «Вырубание»).
+	EventBus.passed_out.connect(func() -> void: get_tree().change_scene_to_file(Screens.ROOM))
 	apply_mode()
 
 

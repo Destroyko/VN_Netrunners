@@ -192,3 +192,23 @@ func test_needs_console_command() -> void:
 	DebugCommands.run("needs satiety -20")
 	assert_eq(Needs.satiety(), 50.0)
 	assert_string_contains(DebugCommands.run("needs food 3"), "needs:")
+
+
+# --- Эффекты для сюжетных сцен --------------------------------------------------
+
+func test_story_effects_add_and_set_needs() -> void:
+	Effects.apply({"energy": -30})
+	assert_eq(Needs.energy(), 50.0)
+	Effects.apply({"set_satiety": 100})
+	assert_eq(Needs.satiety(), 100.0, "сцена, где герой сыт полностью")
+	Effects.apply({"set_energy": 5})
+	assert_eq(Needs.energy(), 5.0, "сцена, где герой почти без сил")
+	Effects.apply({"satiety": -500})
+	assert_eq(Needs.satiety(), 0.0, "границы держит Needs")
+
+
+func test_pass_out_leaves_mark_for_the_room() -> void:
+	Needs.set_energy(0.1)
+	Clock.advance(5)
+	await get_tree().process_frame
+	assert_true(bool(GameState.get_var_or(Needs.VAR_WOKE_AFTER_PASS_OUT, false)))

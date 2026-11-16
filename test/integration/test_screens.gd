@@ -118,3 +118,11 @@ func test_room_bed_sleeps_until_alarm() -> void:
 	assert_false(room.get_node("Rows/BedPanel").visible)
 	assert_string_contains(room.get_node("Rows/Clock").text, "пт, 3 апреля 09:00")
 
+
+
+func test_room_shows_wake_thought_once_after_pass_out() -> void:
+	GameState.reset()
+	GameState.set_var(Needs.VAR_WOKE_AFTER_PASS_OUT, true)
+	var room: Node = _open(Screens.ROOM)
+	assert_string_contains(room.get_node("Rows/Output").text, "Вырубился")
+	assert_false(bool(GameState.get_var_or(Needs.VAR_WOKE_AFTER_PASS_OUT, false)), "мысль — один раз")

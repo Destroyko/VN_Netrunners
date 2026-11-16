@@ -19,6 +19,10 @@ const KNOWN_TYPES: PackedStringArray = [
 	"reveal_node",
 	"give_item",
 	"take_item",
+	"energy",
+	"set_energy",
+	"satiety",
+	"set_satiety",
 ]
 
 ## Типы из документации, которым нужны системы следующих этапов.
@@ -117,6 +121,24 @@ static func _apply_one(type: String, value: Variant) -> bool:
 				return false
 			var key: String = VAR_REP_PREFIX + str(pair_rep[0])
 			GameState.set_var(key, int(GameState.get_var_or(key, 0)) + int(pair_rep[1]))
+			return true
+		# Потребности по ходу сцены (gameplay/needs.md): {"energy": -30} — прибавить или убавить,
+		# {"set_energy": 100} — задать; так же сытость. Границы держит `Needs`.
+		"energy":
+			Needs.set_energy(Needs.energy() + float(value))
+			EventBus.needs_changed.emit()
+			return true
+		"set_energy":
+			Needs.set_energy(float(value))
+			EventBus.needs_changed.emit()
+			return true
+		"satiety":
+			Needs.set_satiety(Needs.satiety() + float(value))
+			EventBus.needs_changed.emit()
+			return true
+		"set_satiety":
+			Needs.set_satiety(float(value))
+			EventBus.needs_changed.emit()
 			return true
 		"give_item":
 			return Inventory.give(str(value))

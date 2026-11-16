@@ -47,7 +47,7 @@ data/
 
 Условия (`requires`): `flag`, `not_flag`, `rank_at_least`, `episode_at_least`, `skill_at_least` (`["hacking", 4]`), `has_file` (по `file_id`, где бы он ни лежал на ПК героя), `time_of_day`, `money_at_least`, `heat_at_most`, `day_at_least`, `has_item` (id предмета из `data/items.json`).
 
-Эффекты (`effects`): `money`, `rep` (персонаж / фракция), `heat`, `set_flag`, `set_var`, `clear_flag`, `unlock_quest`, `add_file`, `schedule_news`, `send_message`, `add_note` (запись в блокнот, → [notebook.md](../gameplay/notebook.md)), `reveal_node` (точка входа в сеть, ниже), `give_item` / `take_item` (предмет инвентаря, `data/items.json`). Поле `"admin": true` — логин администратора: на узле сразу с правами (`gameplay/hacking.md`, «Права»).
+Эффекты (`effects`): `money`, `rep` (персонаж / фракция), `heat`, `set_flag`, `set_var`, `clear_flag`, `unlock_quest`, `add_file`, `schedule_news`, `send_message`, `add_note` (запись в блокнот, → [notebook.md](../gameplay/notebook.md)), `reveal_node` (точка входа в сеть, ниже), `give_item` / `take_item` (предмет инвентаря, `data/items.json`), `energy` / `satiety` (прибавить или убавить) и `set_energy` / `set_satiety` (задать) — шкалы героя по ходу сцены (`gameplay/needs.md`). Поле `"admin": true` — логин администратора: на узле сразу с правами (`gameplay/hacking.md`, «Права»).
 
 `reveal_node` — заказ даёт игроку адрес узла и, если клиент его знает, логины. Узел попадает в адресную книгу под своим именем, а перечисленные сервисы открыты заранее (на срок, как у любого вскрытого сервиса):
 

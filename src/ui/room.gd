@@ -21,12 +21,12 @@ func _ready() -> void:
 	$Rows/BedPanel/Wait.pressed.connect(_on_rest.bind(Rest.MODE_WAIT))
 	EventBus.time_advanced.connect(func(_minute: int, _passed: int) -> void: _refresh_clock())
 	EventBus.need_warned.connect(func(kind: String) -> void: _output.text = HeroThoughts.thought(kind))
-	EventBus.woke_after_pass_out.connect(func(_minutes: int) -> void:
-		_output.text = HeroThoughts.thought("woke_after_pass_out") % Clock.format_now())
+	EventBus.woke_after_pass_out.connect(func(_minutes: int) -> void: _show_wake())
 	_refresh_clock()
 	EventBus.system_restored.connect(func(_paths: PackedStringArray, _os: bool) -> void: _refresh_inventory())
 	_refresh_inventory()
 	_output.text = "Твоя комната."
+	_show_wake()
 	$Rows/Monitor.grab_focus()
 
 
@@ -61,6 +61,14 @@ func _on_rest(mode: String) -> void:
 	var report: Dictionary = Rest.pass_time(Rest.minutes_until(alarm), mode)
 	var reason: String = str(report["interrupted"])
 	_output.text = Clock.format_now() if reason.is_empty() else "%s — %s" % [Clock.format_now(), reason]
+
+
+## Проснулся после вырубания — мысль героя, один раз.
+func _show_wake() -> void:
+	if not bool(GameState.get_var_or(Needs.VAR_WOKE_AFTER_PASS_OUT, false)):
+		return
+	GameState.set_var(Needs.VAR_WOKE_AFTER_PASS_OUT, false)
+	_output.text = HeroThoughts.thought("woke_after_pass_out") % Clock.format_now()
 
 
 func _refresh_clock() -> void:
