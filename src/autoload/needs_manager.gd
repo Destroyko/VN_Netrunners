@@ -12,6 +12,8 @@ extends Node
 var always_on: bool = false
 
 var _pass_out_pending: bool = false
+## Экран взял подачу вырубания на себя и сам позовёт сон, когда погаснет.
+var _claimed: bool = false
 
 
 func _ready() -> void:
@@ -33,16 +35,27 @@ func _schedule_pass_out() -> void:
 		return
 	_pass_out_pending = true
 	EventBus.wake_requested.emit("вырубился")
-	call_deferred("pass_out_now")
+	call_deferred("_begin_pass_out")
 
 
-## Герой вырубился: сон до полного восстановления, без будильника. Стол уводит героя в комнату
-## (спать за монитором странно); подключение к узлу никто не закрывает — трейс идёт.
-func pass_out_now() -> void:
-	_pass_out_pending = false
+## Сначала — сигнал: экран (стол или комната) может взять подачу на себя (`claim_pass_out`) и
+## позвать `sleep_after_pass_out`, когда экран погаснет, — чтобы часы не прыгнули на глазах у
+## игрока. Никто не взял (тесты, сцена без подачи) — сон сразу.
+func _begin_pass_out() -> void:
+	_claimed = false
 	EventBus.passed_out.emit()
+	if not _claimed:
+		sleep_after_pass_out()
+
+
+func claim_pass_out() -> void:
+	_claimed = true
+
+
+## Сон до полного восстановления, без будильника. Подключение к узлу никто не закрывает — трейс
+## идёт. Отметка — для комнаты: она открывается уже после сна и проявляет картинку из черноты.
+func sleep_after_pass_out() -> void:
+	_pass_out_pending = false
 	var report: Dictionary = Rest.sleep_until_rested()
-	# Комната может открыться уже после сигнала (стол меняет сцену в конце кадра): она прочтёт
-	# эту отметку сама и покажет мысль героя.
 	GameState.set_var(Needs.VAR_WOKE_AFTER_PASS_OUT, true)
 	EventBus.woke_after_pass_out.emit(int(report["minutes"]))

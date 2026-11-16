@@ -56,8 +56,7 @@ func _ready() -> void:
 	terminal.ticked.connect(func(_result: TermResult) -> void: _on_result_shown())
 	_build()
 	_add_debug_console()
-	# Вырубился — проснётся в комнате, а не за монитором (gameplay/needs.md, «Вырубание»).
-	EventBus.passed_out.connect(func() -> void: get_tree().change_scene_to_file(Screens.ROOM))
+	EventBus.passed_out.connect(_on_passed_out)
 	apply_mode()
 
 
@@ -262,6 +261,18 @@ func _on_taskbar_button(app_id: String) -> void:
 		window.minimize()
 	else:
 		focus(window)
+
+
+## Вырубился: реплика, экран гаснет, сон — и проснётся в комнате, а не за монитором
+## (gameplay/needs.md, «Вырубание»).
+func _on_passed_out() -> void:
+	NeedsManager.claim_pass_out()
+	var curtain := PassOutCurtain.new()
+	add_child(curtain)
+	curtain.finished.connect(func() -> void:
+		NeedsManager.sleep_after_pass_out()
+		get_tree().change_scene_to_file(Screens.ROOM))
+	curtain.play_falling_asleep()
 
 
 func _on_menu(action: String) -> void:

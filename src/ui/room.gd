@@ -21,7 +21,7 @@ func _ready() -> void:
 	$Rows/BedPanel/Wait.pressed.connect(_on_rest.bind(Rest.MODE_WAIT))
 	EventBus.time_advanced.connect(func(_minute: int, _passed: int) -> void: _refresh_clock())
 	EventBus.need_warned.connect(func(kind: String) -> void: _output.text = HeroThoughts.thought(kind))
-	EventBus.woke_after_pass_out.connect(func(_minutes: int) -> void: _show_wake())
+	EventBus.passed_out.connect(_on_passed_out)
 	_refresh_clock()
 	EventBus.system_restored.connect(func(_paths: PackedStringArray, _os: bool) -> void: _refresh_inventory())
 	_refresh_inventory()
@@ -63,12 +63,27 @@ func _on_rest(mode: String) -> void:
 	_output.text = Clock.format_now() if reason.is_empty() else "%s — %s" % [Clock.format_now(), reason]
 
 
-## Проснулся после вырубания — мысль героя, один раз.
-func _show_wake() -> void:
+## Вырубился прямо в комнате: тот же занавес, только сцена не меняется.
+func _on_passed_out() -> void:
+	NeedsManager.claim_pass_out()
+	var curtain := PassOutCurtain.new()
+	add_child(curtain)
+	curtain.finished.connect(func() -> void:
+		NeedsManager.sleep_after_pass_out()
+		_show_wake(curtain))
+	curtain.play_falling_asleep()
+
+
+## После вырубания картинка проявляется из черноты уже здесь. Время пробуждения герой вслух не
+## называет — его видно на часах.
+func _show_wake(curtain: PassOutCurtain = null) -> void:
 	if not bool(GameState.get_var_or(Needs.VAR_WOKE_AFTER_PASS_OUT, false)):
 		return
 	GameState.set_var(Needs.VAR_WOKE_AFTER_PASS_OUT, false)
-	_output.text = HeroThoughts.thought("woke_after_pass_out") % Clock.format_now()
+	if curtain == null:
+		curtain = PassOutCurtain.new()
+		add_child(curtain)
+	curtain.play_waking_up()
 
 
 func _refresh_clock() -> void:

@@ -120,9 +120,13 @@ func test_room_bed_sleeps_until_alarm() -> void:
 
 
 
-func test_room_shows_wake_thought_once_after_pass_out() -> void:
+func test_room_fades_in_once_after_pass_out() -> void:
 	GameState.reset()
+	PassOutCurtain.animate = false
+	Clock.pause(PassOutCurtain.PAUSE_REASON)
 	GameState.set_var(Needs.VAR_WOKE_AFTER_PASS_OUT, true)
 	var room: Node = _open(Screens.ROOM)
-	assert_string_contains(room.get_node("Rows/Output").text, "Вырубился")
-	assert_false(bool(GameState.get_var_or(Needs.VAR_WOKE_AFTER_PASS_OUT, false)), "мысль — один раз")
+	PassOutCurtain.animate = true
+	assert_false(bool(GameState.get_var_or(Needs.VAR_WOKE_AFTER_PASS_OUT, false)), "проявляется один раз")
+	assert_false(Clock.is_paused(), "картинка вернулась — часы снова идут")
+	assert_string_contains(room.get_node("Rows/Output").text, "комната", "время пробуждения герой вслух не называет")

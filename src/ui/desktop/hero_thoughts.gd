@@ -1,6 +1,6 @@
 class_name HeroThoughts
 extends PanelContainer
-## Мысль героя внизу стола: «скоро пора отдыхать», «надо бы поесть», «вырубился за столом»
+## Мысль героя внизу стола: «скоро пора отдыхать», «надо бы поесть»
 ## (docs/gameplay/needs.md, «Предупреждение»). Не блокирует управление и сама гаснет.
 ## Тексты — `data/needs.json`.
 
@@ -24,8 +24,6 @@ func _init() -> void:
 
 func _ready() -> void:
 	EventBus.need_warned.connect(func(kind: String) -> void: say(thought(kind)))
-	EventBus.woke_after_pass_out.connect(func(_minutes: int) -> void:
-		say(thought("woke_after_pass_out") % Clock.format_now()))
 
 
 static func thought(kind: String) -> String:

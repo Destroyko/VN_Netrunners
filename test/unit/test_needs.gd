@@ -212,3 +212,34 @@ func test_pass_out_leaves_mark_for_the_room() -> void:
 	Clock.advance(5)
 	await get_tree().process_frame
 	assert_true(bool(GameState.get_var_or(Needs.VAR_WOKE_AFTER_PASS_OUT, false)))
+
+
+# --- Подача вырубания ---------------------------------------------------------------
+
+func test_screen_can_hold_sleep_until_it_goes_dark() -> void:
+	var claim := func() -> void: NeedsManager.claim_pass_out()
+	EventBus.passed_out.connect(claim)
+	Needs.set_energy(0.1)
+	Clock.advance(5)
+	await get_tree().process_frame
+	EventBus.passed_out.disconnect(claim)
+	assert_eq(Needs.energy(), 0.0, "часы не прыгают, пока экран не погас")
+	NeedsManager.sleep_after_pass_out()
+	assert_eq(Needs.energy(), 100.0)
+
+
+func test_curtain_says_line_then_caption_and_pauses_clock() -> void:
+	PassOutCurtain.animate = false
+	var curtain := PassOutCurtain.new()
+	add_child_autofree(curtain)
+	var done: Dictionary = {"n": 0}
+	curtain.finished.connect(func() -> void: done["n"] += 1)
+	curtain.play_falling_asleep()
+	assert_eq(int(done["n"]), 1)
+	assert_true(Clock.is_paused(), "занавес — как диалог: время стоит")
+	assert_string_contains(curtain.line_text(), "засыпаю")
+	assert_string_contains(curtain.caption_text(), "еле добрался до кровати")
+	curtain.play_waking_up()
+	assert_false(Clock.is_paused())
+	PassOutCurtain.animate = true
+
