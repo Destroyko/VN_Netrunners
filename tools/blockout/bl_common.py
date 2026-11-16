@@ -307,6 +307,18 @@ def lamp(name, pos, energy=60.0, color=(1.0, 0.85, 0.62), size=0.6):
     return ob
 
 
+def resolve(path):
+    """Относительный путь — от корня репозитория.
+
+    Рабочая папка у Blender своя, и `--out assets/...` иначе уезжает в корень диска.
+    """
+    if not path or os.path.isabs(path):
+        return path
+    root = os.path.normpath(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+    return os.path.join(root, path)
+
+
 def render(cams, out_dir, suffix="", only="", hide=None):
     """Рендер по списку камер. `only` — имена через запятую или all.
 
@@ -341,8 +353,8 @@ def render(cams, out_dir, suffix="", only="", hide=None):
 
 def finish(cams, a, default_out, default_blend, hide=None):
     """Сохранить .blend и отрендерить. Без --background остаёмся в редакторе."""
-    out = a.out or default_out
-    blend = a.save or default_blend
+    out = resolve(a.out or default_out)
+    blend = resolve(a.save or default_blend)
     suffix = "" if a.shade == "flat" else f"_{a.phase}"
     suffix = f"_{a.shade}{suffix}"
     files = render(cams, out, suffix, a.render, hide)
