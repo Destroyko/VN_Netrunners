@@ -7,10 +7,9 @@ extends Control
 ## `GameState` и в `Terminal`, который держит стол, а не окно.
 
 const DEBUG_CONSOLE: String = "res://src/debug/debug_console.tscn"
-## Окно головоломки: не приложение, иконки у него нет.
-const PUZZLE_APP: String = "puzzle"
-## Удалённый сеанс: трансляция рабочего стола цели (экран блокировки, потом стол). Без иконки.
-const REMOTE_APP: String = "remote"
+## Окна без иконки: головоломка и удалённый сеанс (их жизнь — в DesktopPuzzles и RemoteWindows).
+const PUZZLE_APP: String = DesktopPuzzles.APP_ID
+const REMOTE_APP: String = RemoteWindows.APP_ID
 const ICON_SIZE: Vector2 = Vector2(96, 72)
 
 ## Приложения: порядок = порядок иконок. `requires` — условие доступности на общем языке;
@@ -41,12 +40,8 @@ var _icons: GridContainer
 var _windows: Control
 var _taskbar: Taskbar
 var _open: Dictionary = {}
-var _dialog: PuzzleDialog
-var _puzzle_window: DesktopWindow
-## Тренировочная головоломка из консоли разработчика: терминал о ней не знает.
-var _practice: bool = false
-## Консоль, к которой привязана трансляция: в неё уходят действия мышью.
-var _remote_view: TerminalView
+var _puzzles: DesktopPuzzles
+var _remote: RemoteWindows
 var _rows: VBoxContainer
 var _emergency: Control
 var _opened_count: int = 0
@@ -54,6 +49,8 @@ var _opened_count: int = 0
 
 func _ready() -> void:
 	terminal = Terminal.new()
+	_puzzles = DesktopPuzzles.new(self, terminal, func(gained: int) -> void: practice_finished.emit(gained))
+	_remote = RemoteWindows.new(self, terminal)
 	# Трейс может оборвать сеанс сам, пока окно терминала закрыто: окно головоломки и карта
 	# должны узнать об этом и без него.
 	terminal.ticked.connect(func(_result: TermResult) -> void: _on_result_shown())
@@ -81,8 +78,8 @@ func _build() -> void:
 	wallpaper.color = Color(0.06, 0.07, 0.1)
 	wallpaper.set_anchors_preset(Control.PRESET_FULL_RECT)
 	wallpaper.mouse_filter = Control.MOUSE_FILTER_PASS
-	wallpaper.remote_file_dropped.connect(_on_remote_file_dropped)
-	wallpaper.menu_requested.connect(_on_wallpaper_menu)
+	wallpaper.remote_file_dropped.connect(func(data: Dictionary) -> void: _remote.drop_file(data))
+	wallpaper.menu_requested.connect(func(at: Vector2) -> void: _remote.show_paste_menu(at))
 	_area.add_child(wallpaper)
 
 	_icons = GridContainer.new()
@@ -160,27 +157,28 @@ func open_app(app_id: String) -> DesktopWindow:
 	window.app_id = app_id
 	window.title = str(app["title"])
 	window.set_minimum(app["min"] as Vector2)
+	window.body.add_child(_make_content(app_id))
+	attach_window(window, app["size"] as Vector2)
+	# Приложение помнит, где его закрыли: открываем там же (в пределах сессии).
+	var remembered: Rect2 = _remembered.get(app_id, Rect2()) as Rect2
+	if remembered.size != Vector2.ZERO:
+		window.position = remembered.position
+		window.size = remembered.size
+	return window
+
+
+## Поставить окно на стол: подписки, размер, место каскадом, панель задач, фокус. Общее для
+## приложений, головоломки и удалённого сеанса.
+func attach_window(window: DesktopWindow, size: Vector2) -> void:
 	window.closed.connect(_on_window_closed)
 	window.focus_requested.connect(focus)
 	window.state_changed.connect(func(_w: DesktopWindow) -> void: _sync_taskbar())
 	_windows.add_child(window)
-	_apply_geometry(window, app)
-	window.body.add_child(_make_content(app_id))
-	_open[app_id] = window
+	window.size = size
+	window.position = WindowRules.cascade(_opened_count, window.size, _windows.size)
+	_open[window.app_id] = window
 	_opened_count += 1
 	focus(window)
-	return window
-
-
-func _apply_geometry(window: DesktopWindow, app: Dictionary) -> void:
-	var remembered: Rect2 = _remembered.get(window.app_id, Rect2()) as Rect2
-	var area: Vector2 = _windows.size
-	if remembered.size != Vector2.ZERO:
-		window.position = remembered.position
-		window.size = remembered.size
-		return
-	window.size = app["size"] as Vector2
-	window.position = WindowRules.cascade(_opened_count, window.size, area)
 
 
 ## Содержимое окна. Терминал и остальное подключаются здесь, остальные приложения — заглушки M1.
@@ -192,10 +190,7 @@ func _make_content(app_id: String) -> Control:
 	if app_id == "terminal":
 		var view := TerminalView.new()
 		view.setup(terminal)
-		view.puzzle_requested.connect(_on_puzzle_requested.bind(view))
-		view.remote_requested.connect(_on_remote_requested.bind(view))
-		view.result_shown.connect(_on_result_shown)
-		view.ready.connect(view.focus_entry)
+		_connect_view(view)
 		return view
 	var label := Label.new()
 	label.text = "Здесь будет приложение «%s».\nВ M1 это заглушка." % str(app_definition(app_id).get("title", app_id))
@@ -262,123 +257,14 @@ func _on_menu(action: String) -> void:
 			get_tree().change_scene_to_file(Screens.MAIN_MENU)
 
 
-## Головоломка открывается обычным окном поверх терминала: его можно свернуть и закрыть.
-## Закрытие — это «выйти»: засчитывается то, что успели собрать. Игровое время при этом стоит
-## (time.md). Итог уходит в терминал, а его ответ — в вывод окна терминала.
-## Подключились к ПК или он спросил пароль: рядом с консолью — трансляция его рабочего стола,
-## как в Radmin (desktop-layout.md, «Удалённый сеанс»). Пароль не введён — экран блокировки;
-## ввести можно там или в консоли, путь один. Соединение закрылось — окно закрывается.
-func _on_remote_requested(request: Dictionary, view: TerminalView) -> void:
-	var node: String = str(request.get("node", ""))
-	var old: DesktopWindow = window_of(REMOTE_APP)
-	if old != null:
-		if str(old.get_meta("node", "")) == node:
-			focus(old)
-			return
-		old.close()
-	var address: String = str(request.get("address", ""))
-	var window := DesktopWindow.new()
-	window.app_id = REMOTE_APP
-	window.title = "Удалённый сеанс — %s" % address
-	window.set_meta("node", node)
-	window.set_minimum(Vector2(420, 300))
-	window.closed.connect(_on_window_closed)
-	window.closed.connect(func(_w: DesktopWindow) -> void:
-		# Закрыть трансляцию — отключиться от узла, как в Radmin (вердикт гейта M1, 16.11.2026).
-		# Если окно закрылось само из-за dc или обрыва, цели уже нет — второй раз не отключаемся.
-		if terminal.session.target_id() == node and is_instance_valid(view):
-			view.submit("dc"))
-	window.focus_requested.connect(focus)
-	window.state_changed.connect(func(_w: DesktopWindow) -> void: _sync_taskbar())
-	_windows.add_child(window)
-	window.size = Vector2(560, 400)
-	window.position = WindowRules.cascade(_opened_count, window.size, _windows.size)
-	var session := RemoteSession.new()
-	window.body.add_child(session)
-	_remote_view = view
-	session.setup(terminal, node, address, terminal.net.remote_desktop(node), func(text: String) -> String:
-		view.submit(text)
-		return "" if not terminal.login_pending() else "доступ запрещён", run_remote_command)
-	_open[REMOTE_APP] = window
-	_opened_count += 1
-	focus(window)
+# --- Окна головоломки и удалённого сеанса ------------------------------------------
 
-
-## После каждой команды окно удалённого узла сверяется с консолью: вошли — проводник,
-## отменили вход или отключились — окно закрыто, файлы поменялись — список перечитан.
-## Действие мышью в трансляции — команда той же консоли: путь один, правила одни. Если команда
-## спросила подтверждение (системный файл), спрашиваем окном, а ответ уходит в консоль.
-func run_remote_command(line: String) -> String:
-	if _remote_view == null or not is_instance_valid(_remote_view):
-		return ""
-	var result: TermResult = _remote_view.submit(line)
-	if terminal.has_question():
-		var dialog := ConfirmationDialog.new()
-		dialog.name = "RemoteConfirm"
-		dialog.dialog_text = terminal.last_question()
-		dialog.ok_button_text = "Да"
-		dialog.cancel_button_text = "Нет"
-		dialog.confirmed.connect(func() -> void: _answer_remote(dialog, "y"))
-		dialog.canceled.connect(func() -> void: _answer_remote(dialog, "n"))
-		add_child(dialog)
-		dialog.popup_centered()
-		return ""
-	return result.lines[result.lines.size() - 1] if not result.lines.is_empty() else ""
-
-
-func _answer_remote(dialog: ConfirmationDialog, answer: String) -> void:
-	if is_instance_valid(_remote_view) and terminal.has_question():
-		_remote_view.submit(answer)
-	dialog.queue_free()
-
-
-## Правая кнопка по своему столу: «Вставить» скачивает файл из буфера трансляции (как в RDP:
-## скопировал там — вставил здесь). Вырезанный там файл здесь тоже просто копируется.
-func _on_wallpaper_menu(at_position: Vector2) -> void:
-	var menu := PopupMenu.new()
-	menu.name = "WallpaperMenu"
-	menu.add_item("Вставить", 0)
-	var clip: Dictionary = FileBrowser.clipboard
-	menu.set_item_disabled(0, clip.is_empty() or terminal.session.target_id() != str(clip.get("node", "")))
-	menu.id_pressed.connect(func(_id: int) -> void: paste_to_own_desktop())
-	menu.popup_hide.connect(menu.queue_free)
-	add_child(menu)
-	menu.position = Vector2i(get_screen_position() + at_position)
-	menu.popup()
-
-
-func paste_to_own_desktop() -> void:
-	if not FileBrowser.clipboard.is_empty():
-		_on_remote_file_dropped(FileBrowser.clipboard)
-
-
-## Файл из трансляции брошен на свой стол — скачать к себе, как `cp` с узла.
-func _on_remote_file_dropped(data: Dictionary) -> void:
-	if terminal.session.target_id() != str(data.get("node", "")):
-		return
-	run_remote_command("cp \"%s\"" % str(data["remote_file"]))
-
-
-func _sync_remote_window() -> void:
-	var window: DesktopWindow = window_of(REMOTE_APP)
-	if window == null:
-		return
-	var node: String = str(window.get_meta("node", ""))
-	if terminal.login_pending():
-		return
-	var inside: bool = terminal.session.has_connection() and terminal.session.target_id() == node
-	if not inside:
-		window.close()
-		return
-	var session: RemoteSession = window.body.get_child(0) as RemoteSession
-	if session.is_locked():
-		session.unlock()
-	else:
-		session.refresh()
-
-
-func _on_puzzle_requested(request: Dictionary, view: TerminalView) -> void:
-	_show_puzzle(request, view)
+## Окно консоли подписывается на всё, что она может попросить у стола.
+func _connect_view(view: TerminalView) -> void:
+	view.puzzle_requested.connect(func(request: Dictionary) -> void: _puzzles.show(request, view))
+	view.remote_requested.connect(func(request: Dictionary) -> void: _remote.open(request, view))
+	view.result_shown.connect(_on_result_shown)
+	view.ready.connect(view.focus_entry)
 
 
 ## Отладка: головоломка без взлома и без подключения (команда `play` в консоли F1).
@@ -387,89 +273,27 @@ signal practice_finished(gained: int)
 
 
 func play_puzzle(kind: String, level: int, seed_value: int) -> bool:
-	if has_puzzle_open():
-		return false
-	var puzzle: RefCounted
-	var layers_total: int = 1
-	if kind == "password":
-		puzzle = PasswordPuzzle.generate(level, seed_value, 0)
-	elif kind == "dump":
-		puzzle = DumpPuzzle.generate(level, seed_value)
-	else:
-		layers_total = int(PuzzleLevels.matrix(level)["sequences"])
-		puzzle = MatrixPuzzle.generate_round(level, seed_value, 0)
-	_show_puzzle({
-		"type": "puzzle", "kind": kind, "node": "тренировка", "service": kind,
-		"layers_done": 0, "layers_total": layers_total, "puzzle": puzzle,
-		"rounds": layers_total, "seed": seed_value, "difficulty": level,
-	}, null)
-	return true
-
-
-func _show_puzzle(request: Dictionary, view: TerminalView) -> void:
-	if has_puzzle_open():
-		return
-	# Головоломка воспроизводится по виду, ступени и сиду — их и пишем в журнал.
-	var puzzle_obj: Object = request.get("puzzle") as Object
-	SessionLog.write("puzzle", "открыта: %s, ступень %s, сид %s, узел %s, порт %s" % [
-		request.get("kind", ""), request.get("difficulty", request.get("level", "?")),
-		puzzle_obj.get("puzzle_seed") if puzzle_obj != null else "?",
-		request.get("node", ""), request.get("port", "-"),
-	])
-	_practice = view == null
-	var window := DesktopWindow.new()
-	window.app_id = PUZZLE_APP
-	window.title = "Взлом"
-	window.set_minimum(Vector2(420, 460))
-	window.closed.connect(_on_window_closed)
-	window.closed.connect(func(_w: DesktopWindow) -> void:
-		# Окно уже закрывается: итог отдаём, а второй раз закрывать не надо.
-		_puzzle_window = null
-		if _dialog != null and is_instance_valid(_dialog):
-			_dialog.abandon())
-	window.focus_requested.connect(focus)
-	window.state_changed.connect(func(_w: DesktopWindow) -> void: _sync_taskbar())
-	_windows.add_child(window)
-	_dialog = PuzzleDialog.new()
-	window.body.add_child(_dialog)
-	_dialog.setup(request)
-	# Окно не меньше содержимого: широкая сетка дампа не должна обрезаться.
-	var needed: Vector2 = _dialog.get_combined_minimum_size() + Vector2(16, WindowRules.TITLE_HEIGHT + 16)
-	window.size = Vector2(440, 480).max(needed)
-	window.position = WindowRules.cascade(_opened_count, window.size, _windows.size)
-	_dialog.finished.connect(func(gained: int) -> void:
-		var done_window: DesktopWindow = _puzzle_window
-		_dialog = null
-		_puzzle_window = null
-		if view != null:
-			view.show_result(terminal.finish_puzzle(gained))
-		else:
-			practice_finished.emit(gained)
-		if is_instance_valid(done_window):
-			done_window.close())
-	_puzzle_window = window
-	_open[PUZZLE_APP] = window
-	_opened_count += 1
-	focus(window)
+	return _puzzles.play(kind, level, seed_value)
 
 
 func has_puzzle_open() -> bool:
-	return _puzzle_window != null and is_instance_valid(_puzzle_window)
+	return _puzzles.is_open()
 
 
-## Сеанс оборвали (`dc`, трейс), пока головоломка открыта: окну больше нечего решать.
-func _close_stale_puzzle() -> void:
-	if has_puzzle_open() and not _practice and terminal.current_puzzle() == null:
-		var stale: DesktopWindow = _puzzle_window
-		_dialog = null
-		_puzzle_window = null
-		stale.close()
+## Действие мышью в трансляции — команда той же консоли (см. RemoteWindows).
+func run_remote_command(line: String) -> String:
+	return _remote.run_command(line)
 
 
-## Команда выполнена: карта и режим стола перечитывают состояние.
+## «Вставить» на своём столе: скачать файл из буфера трансляции.
+func paste_to_own_desktop() -> void:
+	_remote.paste()
+
+
+## Команда выполнена: окна, карта и режим стола перечитывают состояние.
 func _on_result_shown() -> void:
-	_close_stale_puzzle()
-	_sync_remote_window()
+	_puzzles.close_stale()
+	_remote.sync()
 	var map: DesktopWindow = window_of("map")
 	if map != null:
 		(map.body.get_child(0) as MapView).refresh()
@@ -517,9 +341,6 @@ func _make_emergency(lines: PackedStringArray) -> Control:
 	var view := TerminalView.new()
 	view.setup(terminal)
 	view.print_lines(lines)
-	view.result_shown.connect(_on_result_shown)
-	view.puzzle_requested.connect(_on_puzzle_requested.bind(view))
-	view.remote_requested.connect(_on_remote_requested.bind(view))
-	view.ready.connect(view.focus_entry)
+	_connect_view(view)
 	box.add_child(view)
 	return root
