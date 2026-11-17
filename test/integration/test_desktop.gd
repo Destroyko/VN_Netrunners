@@ -302,3 +302,17 @@ func test_answer_button_opens_filled_form() -> void:
 	(compose.find_child("Send", true, false) as Button).emit_signal("pressed")
 	assert_eq(str(Mailbox.sent()[-1]["to"]), "dispatch@autsors.local")
 
+
+func test_start_menu_has_only_pc_actions() -> void:
+	assert_eq(Taskbar.MENU_ITEMS.keys(), ["terminal", "reboot", "shut_down"], "сохранения и выхода из игры в «Пуске» нет")
+
+
+func test_leave_button_is_on_the_taskbar() -> void:
+	var leave: Button = desktop.find_child("Leave", true, false) as Button
+	assert_not_null(leave, "заметная кнопка «Отойти от ПК» справа")
+	var asked: Dictionary = {"n": 0}
+	for child: Node in desktop.find_children("*", "Taskbar", true, false):
+		(child as Taskbar).leave_requested.connect(func() -> void: asked["n"] += 1)
+	leave.emit_signal("pressed")
+	assert_gt(int(asked["n"]), 0)
+

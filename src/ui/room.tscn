@@ -84,4 +84,4 @@ autowrap_mode = 3
 
 [node name="Menu" type="Button" parent="Rows"]
 layout_mode = 2
-text = "В меню"
+text = "Меню (Esc)"

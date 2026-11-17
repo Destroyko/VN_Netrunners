@@ -40,6 +40,12 @@
           "money": 90
         },
         {
+          "forget_contact": "boss@firma.local"
+        },
+        {
+          "forget_contact": "kolleg@firma.local"
+        },
+        {
           "schedule": {
             "delay_days": 1,
             "at": "09:00",
@@ -49,12 +55,6 @@
               }
             ]
           }
-        },
-        {
-          "forget_contact": "boss@firma.local"
-        },
-        {
-          "forget_contact": "kolleg@firma.local"
         }
       ]
     }

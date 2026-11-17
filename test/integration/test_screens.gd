@@ -176,3 +176,22 @@ func test_room_power_is_an_action_of_system_block() -> void:
 	room.get_node("Rows/SystemBlock").emit_signal("pressed")
 	(room.get_node("Rows/Actions/Act_power") as Button).emit_signal("pressed")
 	assert_true(PcPower.is_on())
+
+
+func test_room_pause_menu_saves_and_stops_time() -> void:
+	GameState.reset()
+	SaveSystem.dir = "user://test_saves_pause"
+	var room: Node = _open(Screens.ROOM)
+	room.get_node("Rows/Menu").emit_signal("pressed")
+	var menu: PauseMenu = room.pause_menu()
+	assert_true(menu.visible)
+	assert_true(Clock.is_paused(), "в меню время стоит")
+	(menu.find_child("Save", true, false) as Button).emit_signal("pressed")
+	assert_eq(menu.status_text(), "игра сохранена")
+	assert_true(SaveSystem.exists(SaveSystem.SLOT_MANUAL))
+	(menu.find_child("Continue", true, false) as Button).emit_signal("pressed")
+	assert_false(menu.visible)
+	assert_false(Clock.is_paused())
+	SaveSystem.delete(SaveSystem.SLOT_MANUAL)
+	SaveSystem.dir = SaveSystem.DEFAULT_DIR
+

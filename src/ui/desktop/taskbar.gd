@@ -5,10 +5,13 @@ extends PanelContainer
 
 signal window_button_pressed(app_id: String)
 signal menu_requested(action: String)
+## Кнопка «Отойти от ПК» справа на панели — заметная и далеко от «Выключить» (плейтест M2).
+signal leave_requested
 
+## «Пуск»: только то, что относится к компьютеру. Сохранение и выход из игры — в меню по Esc в
+## комнате (плейтест M2, 17.11.2026). Программы и блокнот появятся здесь в M3.
 const MENU_ITEMS: Dictionary = {
-	"save_game": "Сохранить игру", "back_to_room": "В комнату",
-	"reboot": "Перезагрузить", "shut_down": "Выключить", "main_menu": "В главное меню",
+	"terminal": "Терминал", "reboot": "Перезагрузить", "shut_down": "Выключить",
 }
 
 var _time: Label
@@ -45,6 +48,13 @@ func _init() -> void:
 	_windows = HBoxContainer.new()
 	_windows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(_windows)
+
+	var leave := Button.new()
+	leave.name = "Leave"
+	leave.text = "Отойти от ПК (Esc)"
+	leave.focus_mode = Control.FOCUS_NONE
+	leave.pressed.connect(func() -> void: leave_requested.emit())
+	row.add_child(leave)
 
 
 func _ready() -> void:

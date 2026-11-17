@@ -15,6 +15,7 @@ const OBJECT_SYSTEM_BLOCK: String = "system_block"
 @onready var _actions: VBoxContainer = $Rows/Actions
 ## Какой объект выбран: его действия показаны под ним ("" — ничего).
 var _selected: String = ""
+var _pause: PauseMenu
 @onready var _clock: Label = $Rows/Clock
 @onready var _bed_panel: HBoxContainer = $Rows/BedPanel
 @onready var _kitchen: VBoxContainer = $Rows/Kitchen
@@ -23,7 +24,11 @@ var _selected: String = ""
 func _ready() -> void:
 	$Rows/Monitor.pressed.connect(select_object.bind(OBJECT_MONITOR))
 	$Rows/SystemBlock.pressed.connect(select_object.bind(OBJECT_SYSTEM_BLOCK))
-	$Rows/Menu.pressed.connect(_on_menu)
+	# Меню игры: Esc или кнопка «Меню» — продолжить, сохранить, в главное меню.
+	_pause = PauseMenu.new()
+	_pause.main_menu_requested.connect(_on_menu)
+	add_child(_pause)
+	$Rows/Menu.pressed.connect(_pause.open)
 	$Rows/Bed.pressed.connect(_on_bed)
 	$Rows/BedPanel/Sleep.pressed.connect(_on_rest.bind(Rest.MODE_SLEEP))
 	$Rows/BedPanel/Wait.pressed.connect(_on_rest.bind(Rest.MODE_WAIT))
@@ -168,6 +173,16 @@ func _on_power() -> void:
 
 func _refresh_clock() -> void:
 	_clock.text = Clock.format_now()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		get_viewport().set_input_as_handled()
+		_pause.toggle()
+
+
+func pause_menu() -> PauseMenu:
+	return _pause
 
 
 func _on_menu() -> void:

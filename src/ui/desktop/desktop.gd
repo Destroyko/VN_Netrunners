@@ -139,6 +139,7 @@ func _build() -> void:
 	_taskbar = Taskbar.new()
 	_taskbar.window_button_pressed.connect(_on_taskbar_button)
 	_taskbar.menu_requested.connect(_on_menu)
+	_taskbar.leave_requested.connect(leave_pc)
 	rows.add_child(_taskbar)
 
 
@@ -336,16 +337,25 @@ func _on_passed_out() -> void:
 
 func _on_menu(action: String) -> void:
 	match action:
-		"save_game":
-			save_game()
-		"back_to_room":
-			leave_to(Screens.ROOM)
+		"terminal":
+			open_app("terminal")
 		"reboot":
 			PcPower.reboot()
 		"shut_down":
 			shut_down()
-		"main_menu":
-			get_tree().change_scene_to_file(Screens.MAIN_MENU)
+
+
+## Отойти от ПК: кнопка справа на панели задач или Esc. Стол прячется, всё идёт фоном.
+func leave_pc() -> void:
+	if is_inside_tree() and is_visible_in_tree():
+		leave_to(Screens.ROOM)
+
+
+## Esc — отойти от ПК, если клавишу не забрало окно (диалог, всплывающее меню).
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel") and is_visible_in_tree():
+		get_viewport().set_input_as_handled()
+		leave_pc()
 
 
 ## Ручное сохранение. Итог — сообщением системы вверху стола (не мыслью героя).
