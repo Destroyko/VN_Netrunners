@@ -26,10 +26,11 @@ import uuid
 
 SERVER = "http://127.0.0.1:8188"
 
-# 1280x720 на входе и выходе генерации: делится нацело на 640x360 (правило целого деления,
-# ai-pipeline.md 4.1) и на 8 для латента
-GEN = (1280, 720)
+# Размер арта по умолчанию. Генерация идёт вдвое крупнее: делится нацело на арт
+# (правило целого деления, ai-pipeline.md 4.1) и на 8 для латента.
+# Меняется ключами --art и --gen: какое разрешение фонов взять за базовое — открытый вопрос
 ART = (640, 360)
+GEN = (1280, 720)
 
 BLOCKOUT_DIR = "assets/_source/blockout/renders"
 OUT_DIR = "assets/_source/blockout/gen"
@@ -137,7 +138,8 @@ def upload(png: str) -> str:
 
 def graph(image_ref: str, prompt: str, denoise: float, seed: int, steps: int,
           tag: str, palette_hex: str = "", sampling: str = "flow",
-          refine: float = 0.0) -> dict:
+          refine: float = 0.0, art=None, colors: int = 48, pixel: bool = True,
+          gen=None) -> dict:
     """API-граф: блокаут -> VAEEncode -> KSampler(denoise) -> пиксель-ноды -> два файла.
 
     refine > 0 добавляет второй проход от результата первого. Он нужен потому, что одним
@@ -160,8 +162,14 @@ def graph(image_ref: str, prompt: str, denoise: float, seed: int, steps: int,
         # при CFG 1 негатив не участвует, но вход у KSampler обязательный
         "neg":   {"class_type": "ConditioningZeroOut", "inputs": {"conditioning": ["pos", 0]}},
         "load":  {"class_type": "LoadImage", "inputs": {"image": image_ref}},
+        # блокаут рендерится в 1280x720; если генерация другого размера, подгоняем здесь,
+        # чтобы не пересобирать сцену ради каждого разрешения
+        "fit":   {"class_type": "ImageScale",
+                  "inputs": {"image": ["load", 0], "upscale_method": "nearest-exact",
+                             "width": (gen or GEN)[0], "height": (gen or GEN)[1],
+                             "crop": "disabled"}},
         "enc":   {"class_type": "VAEEncode",
-                  "inputs": {"pixels": ["load", 0], "vae": ["vae", 0]}},
+                  "inputs": {"pixels": ["fit", 0], "vae": ["vae", 0]}},
         "samp":  {"class_type": "KSampler",
                   "inputs": {"model": ["shift", 0], "seed": seed, "steps": steps, "cfg": CFG,
                              "sampler_name": SAMPLER, "scheduler": SCHEDULER,
@@ -173,11 +181,11 @@ def graph(image_ref: str, prompt: str, denoise: float, seed: int, steps: int,
                   "inputs": {"images": ["last", 0], "filename_prefix": "vn/raw_" + tag}},
         "pp":    {"class_type": "SK_PixelPerfect",
                   "inputs": {"image": ["last", 0], "mode": "fixed_size",
-                             "width": ART[0], "height": ART[1], "scale": 1,
-                             "method": "dominant", "pre_colors": PRE_COLORS}},
+                             "width": (art or ART)[0], "height": (art or ART)[1], "scale": 1,
+                             "method": "dominant", "pre_colors": max(PRE_COLORS, colors * 2)}},
         "pal":   {"class_type": "SK_Palette",
                   "inputs": {"image": ["pp", 0], "source": "hex" if palette_hex else "auto",
-                             "colors": 48, "preset": "PICO-8", "dither": "none",
+                             "colors": colors, "preset": "PICO-8", "dither": "none",
                              "dither_strength": 0.5, "shared_palette": True,
                              "hex_palette": palette_hex}},
         "clean": {"class_type": "SK_Cleanup",
@@ -203,6 +211,12 @@ def graph(image_ref: str, prompt: str, denoise: float, seed: int, steps: int,
     src = "dec2" if refine > 0 else "dec"
     g["raw"]["inputs"]["images"] = [src, 0]
     g["pp"]["inputs"]["image"] = [src, 0]
+    if not pixel:
+        # Без пиксельной сетки: на 1280x720 и выше квантование в сетку теряет смысл —
+        # пиксели уже мельче, чем видит глаз, и картинка просто грубеет. Остаётся
+        # сведение палитры, чтобы цвета между фонами были общие
+        g["pal"]["inputs"]["image"] = [src, 0]
+        del g["pp"]
     return g
 
 
@@ -257,9 +271,27 @@ def main() -> None:
                     help="режим ModelSamplingAuraFlow")
     ap.add_argument("--refine", type=float, default=0.0,
                     help="второй проход такой силы: стиль по готовой композиции")
+    ap.add_argument("--art", default="%dx%d" % ART,
+                    help="размер арта, например 1280x720 (какой базовый — открытый вопрос)")
+    ap.add_argument("--gen", default="",
+                    help="размер генерации; пусто — вдвое больше арта, но не крупнее 1920")
+    ap.add_argument("--colors", type=int, default=48, help="цветов в палитре")
+    ap.add_argument("--no-pixel", action="store_true",
+                    help="без пиксельной сетки: от 1280x720 квантование только грубит")
     ap.add_argument("--keep-raw", action="store_true",
                     help="сохранить и кадр до пикселизации (для разбора)")
     a = ap.parse_args()
+
+    art = tuple(int(v) for v in a.art.lower().split("x"))
+    if a.gen:
+        gen = tuple(int(v) for v in a.gen.lower().split("x"))
+    else:
+        gen = (art[0] * 2, art[1] * 2) if art[0] * 2 <= 1920 else art
+    if gen[0] % 8 or gen[1] % 8:
+        raise SystemExit("размер генерации %dx%d не делится на 8 (латент)" % gen)
+    if gen[0] % art[0] or gen[1] % art[1]:
+        print("[!] %dx%d не делится нацело на %dx%d — будут полосы (ai-pipeline.md 4.1)"
+              % (gen + art))
 
     scenes = list(SCENES) if a.scene == "all" else [s.strip() for s in a.scene.split(",")]
     for s in scenes:
@@ -303,10 +335,11 @@ def main() -> None:
                 suffix = "d%02d" % round(dn * 100)
                 if a.refine > 0:
                     suffix += "_r%02d" % round(a.refine * 100)
+                suffix += "_%d" % art[0]
                 tag = "%s_%s_%s" % (scene, phase, suffix)
                 t0 = time.time()
                 hist = run(graph(ref, prompt, dn, seed, steps, tag, a.palette, a.sampling,
-                                 a.refine), client)
+                                 a.refine, art, a.colors, not a.no_pixel, gen), client)
                 names = {"art": "bg_%s_%s_%s" % (scene, phase, suffix)}
                 if a.keep_raw:
                     names["raw"] = "raw_%s_%s_%s" % (scene, phase, suffix)
