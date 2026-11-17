@@ -23,7 +23,13 @@ mono_crash.*.json
 __pycache__/
 
 # Блокауты: .blend и рендеры собираются скриптом за секунды, истина — в tools/blockout/
-/assets/_source/blockout/
+# Звёздочка, а не сама папка: иначе исключения ниже не работают — git не достаёт
+# файл из игнорируемой директории
+/assets/_source/blockout/*
+# ...кроме детальной сцены и эталонных кадров: обстановку расставляли руками,
+# скриптом она не пересобирается, и потерять её нельзя (docs/art/ai-pipeline.md, 5.12)
+!/assets/_source/blockout/apartment_detail.blend
+!/assets/_source/blockout/refs/
 
 # Журналы сессий и снимки «здесь баг» (F9): локальные, у каждого свои
 /bugreports/
