@@ -241,6 +241,8 @@ def main() -> None:
     ap.add_argument("--steps", type=int, default=0,
                     help="0 — считать как %d/denoise, чтобы шагов фактически было столько же"
                          % STEPS)
+    ap.add_argument("--shade", default="flat", choices=["flat", "lit"],
+                    help="какой кадр блокаута брать на вход: плоский или со светом фазы")
     ap.add_argument("--in-dir", default=BLOCKOUT_DIR, help="где лежат кадры блокаута")
     ap.add_argument("--out", default=OUT_DIR, help="куда класть результат")
     ap.add_argument("--palette", default="", help="строка #hex #hex … вместо палитры из кадра")
@@ -277,11 +279,17 @@ def main() -> None:
     print("кадров: %d, сид %d, выход %s" % (total, seed, out_dir))
 
     for scene in scenes:
-        src = os.path.join(in_dir, "blk_%s_flat.png" % scene)
-        if not os.path.exists(src):
-            raise SystemExit("нет кадра блокаута %s — сначала отрендерите apartment.py" % src)
-        ref = upload(src)
         for phase in phases:
+            # при --shade lit вход свой на каждую фазу: свет в кадре задаётся блокаутом,
+            # промптом его не получить — он добавит лампу, но комнату не затемнит
+            name = ("blk_%s_lit_%s.png" % (scene, phase) if a.shade == "lit"
+                    else "blk_%s_flat.png" % scene)
+            src = os.path.join(in_dir, name)
+            if not os.path.exists(src):
+                raise SystemExit("нет кадра блокаута %s — сначала отрендерите apartment.py "
+                                 "(--render %s --shade %s --phase %s)"
+                                 % (src, scene, a.shade, phase))
+            ref = upload(src)
             prompt = "%s, %s, %s" % (STYLE, SCENES[scene], PHASES[phase])
             for dn in denoises:
                 steps = a.steps or min(32, max(STEPS, round(STEPS / dn)))
