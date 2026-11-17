@@ -131,6 +131,11 @@ static func _dict(path: String) -> Dictionary:
 	return (data as Dictionary) if data is Dictionary else {}
 
 
+## Сообщения мессенджера (docs/gameplay/messages.md): один файл — одно сообщение.
+static func messages() -> Dictionary:
+	return load_dir(DATA_ROOT.path_join("messages"))
+
+
 ## Локации (docs/gameplay/locations.md): один файл — одна локация.
 ## Кэшируются целиком: сцена спрашивает их на каждый клик (и тест может подложить свою).
 static func locations() -> Dictionary:

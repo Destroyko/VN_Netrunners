@@ -1,0 +1,10 @@
+{
+  "_note": "Пробное сообщение для проверки телефона (консоль F1: effect {\"send_text\": \"msg_test\"}). Текст — заглушка.",
+  "id": "msg_test",
+  "from": "roommate",
+  "text": "Ты дома? Это {name_roommate}.",
+  "replies": [
+    {"id": "yes", "text": "Дома.", "effects": [{"send_text": "msg_test_after"}]},
+    {"id": "no", "text": "Нет.", "effects": [{"rep": ["roommate", -1]}]}
+  ]
+}

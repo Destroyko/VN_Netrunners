@@ -127,14 +127,22 @@ func test_heat_bar_colors_follow_stages() -> void:
 
 # --- Самочувствие и мысли героя (gameplay/needs.md) -------------------------------------
 
-func test_needs_widget_shows_bars_and_closes() -> void:
-	var widget: NeedsWidget = desktop.find_child("NeedsWidget", true, false) as NeedsWidget
-	assert_not_null(widget)
-	assert_eq(widget.energy_bar().value, 80.0)
+func test_phone_shows_needs_at_the_pc() -> void:
+	assert_true(PhoneOverlay.frame.visible, "за ПК телефон лежит в углу")
+	assert_false(PhoneOverlay.is_open())
+	var status: PhoneStatus = PhoneOverlay.status()
+	assert_eq(status.energy_bar().value, 80.0)
 	Needs.eat(10.0)
-	assert_eq(widget.satiety_bar().value, 80.0, "поел — виджет перечитал")
-	(widget.find_child("Close", true, false) as Button).emit_signal("pressed")
-	assert_false(widget.visible)
+	assert_eq(status.satiety_bar().value, 80.0, "поел — строка состояния перечитала")
+	assert_almost_eq(PhoneOverlay.frame.offset_bottom, -34.0, 0.5, "телефон над панелью задач")
+	desktop.hide_pc()
+	assert_false(PhoneOverlay.frame.visible, "отошёл от ПК — стол телефон отдал")
+
+
+func test_messages_app_on_the_pc() -> void:
+	var window: DesktopWindow = desktop.open_app("messenger")
+	assert_not_null(window, "«Сообщения» на ПК — настоящее приложение")
+	assert_not_null(window.find_child("MessagesApp", true, false))
 
 
 func test_hero_thought_appears_on_warning() -> void:
@@ -284,7 +292,7 @@ func test_discard_kept_frees_old_pc() -> void:
 
 
 func test_stub_apps_are_grey() -> void:
-	for app_id: String in ["work", "messenger"]:
+	for app_id: String in ["work"]:
 		var icon: Button = desktop.find_child("Icon_" + app_id, true, false) as Button
 		assert_true(icon.disabled, "пустое приложение — серое: " + app_id)
 		assert_null(desktop.open_app(app_id))

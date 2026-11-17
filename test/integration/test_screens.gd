@@ -156,13 +156,16 @@ func test_room_bed_sleeps_until_alarm() -> void:
 	Clock.set_time(1, 22 * 60)
 	var room: Node = _open(Screens.ROOM)
 	room.call("click", "bed")
-	assert_true(bool(room.call("actions_shown")), "кровать спрашивает будильник")
-	room.call("set_alarm", 9, 0)
-	(room.call("action", "Act_sleep") as Button).emit_signal("pressed")
+	assert_eq(PhoneOverlay.current_app(), "alarm", "кровать — телефон с будильником")
+	var alarm: AlarmApp = PhoneOverlay.app_node() as AlarmApp
+	assert_true((alarm.find_child("Sleep", true, false) as Button).visible, "у кровати можно спать")
+	alarm.set_alarm(9, 0)
+	(alarm.find_child("Sleep", true, false) as Button).emit_signal("pressed")
 	assert_eq(GameState.day, 2)
 	assert_eq(GameState.minute, 9 * 60)
-	assert_false(bool(room.call("actions_shown")))
+	assert_false(PhoneOverlay.is_open(), "проснулся — телефон убран")
 	assert_string_contains(str(room.call("clock_text")), "пт, 3 апреля 09:00")
+	assert_string_contains(str(room.call("output_text")), "09:00")
 
 
 func test_room_fades_in_once_after_pass_out() -> void:

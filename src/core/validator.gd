@@ -37,6 +37,8 @@ var _news: Dictionary = {}
 var _dialogues: Dictionary = {}
 # Локации — для move_to и цели visit_location.
 var _locations: Dictionary = {}
+# Сообщения мессенджера — для send_text.
+var _messages: Dictionary = {}
 
 
 ## Проверить все данные из data/. true — ошибок нет.
@@ -44,6 +46,7 @@ func validate_all() -> bool:
 	DataLoader.clear_cache()
 	_dialogues = DataLoader.dialogues()
 	_locations = DataLoader.locations()
+	_messages = DataLoader.messages()
 	var ok: bool = validate_data(
 		DataLoader.nodes(), DataLoader.news(), DataLoader.quests(), DataLoader.triggers(),
 		DataLoader.mail()
@@ -60,6 +63,9 @@ func validate_all() -> bool:
 				var choice: Dictionary = choice_variant as Dictionary
 				_validate_conditions("диалог %s, выбор" % id, choice.get("requires", []) as Array)
 				_validate_effects("диалог %s, выбор" % id, choice.get("effects", []) as Array, DataLoader.quests())
+	var characters: Dictionary = DataLoader.characters()
+	for id: String in _messages.keys():
+		_validate_text_message(id, _messages[id] as Dictionary, characters)
 	var location_validator := LocationValidator.new()
 	location_validator.validate(_locations, _dialogues)
 	errors.append_array(location_validator.errors)
@@ -237,6 +243,30 @@ func _validate_trigger(
 
 ## Письмо: обязательные поля, id с префиксом, вложения с именем, ответы с уникальным id и
 ## проверенными условиями и эффектами.
+## Сообщение мессенджера: от известного персонажа, с текстом, ответы — как у письма.
+func _validate_text_message(id: String, message: Dictionary, characters: Dictionary) -> void:
+	var where: String = "сообщение " + id
+	_require_fields(where, message, ["id", "from", "text"])
+	if not id.begins_with("msg_"):
+		errors.append("%s: id должен начинаться с 'msg_'" % where)
+	if not characters.is_empty() and not characters.has(str(message.get("from", ""))):
+		errors.append("%s: неизвестный отправитель '%s' (нет в characters.json)" % [where, message.get("from", "")])
+	var seen: Dictionary = {}
+	for reply_variant: Variant in message.get("replies", []) as Array:
+		var reply: Dictionary = reply_variant as Dictionary
+		if reply == null:
+			errors.append("%s: ответ должен быть объектом" % where)
+			continue
+		var reply_id: String = str(reply.get("id", ""))
+		if reply_id.is_empty() or str(reply.get("text", "")).is_empty():
+			errors.append("%s: у ответа нужны id и text" % where)
+		elif seen.has(reply_id):
+			errors.append("%s: два ответа с id '%s'" % [where, reply_id])
+		seen[reply_id] = true
+		_validate_conditions(where + ", ответ " + reply_id, reply.get("requires", []) as Array)
+		_validate_effects(where + ", ответ " + reply_id, reply.get("effects", []) as Array, DataLoader.quests())
+
+
 func _validate_mail(id: String, letter: Dictionary, quests: Dictionary) -> void:
 	var where: String = "письмо " + id
 	_require_fields(where, letter, ["id", "from", "subject", "body"])
@@ -316,6 +346,8 @@ func _validate_effects(where: String, effects: Array, quests: Dictionary) -> voi
 				errors.append_array(NodeValidator.check_reveal(where, effect[type], _nodes))
 			if type == "start_dialogue" and not _dialogues.is_empty() and not _dialogues.has(str(effect[type])):
 				errors.append("%s: start_dialogue ссылается на несуществующий диалог '%s'" % [where, effect[type]])
+			if type == "send_text" and not _messages.is_empty() and not _messages.has(str(effect[type])):
+				errors.append("%s: send_text ссылается на несуществующее сообщение '%s'" % [where, effect[type]])
 			if type == "move_to" and not _locations.is_empty() and not _locations.has(str(effect[type])):
 				errors.append("%s: move_to ссылается на несуществующую локацию '%s'" % [where, effect[type]])
 			if type == "schedule_news":

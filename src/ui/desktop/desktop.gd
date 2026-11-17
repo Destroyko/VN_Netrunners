@@ -23,8 +23,8 @@ const APPS: Array[Dictionary] = [
 	{"id": "bank", "title": "Банк", "color": Color(0.5, 0.5, 0.25), "size": Vector2(520, 380), "min": Vector2(320, 220)},
 	{"id": "news", "title": "Новости", "color": Color(0.55, 0.3, 0.3), "size": Vector2(520, 380), "min": Vector2(320, 220)},
 	{"id": "shop", "title": "Магазин", "color": Color(0.45, 0.3, 0.55), "size": Vector2(520, 380), "min": Vector2(320, 220)},
-	# Мессенджер и «Работа» (поиск работы и подработки, devices.md) — пустые до M3: серые.
-	{"id": "messenger", "title": "Мессенджер", "color": Color(0.25, 0.5, 0.55), "size": Vector2(520, 380), "min": Vector2(320, 220), "stub": true},
+	{"id": "messenger", "title": "Сообщения", "color": Color(0.25, 0.5, 0.55), "size": Vector2(420, 460), "min": Vector2(300, 260)},
+	# «Работа» (поиск работы и подработки, devices.md) — шаг 8 M3: пока серая.
 	{"id": "work", "title": "Работа", "color": Color(0.4, 0.4, 0.4), "size": Vector2(520, 380), "min": Vector2(320, 220), "stub": true},
 	{"id": "group", "title": "Сайт группы", "color": Color(0.7, 0.25, 0.45), "size": Vector2(520, 380), "min": Vector2(320, 220),
 		"requires": [{"flag": "gate.pressure"}]},
@@ -66,6 +66,7 @@ func _ready() -> void:
 	_build()
 	_add_debug_console()
 	set_pc_sound(true)
+	_attach_phone()
 	EventBus.passed_out.connect(_on_passed_out)
 	# ПК загрузился (перезагрузка из меню или командой `reboot`) — стол собирается заново: окна
 	# после настоящей перезагрузки закрыты.
@@ -112,11 +113,8 @@ func _build() -> void:
 	for app: Dictionary in APPS:
 		_icons.add_child(_make_icon(app))
 
-	# Самочувствие — в правом верхнем углу стола, мысли героя — внизу по центру.
-	var needs := NeedsWidget.new()
-	needs.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 12)
-	needs.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	_area.add_child(needs)
+	# Самочувствие и деньги — в строке свёрнутого телефона (PhoneOverlay), мысли героя — внизу
+	# по центру.
 
 	_windows = Control.new()
 	_windows.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -257,6 +255,8 @@ func _make_content(app_id: String) -> Control:
 		return MailApp.new()
 	if app_id == "news":
 		return NewsApp.new()
+	if app_id == "messenger":
+		return MessagesApp.new()
 	if app_id == "terminal":
 		var view := TerminalView.new()
 		view.setup(terminal)
@@ -358,6 +358,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		leave_pc()
 
 
+## Телефон лежит над панелью задач: она внизу, кнопка «Отойти от ПК» не перекрыта.
+func _attach_phone() -> void:
+	PhoneOverlay.attach(self, _taskbar.custom_minimum_size.y)
+
+
+func _exit_tree() -> void:
+	PhoneOverlay.detach(self)
+
+
 ## Ручное сохранение. Итог — сообщением системы вверху стола (не мыслью героя).
 func save_game() -> String:
 	var error: String = SaveSystem.save(SaveSystem.SLOT_MANUAL)
@@ -400,6 +409,7 @@ func hide_pc() -> void:
 	_kept = self
 	visible = false
 	set_pc_sound(false)
+	PhoneOverlay.detach(self)
 
 
 ## Вернуть спрятанный стол как был. Режим (аварийная консоль) перепроверяется: пока герой был в
@@ -407,6 +417,7 @@ func hide_pc() -> void:
 func show_pc() -> void:
 	visible = true
 	set_pc_sound(true)
+	_attach_phone()
 	apply_mode()
 	if _kept == self:
 		_kept = null

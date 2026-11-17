@@ -24,6 +24,7 @@ const KNOWN_TYPES: PackedStringArray = [
 	"satiety",
 	"set_satiety",
 	"send_message",
+	"send_text",
 	"unlock_quest",
 	"quest_choice",
 	"schedule_news",
@@ -205,8 +206,11 @@ static func _apply_one(type: String, value: Variant) -> bool:
 			EventBus.hero_thought.emit(str(value))
 			return true
 		"send_message":
-			# Формат: {"send_message": "mail_x"} — письмо из data/mail. Мессенджер — позже (M3).
+			# Формат: {"send_message": "mail_x"} — письмо из data/mail. Мессенджер — `send_text`.
 			return Mailbox.deliver(str(value))
+		"send_text":
+			# Формат: {"send_text": "msg_x"} — сообщение в мессенджер (docs/gameplay/messages.md).
+			return Messenger.deliver(str(value))
 		"give_item":
 			return Inventory.give(str(value))
 		"take_item":

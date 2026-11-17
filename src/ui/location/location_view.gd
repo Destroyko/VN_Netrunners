@@ -6,7 +6,7 @@ extends Control
 ## Что делает объект, решает его `kind`:
 ## - `monitor` — сразу за компьютер (если включён), без лишнего шага (плейтест M2);
 ## - `system_block` — панель: питание, осмотреть железо, подключить предмет;
-## - `bed` — панель: будильник, «спать» или «подождать»;
+## - `bed` — телефон с будильником: «спать» или «подождать» (docs/gameplay/time.md);
 ## - `fridge` — панель: что съесть из запаса;
 ## - `door` — сразу в другую локацию (или «заперто»); `turn` — то же, но это поворот к другому
 ##   кадру комнаты: рисуется стрелкой у края экрана;
@@ -15,7 +15,7 @@ extends Control
 ## Арта пока нет: фон — цвет из данных, объект — полупрозрачная плашка с подписью. Появится
 ## картинка по пути из данных — встанет сама, код менять не нужно.
 
-const PANEL_KINDS: PackedStringArray = ["system_block", "bed", "fridge"]
+const PANEL_KINDS: PackedStringArray = ["system_block", "fridge"]
 
 var _background: ColorRect
 var _background_art: TextureRect
@@ -33,8 +33,6 @@ var _selected: String = ""
 var _shown_ids: PackedStringArray = []
 ## Какой фон показан: меняем, только когда сменилось время суток или локация.
 var _shown_background: String = ""
-var _hour: SpinBox
-var _minute: SpinBox
 
 
 func _ready() -> void:
@@ -43,6 +41,9 @@ func _ready() -> void:
 	_pause.main_menu_requested.connect(_on_menu)
 	add_child(_pause)
 	_menu.pressed.connect(_pause.open)
+	PhoneOverlay.attach(self)
+	# Сон и ожидание идут из будильника в телефоне; итог — строкой внизу.
+	EventBus.rested.connect(_on_rested)
 	EventBus.location_entered.connect(func(_id: String) -> void: _show_location())
 	# Условия объектов могли измениться (флаг, этап квеста, конец диалога) — перепроверить видимость.
 	EventBus.flag_changed.connect(func(_flag: String, _value: bool) -> void: _refresh_objects())
@@ -186,6 +187,8 @@ func click(object_id: String) -> void:
 			_output.text = str(object.get("text", ""))
 		"dialogue":
 			DialogueManager.request(str(object.get("dialogue", "")))
+		"bed":
+			PhoneOverlay.open_alarm(PackedStringArray([Rest.MODE_SLEEP, Rest.MODE_WAIT]))
 
 
 ## Наполнить панель действий выбранного объекта (или обновить уже открытую).
@@ -206,8 +209,6 @@ func _refresh_panel() -> void:
 			for id: String in Inventory.items():
 				var button: Button = _action("Act_item_" + id, "Подключить: " + Inventory.name_of(id), _on_item.bind(id))
 				button.tooltip_text = Inventory.about(id)
-		"bed":
-			_bed_actions()
 		"fridge":
 			_fridge_actions()
 	_panel.visible = true
@@ -221,30 +222,6 @@ func _action(action_name: String, text: String, on_press: Callable) -> Button:
 	button.pressed.connect(on_press)
 	_actions.add_child(button)
 	return button
-
-
-## Кровать: будильник (по умолчанию из баланса) и «спать» или «подождать».
-func _bed_actions() -> void:
-	var row := HBoxContainer.new()
-	row.name = "Alarm"
-	_actions.add_child(row)
-	var label := Label.new()
-	label.text = "Будильник:"
-	row.add_child(label)
-	var alarm: int = Rest.default_alarm()
-	_hour = SpinBox.new()
-	_hour.name = "Hour"
-	_hour.max_value = 23
-	_hour.value = alarm / 60
-	row.add_child(_hour)
-	_minute = SpinBox.new()
-	_minute.name = "Minute"
-	_minute.max_value = 55
-	_minute.step = 5
-	_minute.value = alarm % 60
-	row.add_child(_minute)
-	_action("Act_sleep", "Спать", _on_rest.bind(Rest.MODE_SLEEP))
-	_action("Act_wait", "Подождать", _on_rest.bind(Rest.MODE_WAIT))
 
 
 ## Холодильник: по кнопке на каждую еду из запаса (что привезла доставка).
@@ -299,12 +276,12 @@ func _on_item(item_id: String) -> void:
 	_show(report["lines"] as PackedStringArray)
 
 
-func _on_rest(mode: String) -> void:
-	var alarm: int = int(_hour.value) * 60 + int(_minute.value)
-	_close_panel()
-	var report: Dictionary = Rest.pass_time(Rest.minutes_until(alarm), mode)
-	var reason: String = str(report["interrupted"])
-	_output.text = Clock.format_now() if reason.is_empty() else "%s — %s" % [Clock.format_now(), reason]
+func _on_rested(_mode: String, _minutes: int, interrupted: String) -> void:
+	_output.text = Clock.format_now() if interrupted.is_empty() else "%s — %s" % [Clock.format_now(), interrupted]
+
+
+func _exit_tree() -> void:
+	PhoneOverlay.detach(self)
 
 
 ## Питание ПК. Выключение закрывает и спрятанный стол — это уже не «отошёл», а выключил
@@ -419,7 +396,8 @@ func _build() -> void:
 	_output.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	_output.offset_top = -96
 	_output.offset_left = 16
-	_output.offset_right = -16
+	# Справа внизу лежит свёрнутый телефон — текст до него не доходит.
+	_output.offset_right = -PhoneOverlay.WIDTH - 2 * PhoneOverlay.MARGIN
 	_output.offset_bottom = -12
 	_output.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_output.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
@@ -459,8 +437,3 @@ func clock_text() -> String:
 
 func title_text() -> String:
 	return _title.text
-
-
-func set_alarm(hour: int, minute: int) -> void:
-	_hour.value = hour
-	_minute.value = minute

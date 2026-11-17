@@ -164,7 +164,7 @@
 | --- | --- |
 | Сон и ожидание до будильника, будящие события | `src/systems/needs/rest.gd` (`Rest`) |
 | Дата: «чт, 2 апреля» из `clock.start_date` и счётчика дней | `Clock.format_date`, `format_now` |
-| Кровать в комнате: будильник (часы и минуты), «Спать» / «Подождать» | объект `bed`, `src/ui/location/location_view.gd` (`locations.md`) |
+| Кровать в комнате: телефон с будильником (часы и минуты), «Спать» / «Подождать» | объект `bed` → `src/ui/phone/alarm_app.gd` (`devices.md`) |
 | Консоль F1: `bed sleep|wait чч:мм` | `src/debug/debug_commands.gd` |
 | Числа: будильник по умолчанию | `data/balance.json`, раздел `rest` |
 
@@ -183,7 +183,7 @@
 | Правила: энергия и сытость во времени, полосы сытости, реплики, вырубание | `src/systems/needs/needs.gd` (`Needs`) |
 | Ход часов → правила, события → шина, вырубание | автозагрузка `NeedsManager` |
 | Сон до полного восстановления | `Rest.sleep_until_rested` |
-| Виджет «Самочувствие» (энергия, сытость, крестик) — **заглушка**: где показывать, ещё не решено | `src/ui/desktop/needs_widget.gd` |
+| Энергия и сытость всегда на виду — в строке свёрнутого телефона (виджет на столе убран, 17.11.2026) | `src/ui/phone/phone_status.gd` (`devices.md`) |
 | Мысли героя внизу стола (и в комнате) | `src/ui/desktop/hero_thoughts.gd`, тексты — `data/needs.json` |
 | Занавес вырубания: реплика, затемнение, подпись, проявление в комнате | `src/ui/pass_out_curtain.gd` |
 | Консоль F1: `needs`, `needs energy =10`, `needs satiety -20` | `src/debug/debug_commands.gd` |

@@ -19,6 +19,10 @@ signal order_placed(item_id: String)
 signal mail_received(uid: String, mail_id: String)
 signal mail_read(uid: String, mail_id: String)
 signal mail_replied(uid: String, mail_id: String, reply_id: String)
+## Мессенджер (Messenger): пришло сообщение, чат прочитан, герой ответил.
+signal message_received(uid: String, message_id: String)
+signal messages_read(contact: String)
+signal message_replied(uid: String, message_id: String, reply_id: String)
 signal attachment_saved(uid: String, path: String)
 ## Герой отправил письмо со своего ПК: кому и `file_id` вложений (у файлов без id их нет).
 ## По нему закрывается цель `deliver`.

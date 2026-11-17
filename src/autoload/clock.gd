@@ -88,6 +88,11 @@ func reset_pauses() -> void:
 	_pauses.clear()
 
 
+## Стоит ли время по этой причине (например, открыто меню игры — телефон прячется).
+func is_paused_by(reason: String) -> bool:
+	return _pauses.has(reason)
+
+
 func is_paused() -> bool:
 	return not _pauses.is_empty()
 
