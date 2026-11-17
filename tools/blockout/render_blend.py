@@ -1,0 +1,58 @@
+"""Рендер камер из готовой .blend-сцены.
+
+`apartment.py` собирает сцену из коробок с нуля. Но когда коробки заменены на
+детальные прокси руками (или скриптом внутри Blender), истина уже в файле, а не
+в коде — пересборка стёрла бы эту работу. Этот скрипт ничего не строит: он открывает
+готовую сцену и рендерит из неё кадры тем же способом, что и блокаут, включая карту
+глубины для ControlNet.
+
+    & "...\\blender.exe" -b assets\\_source\\blockout\\apartment_detail.blend ^
+        --python tools\\blockout\\render_blend.py -- --render room_desk --depth
+
+Имена файлов те же (`blk_<камера>_flat.png`, `blk_<камера>_depth.png`), поэтому
+`comfy_bg.py` подхватывает их без изменений.
+"""
+
+import os
+import sys
+
+import bpy
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import bl_common as B  # noqa: E402
+
+
+def main():
+    a = B.args()
+    sc = bpy.context.scene
+    # Размер кадра и движок задаём сами: в чужой сцене они могут быть любыми
+    sc.render.engine = "BLENDER_EEVEE"
+    sc.render.resolution_x, sc.render.resolution_y = B.RES
+    sc.render.resolution_percentage = 100
+    sc.render.image_settings.file_format = "PNG"
+
+    cams = {o.name: o for o in bpy.data.objects if o.type == "CAMERA"}
+    if not cams:
+        raise SystemExit("в сцене нет камер")
+    if not a.render:
+        print("[blockout] камеры сцены: " + ", ".join(sorted(cams)))
+        return
+
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",
+                        "assets", "_source", "blockout", "renders")
+    out = B.resolve(a.out) if a.out else os.path.normpath(root)
+
+    if a.depth:
+        near, far = (float(v) for v in a.depth_range.split(","))
+        B.depth_setup(near, far)
+        suffix = "_depth"
+    else:
+        suffix = "_flat" if a.shade == "flat" else "_lit_%s" % a.phase
+        if a.shade == "lit":
+            B.light(a.phase, a.shade)
+
+    files = B.render(cams, out, suffix, a.render)
+    print("[blockout] отрендерено: %d" % len(files))
+
+
+main()
