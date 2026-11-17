@@ -9,7 +9,7 @@ extends RefCounted
 
 const VAR_LOCATION: String = "location.current"
 ## Что умеет объект. Новый тип — сюда, в окно сцены и в locations.md.
-const KINDS: PackedStringArray = ["monitor", "system_block", "bed", "fridge", "door", "turn", "look", "dialogue"]
+const KINDS: PackedStringArray = ["monitor", "system_block", "bed", "container", "door", "turn", "look", "dialogue"]
 ## Переходы: `door` — дверь в другую комнату, `turn` — повернуться к другому кадру той же
 ## комнаты (стрелка у края экрана). Правило у них одно, разница — только в том, как нарисованы.
 const PASSAGES: PackedStringArray = ["door", "turn"]

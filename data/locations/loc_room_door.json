@@ -4,6 +4,7 @@
   "title": "Комната",
   "background": {"color": "#202432", "image": "res://assets/backgrounds/bg_room_door_{time}.png"},
   "objects": [
+    {"id": "wardrobe", "title": "Шкаф", "kind": "container", "container": "room_storage", "rect": [0.08, 0.12, 0.2, 0.7]},
     {"id": "door_corridor", "title": "В коридор", "kind": "door", "rect": [0.4, 0.1, 0.18, 0.8], "to": "loc_corridor"},
     {"id": "turn_left", "title": "К столу", "kind": "turn", "rect": [0.0, 0.3, 0.05, 0.4], "to": "loc_room_desk"},
     {"id": "turn_right", "title": "К кровати", "kind": "turn", "rect": [0.95, 0.3, 0.05, 0.4], "to": "loc_room_bed"}

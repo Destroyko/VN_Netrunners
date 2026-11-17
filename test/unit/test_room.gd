@@ -47,9 +47,10 @@ func test_unknown_item_cannot_be_given() -> void:
 	assert_push_error_count(1)
 
 
-func test_item_is_a_flag_so_the_save_needs_no_migration() -> void:
+func test_item_is_an_instance_not_a_flag() -> void:
 	Inventory.give(FLASH)
-	assert_true(GameState.has_flag("item.flash_backup"))
+	assert_false(GameState.has_flag("item.flash_backup"), "с сейва v2 предмет — экземпляр в контейнере")
+	assert_eq(Inventory.count(FLASH, Inventory.HERO), 1)
 
 
 # --- Эффекты и условие --------------------------------------------------------

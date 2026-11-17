@@ -45,6 +45,10 @@ func _validate_one(id: String, loc: Dictionary, locations: Dictionary, dialogues
 					errors.append("%s: дверь ведёт в несуществующую локацию '%s'" % [at, to])
 				elif to == id:
 					errors.append("%s: дверь ведёт в ту же локацию" % at)
+			"container":
+				var container: String = str(object.get("container", ""))
+				if not [Inventory.STORAGE, Inventory.FRIDGE].has(container):
+					errors.append("%s: неизвестный контейнер '%s' (есть: room_storage, fridge)" % [at, container])
 			"look":
 				if str(object.get("text", "")).is_empty():
 					errors.append("%s: у look нет text" % at)

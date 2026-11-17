@@ -148,7 +148,8 @@ func test_room_lists_inventory_items_as_buttons() -> void:
 	Locations.enter("loc_room_desk")
 	var room: Node = _open(Screens.ROOM)
 	room.call("click", "system_block")
-	assert_not_null(room.call("action", "Act_item_item_flash_backup"), "у системного блока — подключить флешку")
+	assert_not_null(room.call("action", "Act_item_item_flash_backup"), "у системного блока — вставить флешку")
+	InventoryOverlay.close()
 
 
 func test_room_bed_sleeps_until_alarm() -> void:
@@ -183,18 +184,43 @@ func test_room_fades_in_once_after_pass_out() -> void:
 	assert_false(str(room.call("output_text")).contains(Clock.format_now()), "время пробуждения герой вслух не называет")
 
 
-func test_kitchen_fridge_feeds_from_pantry() -> void:
+func test_kitchen_fridge_opens_inventory_beside() -> void:
 	GameState.reset()
-	Shop.pantry()["food_noodles"] = 1
-	Needs.set_satiety(10.0)
+	Inventory.add(Inventory.FRIDGE, "food_noodles")
 	Locations.enter("loc_kitchen")
 	var room: Node = _open(Screens.ROOM)
 	room.call("click", "fridge")
-	var eat: Button = room.call("action", "Eat_food_noodles") as Button
-	assert_not_null(eat, "в холодильнике — еда из запаса")
-	eat.emit_signal("pressed")
-	assert_almost_eq(Needs.satiety(), 30.0, 0.5)
-	assert_not_null(room.call("action", "Empty"), "съел последнее — пусто")
+	assert_true(InventoryOverlay.is_open())
+	assert_eq(InventoryOverlay.other_container(), Inventory.FRIDGE, "рядом с инвентарём — холодильник")
+	InventoryOverlay.close()
+
+
+func test_system_block_inserts_flash_and_ejects() -> void:
+	GameState.reset()
+	Inventory.give("item_flash_backup")
+	Locations.enter("loc_room_desk")
+	var room: Node = _open(Screens.ROOM)
+	room.call("click", "system_block")
+	assert_true(InventoryOverlay.is_open(), "у системного блока слева — инвентарь")
+	(room.call("action", "Act_item_item_flash_backup") as Button).emit_signal("pressed")
+	assert_eq(str(Room.inserted().get("kind", "")), "item_flash_backup", "флешка в гнезде ПК")
+	assert_eq(Inventory.count("item_flash_backup", Inventory.HERO), 0)
+	(room.call("action", "Act_eject") as Button).emit_signal("pressed")
+	assert_eq(Inventory.count("item_flash_backup", Inventory.HERO), 1, "вынул — снова в инвентаре")
+	InventoryOverlay.close()
+
+
+func test_flash_dropped_on_system_block() -> void:
+	GameState.reset()
+	Inventory.give("item_flash_backup")
+	Locations.enter("loc_room_desk")
+	var room: Node = _open(Screens.ROOM)
+	var data: Dictionary = {"inventory_uid": Inventory.first_uid("item_flash_backup")}
+	var noodles: Dictionary = {"inventory_uid": Inventory.add(Inventory.HERO, "food_noodles")}
+	assert_true(bool(room.call("_can_drop_on_pc", Vector2.ZERO, data)), "флешку на системник — можно")
+	assert_false(bool(room.call("_can_drop_on_pc", Vector2.ZERO, noodles)), "лапшу — нет")
+	room.call("_drop_on_pc", Vector2.ZERO, data)
+	assert_false(Room.inserted().is_empty())
 
 
 func test_room_hears_the_courier() -> void:

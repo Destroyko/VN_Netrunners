@@ -4,7 +4,8 @@ extends Node
 ## Всё, что должно уцелеть после загрузки сейва, лежит здесь (см. docs/tech/architecture.md).
 
 ## Версия формата сейва. Меняешь структуру — поднимай версию и пиши миграцию.
-const SAVE_VERSION: int = 1
+## v2 (M3, 17.11.2026): предметы — экземпляры в контейнерах (раздел `inventory`), а не флаги.
+const SAVE_VERSION: int = 2
 
 ## Уровни сложности, docs/gameplay/difficulty.md. Фиксируется при старте игры.
 enum Difficulty { STORY = 1, EASY = 2, NORMAL = 3, NETRUNNER = 4 }
@@ -42,6 +43,9 @@ var _economy: Dictionary = {}
 ## Почта: доставленные письма, прочитано ли, что ответил (docs/tech/quest-format.md). Ответ —
 ## выбор игрока, после загрузки он должен остаться сделанным.
 var _mail: Dictionary = {}
+## Инвентарь и хранилища (docs/gameplay/inventory.md): {containers: {id: [предметы]}, next: n}.
+## Предмет — экземпляр со своим uid: флешку можно переименовать, квестовую — не выбросить.
+var _inventory: Dictionary = {}
 
 
 ## Новая игра. Сложность задаётся здесь, потому что менять её потом нельзя.
@@ -59,6 +63,7 @@ func reset(new_difficulty: Difficulty = Difficulty.NORMAL) -> void:
 	_puzzles.clear()
 	_economy.clear()
 	_mail.clear()
+	_inventory.clear()
 
 
 # --- Флаги -------------------------------------------------------------------
@@ -222,6 +227,11 @@ func mail_state() -> Dictionary:
 	return _mail
 
 
+## Отдаётся сам словарь: Inventory меняет его на месте.
+func inventory_state() -> Dictionary:
+	return _inventory
+
+
 func set_puzzle_state(state: Dictionary) -> void:
 	_puzzles = state
 
@@ -244,6 +254,7 @@ func to_dict() -> Dictionary:
 		"puzzles": _puzzles.duplicate(true),
 		"economy": _economy.duplicate(true),
 		"mail": _mail.duplicate(true),
+		"inventory": _inventory.duplicate(true),
 	}
 
 
@@ -263,6 +274,7 @@ func from_dict(data: Dictionary) -> void:
 	# Нет ключа (сейв до M2) — пустая экономика: счетов нет, история пустая. Миграция не нужна.
 	_economy = (data.get("economy", {}) as Dictionary).duplicate(true)
 	_mail = (data.get("mail", {}) as Dictionary).duplicate(true)
+	_inventory = (data.get("inventory", {}) as Dictionary).duplicate(true)
 
 
 # --- Внутреннее --------------------------------------------------------------

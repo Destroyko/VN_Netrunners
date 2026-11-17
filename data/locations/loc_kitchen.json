@@ -4,7 +4,7 @@
   "title": "Кухня",
   "background": {"color": "#2a2620", "image": "res://assets/backgrounds/bg_kitchen_{time}.png"},
   "objects": [
-    {"id": "fridge", "title": "Холодильник", "kind": "fridge", "rect": [0.02, 0.1, 0.14, 0.7]},
+    {"id": "fridge", "title": "Холодильник", "kind": "container", "container": "fridge", "rect": [0.02, 0.1, 0.14, 0.7]},
     {"id": "table", "title": "Стол", "kind": "look", "rect": [0.56, 0.56, 0.3, 0.2], "text": "Клеёнка в крошках. Чужая кружка."},
     {"id": "door_corridor", "title": "В коридор", "kind": "turn", "rect": [0.0, 0.3, 0.05, 0.4], "to": "loc_corridor"}
   ]

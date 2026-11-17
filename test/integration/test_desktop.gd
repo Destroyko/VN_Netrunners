@@ -201,10 +201,8 @@ func test_shop_orders_and_eats() -> void:
 	order.emit_signal("pressed")
 	assert_eq(GameState.money, 91)
 	Clock.advance(40)
-	var eat: Node = shop.find_child("Food_food_sandwich", true, false)
-	assert_not_null(eat, "приехало — в запасе")
-	(eat.find_child("Action", true, false) as Button).emit_signal("pressed")
-	assert_eq(Shop.pantry().size(), 0)
+	assert_eq(Inventory.count("food_sandwich", Inventory.HERO), 1, "приехало — в инвентаре")
+	assert_null(shop.find_child("Pantry", true, false), "есть в магазине больше нельзя")
 
 
 # --- Почта ------------------------------------------------------------------------

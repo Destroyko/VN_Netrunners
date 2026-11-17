@@ -1,12 +1,12 @@
 class_name Shop
 extends RefCounted
 ## Доставка еды (docs/gameplay/needs.md, «Что из этого в M2»): заказал — деньги списаны, через
-## `shop.delivery_minutes` пакет у двери и лежит в запасе; съел — сытость (энергетик — энергия
-## сразу и откат потом).
+## `shop.delivery_minutes` курьер отдаёт пакет — каждая порция ложится в инвентарь героя своим
+## слотом (docs/gameplay/inventory.md). Инвентарь полон — не купить.
 ##
-## Чистые правила без сцен. Ход часов передаёт сюда `EconomyManager`; приложение «Магазин» и
-## кухня в комнате только показывают и передают «заказать» и «съесть». Заказы в пути и запас —
-## в `GameState.economy_state()` (сейв их помнит). Каталог — `data/shop.json`.
+## Чистые правила без сцен. Ход часов передаёт сюда `EconomyManager`; приложение «Магазин» только
+## показывает и передаёт «заказать». Съесть — `Inventory.eat`, а что даёт еда — `apply_food`.
+## Заказы в пути — в `GameState.economy_state()`. Каталог — `data/shop.json`.
 
 const DEFAULT_DELIVERY: int = 40
 
@@ -28,11 +28,27 @@ static func delivery_minutes() -> int:
 	return int(section.get("delivery_minutes", DEFAULT_DELIVERY))
 
 
-## Заказать. Нет такого товара или не хватает денег — false, ничего не списано.
-static func order(id: String) -> bool:
+const ERROR_FULL: String = "инвентарь заполнен"
+const ERROR_MONEY: String = "не хватает денег"
+
+
+## Почему не заказать ("" — можно). Место считается с учётом заказов в пути: каждый займёт слот.
+static func order_error(id: String) -> String:
 	var def: Dictionary = item(id)
 	if def.is_empty():
+		return "нет такого товара"
+	if Inventory.free_slots(Inventory.HERO) - orders().size() <= 0:
+		return ERROR_FULL
+	if GameState.money < int(def.get("price", 0)):
+		return ERROR_MONEY
+	return ""
+
+
+## Заказать. Нельзя (`order_error`) — false, ничего не списано.
+static func order(id: String) -> bool:
+	if not order_error(id).is_empty():
 		return false
+	var def: Dictionary = item(id)
 	if not Economy.spend(int(def.get("price", 0)), "Доставка: " + title_of(id)):
 		return false
 	_list("orders").append({"item": id, "arrive_at": Clock.total_minutes() + delivery_minutes()})
@@ -45,15 +61,8 @@ static func orders() -> Array:
 	return _list("orders")
 
 
-## Запас дома: {id: сколько}.
-static func pantry() -> Dictionary:
-	var state: Dictionary = GameState.economy_state()
-	if not state.has("pantry"):
-		state["pantry"] = {}
-	return state["pantry"]
-
-
-## Прошло время: всё, что приехало, — в запас. Курьер оставляет пакет у двери и не будит.
+## Прошло время: всё, что приехало, — в инвентарь героя (место под заказ оставлено при заказе).
+## Курьера слышно, но он не будит.
 static func on_time_passed() -> void:
 	var now: int = Clock.total_minutes()
 	var waiting: Array = _list("orders")
@@ -63,26 +72,19 @@ static func on_time_passed() -> void:
 	for o: Dictionary in arrived:
 		waiting.erase(o)
 		var id: String = str(o["item"])
-		pantry()[id] = int(pantry().get(id, 0)) + 1
+		Inventory.add(Inventory.HERO, id, "", true)
 		EventBus.order_delivered.emit(id)
 
 
-## Съесть или выпить из запаса. Занимает `eat_minutes` игрового времени. Нет в запасе — false.
-static func consume(id: String) -> bool:
-	var count: int = int(pantry().get(id, 0))
-	if count <= 0:
-		return false
-	if count == 1:
-		pantry().erase(id)
-	else:
-		pantry()[id] = count - 1
+## Что даёт еда: сытость (энергетик — энергия сразу и откат потом). Занимает `eat_minutes`
+## игрового времени. Убрать порцию из контейнера — дело `Inventory.eat`.
+static func apply_food(id: String) -> void:
 	var def: Dictionary = item(id)
 	Needs.eat(float(def.get("satiety", 0)))
 	if float(def.get("energy", 0)) > 0.0:
 		Needs.drink_energy(float(def["energy"]), float(def.get("crash", 0)), int(def.get("crash_after_minutes", 0)))
 	EventBus.food_consumed.emit(id)
 	Clock.advance(int(def.get("eat_minutes", 0)))
-	return true
 
 
 static func _list(key: String) -> Array:

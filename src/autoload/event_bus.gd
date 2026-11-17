@@ -29,6 +29,8 @@ signal attachment_saved(uid: String, path: String)
 signal mail_sent(to: String, file_ids: PackedStringArray)
 signal order_delivered(item_id: String)
 signal food_consumed(item_id: String)
+## Содержимое контейнера изменилось (Inventory): окно инвентаря перерисовывается.
+signal inventory_changed(container: String)
 signal heat_changed(heat: int, delta: int)
 
 # --- Время (шлёт Clock) ------------------------------------------------------

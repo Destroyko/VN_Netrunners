@@ -75,7 +75,7 @@ static func _eat(row: Dictionary) -> void:
 		return
 	row["food"] = int(row["food"]) + before - GameState.money
 	Clock.advance(Shop.delivery_minutes())
-	Shop.consume(FOOD)
+	Inventory.eat(Inventory.first_uid(FOOD))
 
 
 ## Заплатить все счета, на которые хватает денег.

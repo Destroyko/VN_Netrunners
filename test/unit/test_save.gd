@@ -177,3 +177,21 @@ func test_no_autosave_outside_the_game() -> void:
 	Clock.advance(1)
 	await get_tree().process_frame
 	assert_false(SaveSystem.exists(SaveSystem.SLOT_AUTO), "часы не запущены (тест, отладка) — без автосейва")
+
+
+func test_v1_items_and_pantry_move_to_containers() -> void:
+	var old: Dictionary = {"version": 1, "flags": {"item.flash_backup": true, "story.x": true},
+		"economy": {"pantry": {"food_noodles": 2}, "bills": []}}
+	var got: Dictionary = SaveMigrations.migrate(old, 2)
+	assert_true(bool(got["ok"]))
+	var state: Dictionary = got["state"]
+	var containers: Dictionary = (state["inventory"] as Dictionary)["containers"] as Dictionary
+	assert_eq(str((containers["hero"][0] as Dictionary)["kind"]), "item_flash_backup", "флаг стал предметом")
+	assert_eq((containers["fridge"] as Array).size(), 2, "запас — в холодильнике, по слоту на порцию")
+	assert_false((state["flags"] as Dictionary).has("item.flash_backup"))
+	assert_true((state["flags"] as Dictionary).has("story.x"), "чужие флаги на месте")
+	assert_false((state["economy"] as Dictionary).has("pantry"))
+	GameState.from_dict(state)
+	assert_true(Inventory.has("item_flash_backup"))
+	assert_eq(Inventory.count("food_noodles", Inventory.FRIDGE), 2)
+

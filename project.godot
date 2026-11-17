@@ -30,6 +30,7 @@ DialogueManager="*res://src/autoload/dialogue_manager.gd"
 ; Окно диалогов поверх любой сцены (новелла): только показ, логика — DialogueManager.
 DialogueOverlay="*res://src/ui/dialogue/dialogue_overlay.gd"
 PhoneOverlay="*res://src/ui/phone/phone_overlay.gd"
+InventoryOverlay="*res://src/ui/inventory/inventory_overlay.gd"
 TriggerManager="*res://src/autoload/trigger_manager.gd"
 ; Инфраструктура, а не игровая система: держит пропорции окна при ручном ресайзе.
 WindowGuard="*res://src/autoload/window_guard.gd"

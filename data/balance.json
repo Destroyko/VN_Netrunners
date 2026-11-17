@@ -59,6 +59,11 @@
     "decrypt_minutes": 480
   },
 
+  "inventory": {
+    "_note": "Слоты контейнеров (docs/gameplay/inventory.md): каждая штука — свой слот, стопок нет. pc_usb — гнездо ПК, одна флешка.",
+    "slots": {"hero": 30, "room_storage": 50, "fridge": 30, "pc_usb": 1}
+  },
+
   "shop": {
     "_note": "Доставка еды (data/shop.json — каталог и цены).",
     "delivery_minutes": 40

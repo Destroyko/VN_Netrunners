@@ -1,5 +1,10 @@
 extends GutTest
-## Shop: доставка еды, запас, еда и энергетик с откатом (docs/gameplay/needs.md).
+## Shop: доставка еды в инвентарь, еда и энергетик с откатом (docs/gameplay/needs.md,
+## inventory.md).
+
+
+func _eat(kind: String) -> bool:
+	return Inventory.eat(Inventory.first_uid(kind))
 
 func before_each() -> void:
 	GameState.reset()
@@ -25,9 +30,9 @@ func test_cannot_order_without_money_or_unknown_item() -> void:
 func test_delivery_arrives_after_delivery_minutes() -> void:
 	Shop.order("food_lunch")
 	Clock.advance(39)
-	assert_eq(Shop.pantry().size(), 0)
+	assert_eq(Inventory.count("food_lunch"), 0)
 	Clock.advance(1)
-	assert_eq(int(Shop.pantry().get("food_lunch", 0)), 1)
+	assert_eq(Inventory.count("food_lunch", Inventory.HERO), 1, "курьер отдал пакет — в инвентаре")
 	assert_eq(Shop.orders().size(), 0)
 
 
@@ -36,19 +41,27 @@ func test_eating_fills_satiety_and_takes_time() -> void:
 	Clock.advance(40)
 	Needs.set_satiety(10.0)
 	var before: int = Clock.total_minutes()
-	assert_true(Shop.consume("food_lunch"))
+	assert_true(_eat("food_lunch"))
 	assert_almost_eq(Needs.satiety(), 65.0, 0.01)
 	assert_eq(Clock.total_minutes() - before, 20, "обед — 20 минут")
-	assert_false(Shop.consume("food_lunch"), "запас кончился")
+	assert_false(_eat("food_lunch"), "съел — больше нет")
 
 
-func test_pantry_counts_several() -> void:
+func test_each_portion_takes_a_slot() -> void:
 	Shop.order("food_noodles")
 	Shop.order("food_noodles")
 	Clock.advance(40)
-	assert_eq(int(Shop.pantry()["food_noodles"]), 2)
-	Shop.consume("food_noodles")
-	assert_eq(int(Shop.pantry()["food_noodles"]), 1)
+	assert_eq(Inventory.list(Inventory.HERO).size(), 2, "стопок нет: две лапши — два слота")
+	_eat("food_noodles")
+	assert_eq(Inventory.count("food_noodles"), 1)
+
+
+func test_full_inventory_blocks_order() -> void:
+	for i: int in Inventory.capacity(Inventory.HERO) - 1:
+		Inventory.add(Inventory.HERO, "food_noodles")
+	assert_true(Shop.order("food_noodles"), "последний слот — под заказ")
+	assert_eq(Shop.order_error("food_noodles"), Shop.ERROR_FULL, "место занято заказом в пути")
+	assert_false(Shop.order("food_noodles"))
 
 
 func test_energy_drink_now_and_crash_later() -> void:
@@ -58,7 +71,7 @@ func test_energy_drink_now_and_crash_later() -> void:
 	Shop.order("drink_energy")
 	Clock.advance(40)
 	var at_start: float = Needs.energy()
-	Shop.consume("drink_energy")
+	_eat("drink_energy")
 	assert_almost_eq(Needs.energy(), at_start + 10.0 - 2.0 / 60.0, 0.01, "+10 сразу (минута на банку)")
 	Clock.advance(298)
 	var before_crash: float = Needs.energy()

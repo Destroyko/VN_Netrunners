@@ -35,6 +35,36 @@ static func hardware() -> PackedStringArray:
 ## Подключить предмет-носитель к системному блоку. Возвращает {ok, lines, restored, os_changed}.
 ## Флешка не расходуется: она остаётся резервной копией навсегда. ОС она только поднимает
 ## (old → normal) и никогда не понижает: с хакерской ОС ничего не меняется.
+## Вставить носитель в системный блок (перетащил из инвентаря или «Вставить»): он переезжает в
+## гнездо ПК (одно на ПК) и срабатывает — `use_item`. Гнездо занято — сначала вынуть.
+static func insert(uid: String, home: Filesystem) -> Dictionary:
+	var found: Dictionary = Inventory.find(uid)
+	var kind: String = str((found.get("entry", {}) as Dictionary).get("kind", ""))
+	if found.is_empty():
+		return {"ok": false, "lines": PackedStringArray(["этого предмета у тебя нет"])}
+	if not Inventory.accepts(Inventory.PC, kind):
+		return {"ok": false, "lines": PackedStringArray(["%s: к системному блоку это не подключить" % Inventory.name_of(kind)])}
+	if not Inventory.list(Inventory.PC).is_empty() and str(found["container"]) != Inventory.PC:
+		return {"ok": false, "lines": PackedStringArray(["в системном блоке уже стоит флешка"])}
+	var error: String = Inventory.move(uid, Inventory.PC)
+	if not error.is_empty():
+		return {"ok": false, "lines": PackedStringArray([error])}
+	return use_item(kind, home)
+
+
+## Вынуть носитель из системного блока обратно в инвентарь. "" — вынул, иначе причина.
+static func eject() -> String:
+	var slot: Array = Inventory.list(Inventory.PC)
+	if slot.is_empty():
+		return "в системном блоке ничего нет"
+	return Inventory.move(str((slot[0] as Dictionary)["uid"]), Inventory.HERO)
+
+
+static func inserted() -> Dictionary:
+	var slot: Array = Inventory.list(Inventory.PC)
+	return slot[0] as Dictionary if not slot.is_empty() else {}
+
+
 static func use_item(item_id: String, home: Filesystem) -> Dictionary:
 	var result: Dictionary = {"ok": false, "lines": PackedStringArray(), "restored": PackedStringArray(), "os_changed": false}
 	var lines: PackedStringArray = result["lines"]

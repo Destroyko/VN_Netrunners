@@ -7,13 +7,38 @@ extends RefCounted
 ## Как добавить: поднять `GameState.SAVE_VERSION`, дописать сюда шаг для прежней версии и тест
 ## на него (test/unit/test_save.gd). Ключ — версия, С КОТОРОЙ шаг поднимает.
 ##
-## Шагов пока нет: v1 — первая версия сейва (сохранений до M2 не было). Разделы, добавленные в
-## M2 (`economy`, `mail`), `GameState.from_dict` и так читает пустыми, если их нет.
+## Разделы, добавленные в M2 (`economy`, `mail`), `GameState.from_dict` читает пустыми, если их
+## нет, — для них шаг не нужен. Шаг нужен, когда старые данные надо переложить по-новому.
 
 
 ## Шаги по версиям: {N: Callable(state: Dictionary) -> Dictionary}.
 static func steps() -> Dictionary:
-	return {}
+	return {1: v1_to_v2}
+
+
+## v1 → v2 (M3): предмет был флагом `item.<имя>`, еда — счётчиком «запаса» у магазина
+## (`economy.pantry`). Теперь это экземпляры в контейнерах: предметы — в инвентарь героя, запас —
+## в холодильник (он и был «запасом дома»).
+static func v1_to_v2(state: Dictionary) -> Dictionary:
+	var hero: Array = []
+	var fridge: Array = []
+	var next: int = 1
+	var flags: Dictionary = state.get("flags", {}) as Dictionary
+	for flag: String in flags.keys():
+		if flag.begins_with("item."):
+			hero.append({"uid": "it_%d" % next, "kind": "item_" + flag.trim_prefix("item."), "label": "", "quest": ""})
+			next += 1
+	for flag: String in flags.keys().filter(func(f: String) -> bool: return f.begins_with("item.")):
+		flags.erase(flag)
+	var economy: Dictionary = state.get("economy", {}) as Dictionary
+	var pantry: Dictionary = economy.get("pantry", {}) as Dictionary
+	for kind: String in pantry.keys():
+		for i: int in int(pantry[kind]):
+			fridge.append({"uid": "it_%d" % next, "kind": kind, "label": "", "quest": ""})
+			next += 1
+	economy.erase("pantry")
+	state["inventory"] = {"containers": {"hero": hero, "fridge": fridge}, "next": next}
+	return state
 
 
 ## Поднять состояние до `target`. Возвращает {ok, state, error}. Версия новее текущей —

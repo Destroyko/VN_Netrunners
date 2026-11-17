@@ -212,6 +212,10 @@ static func _apply_one(type: String, value: Variant) -> bool:
 			# Формат: {"send_text": "msg_x"} — сообщение в мессенджер (docs/gameplay/messages.md).
 			return Messenger.deliver(str(value))
 		"give_item":
+			# Формат: "item_x" или {"item": "item_x", "quest": "quest_id"} — квестовую вещь нельзя
+			# выбросить, пока квест не завершён (docs/gameplay/inventory.md).
+			if value is Dictionary:
+				return Inventory.give(str((value as Dictionary).get("item", "")), str((value as Dictionary).get("quest", "")))
 			return Inventory.give(str(value))
 		"take_item":
 			return Inventory.take(str(value))

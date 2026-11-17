@@ -1,13 +1,14 @@
 extends Control
 ## Сцена локации (docs/gameplay/locations.md): фон и объекты под клик из `data/locations/`.
 ## Правил здесь нет — только показ и передача кликов: переходы в `Locations`, ПК в `Room` и
-## `PcPower`, сон в `Rest`, еда в `Shop`.
+## `PcPower`, сон в `Rest`, предметы в `Inventory`.
 ##
 ## Что делает объект, решает его `kind`:
 ## - `monitor` — сразу за компьютер (если включён), без лишнего шага (плейтест M2);
-## - `system_block` — панель: питание, осмотреть железо, подключить предмет;
+## - `system_block` — панель (питание, железо, вставить / вынуть флешку) и инвентарь слева:
+##   флешку можно перетащить из инвентаря прямо на системный блок (inventory.md);
 ## - `bed` — телефон с будильником: «спать» или «подождать» (docs/gameplay/time.md);
-## - `fridge` — панель: что съесть из запаса;
+## - `container` — инвентарь и рядом содержимое контейнера (холодильник, шкаф);
 ## - `door` — сразу в другую локацию (или «заперто»); `turn` — то же, но это поворот к другому
 ##   кадру комнаты: рисуется стрелкой у края экрана;
 ## - `look` — текст в строке внизу; `dialogue` — диалог новеллы.
@@ -15,7 +16,7 @@ extends Control
 ## Арта пока нет: фон — цвет из данных, объект — полупрозрачная плашка с подписью. Появится
 ## картинка по пути из данных — встанет сама, код менять не нужно.
 
-const PANEL_KINDS: PackedStringArray = ["system_block", "fridge"]
+const PANEL_KINDS: PackedStringArray = ["system_block"]
 
 var _background: ColorRect
 var _background_art: TextureRect
@@ -57,8 +58,7 @@ func _ready() -> void:
 	EventBus.order_delivered.connect(func(_id: String) -> void: _output.text = HeroThoughts.thought("delivered"))
 	EventBus.hero_thought.connect(func(text: String) -> void: _output.text = text)
 	EventBus.passed_out.connect(_on_passed_out)
-	for sig: Signal in [EventBus.order_delivered, EventBus.food_consumed]:
-		sig.connect(func(_id: String) -> void: _refresh_panel())
+	EventBus.inventory_changed.connect(func(_c: String) -> void: _refresh_panel())
 	EventBus.system_restored.connect(func(_paths: PackedStringArray, _os: bool) -> void: _refresh_panel())
 	EventBus.pc_power_changed.connect(func(_on: bool) -> void: _refresh_panel())
 	_show_location()
@@ -153,8 +153,29 @@ func _object_button(object: Dictionary) -> Button:
 		hover.bg_color = Color(1, 1, 1, 0.16)
 		hover.border_color = Color(1, 1, 1, 0.6)
 		button.add_theme_stylebox_override("hover", hover)
+	if str(object.get("kind", "")) == "system_block":
+		# Флешку из инвентаря можно бросить прямо на системный блок — она вставляется.
+		button.set_drag_forwarding(Callable(), _can_drop_on_pc, _drop_on_pc)
 	button.pressed.connect(click.bind(id))
 	return button
+
+
+func _can_drop_on_pc(_at: Vector2, data: Variant) -> bool:
+	if not (data is Dictionary) or not (data as Dictionary).has("inventory_uid"):
+		return false
+	var found: Dictionary = Inventory.find(str((data as Dictionary)["inventory_uid"]))
+	return not found.is_empty() and Inventory.accepts(Inventory.PC, str((found["entry"] as Dictionary)["kind"]))
+
+
+func _drop_on_pc(_at: Vector2, data: Variant) -> void:
+	insert(str((data as Dictionary)["inventory_uid"]))
+
+
+## Вставить носитель в системный блок (перетащил или «Вставить»).
+func insert(uid: String) -> void:
+	var report: Dictionary = Room.insert(uid, Filesystem.for_node(Network.HOME_ID))
+	_show(report["lines"] as PackedStringArray)
+	_refresh_panel()
 
 
 # --- Клики -------------------------------------------------------------------------------
@@ -171,6 +192,8 @@ func click(object_id: String) -> void:
 			return
 		_selected = object_id
 		_refresh_panel()
+		# У системного блока слева открывается инвентарь — флешку тащить оттуда.
+		InventoryOverlay.open()
 		return
 	_close_panel()
 	match kind:
@@ -189,6 +212,8 @@ func click(object_id: String) -> void:
 			DialogueManager.request(str(object.get("dialogue", "")))
 		"bed":
 			PhoneOverlay.open_alarm(PackedStringArray([Rest.MODE_SLEEP, Rest.MODE_WAIT]))
+		"container":
+			InventoryOverlay.open(str(object.get("container", "")))
 
 
 ## Наполнить панель действий выбранного объекта (или обновить уже открытую).
@@ -206,11 +231,14 @@ func _refresh_panel() -> void:
 		"system_block":
 			_action("Act_power", "Выключить компьютер" if PcPower.is_on() else "Включить компьютер", _on_power)
 			_action("Act_hardware", "Осмотреть железо", func() -> void: _show(Room.hardware()))
+			var plugged: Dictionary = Room.inserted()
+			if not plugged.is_empty():
+				_action("Act_eject", "Вынуть: " + Inventory.label_of(plugged), func() -> void: _show(PackedStringArray([Room.eject()])))
 			for id: String in Inventory.items():
-				var button: Button = _action("Act_item_" + id, "Подключить: " + Inventory.name_of(id), _on_item.bind(id))
+				if not Inventory.accepts(Inventory.PC, id):
+					continue
+				var button: Button = _action("Act_item_" + id, "Вставить: " + Inventory.name_of(id), func() -> void: insert(Inventory.first_uid(id)))
 				button.tooltip_text = Inventory.about(id)
-		"fridge":
-			_fridge_actions()
 	_panel.visible = true
 	_place_panel(object)
 
@@ -222,19 +250,6 @@ func _action(action_name: String, text: String, on_press: Callable) -> Button:
 	button.pressed.connect(on_press)
 	_actions.add_child(button)
 	return button
-
-
-## Холодильник: по кнопке на каждую еду из запаса (что привезла доставка).
-func _fridge_actions() -> void:
-	var pantry: Dictionary = Shop.pantry()
-	if pantry.is_empty():
-		var empty := Label.new()
-		empty.name = "Empty"
-		empty.text = "Пусто."
-		_actions.add_child(empty)
-		return
-	for id: String in pantry.keys():
-		_action("Eat_" + id, "Поесть: %s × %d" % [Shop.title_of(id), int(pantry[id])], func() -> void: Shop.consume(id))
 
 
 ## Панель — сбоку от объекта, внутри экрана.
@@ -268,11 +283,6 @@ func _on_sit() -> void:
 	if bool(report["desktop"]):
 		Desktop.enter_pc(get_tree())
 		return
-	_show(report["lines"] as PackedStringArray)
-
-
-func _on_item(item_id: String) -> void:
-	var report: Dictionary = Room.use_item(item_id, Filesystem.for_node(Network.HOME_ID))
 	_show(report["lines"] as PackedStringArray)
 
 
