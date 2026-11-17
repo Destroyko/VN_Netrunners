@@ -44,11 +44,21 @@ const RESOLUTIONS: Array[Dictionary] = [
 	{"size": Vector2i(3840, 2160), "aspect": "16:9"},
 ]
 
+## Скорость текста в диалогах: букв в секунду; 0 — сразу целиком (docs/tech/dialogue-format.md).
+const TEXT_SPEEDS: Array[Dictionary] = [
+	{"cps": 20.0, "title": "Медленно"},
+	{"cps": 40.0, "title": "Обычно"},
+	{"cps": 80.0, "title": "Быстро"},
+	{"cps": 0.0, "title": "Сразу"},
+]
+const DEFAULT_TEXT_SPEED: float = 40.0
+
 ## Громкость 0..1. В децибелы переводим только в apply().
 var master_volume: float = DEFAULT_MASTER_VOLUME
 var fullscreen: bool = DEFAULT_FULLSCREEN
 var ui_scale: float = UI_SCALE_AUTO
 var resolution: Vector2i = RESOLUTION_WINDOW
+var text_speed: float = DEFAULT_TEXT_SPEED
 
 
 ## Прочитать настройки. Файла нет (первый запуск) — остаются значения по умолчанию.
@@ -60,6 +70,7 @@ func load_from(path: String = PATH) -> void:
 	fullscreen = bool(config.get_value(SECTION, "fullscreen", DEFAULT_FULLSCREEN))
 	ui_scale = normalize_ui_scale(float(config.get_value(SECTION, "ui_scale", UI_SCALE_AUTO)))
 	resolution = config.get_value(SECTION, "resolution", RESOLUTION_WINDOW) as Vector2i
+	text_speed = maxf(0.0, float(config.get_value(SECTION, "text_speed", DEFAULT_TEXT_SPEED)))
 
 
 func save_to(path: String = PATH) -> Error:
@@ -68,6 +79,7 @@ func save_to(path: String = PATH) -> Error:
 	config.set_value(SECTION, "fullscreen", fullscreen)
 	config.set_value(SECTION, "ui_scale", ui_scale)
 	config.set_value(SECTION, "resolution", resolution)
+	config.set_value(SECTION, "text_speed", text_speed)
 	return config.save(path)
 
 

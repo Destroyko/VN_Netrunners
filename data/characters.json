@@ -1,0 +1,23 @@
+{
+  "_note": "Кто говорит в диалогах (docs/tech/dialogue-format.md): подпись (подстановка имени из names.json), портрет (assets/portraits/chr_<portrait>_<эмоция>.png; нет файла — плашка), цвет имени.",
+  "hero": {
+    "name": "{name_hero}",
+    "portrait": "hero",
+    "color": "#d0d4dc"
+  },
+  "roommate": {
+    "name": "{name_roommate}",
+    "portrait": "roommate",
+    "color": "#c98a6b"
+  },
+  "landlord": {
+    "name": "{name_landlord}",
+    "portrait": "landlord",
+    "color": "#8a9bb0"
+  },
+  "mother": {
+    "name": "{name_mother}",
+    "portrait": "mother",
+    "color": "#b59ac9"
+  }
+}

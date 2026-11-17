@@ -15,6 +15,7 @@ const HELP: Dictionary = {
 	"money": "money <±сколько> | money =<значение> — изменить или задать деньги",
 	"heat": "heat <±сколько> | heat =<значение> — изменить или задать заметность",
 	"needs": "needs | needs <energy|satiety> <±сколько|=значение> — показать или изменить энергию и сытость",
+	"dialogue": "dialogue <id> — запустить диалог (например, dialogue dlg_test)",
 	"bed": "bed <sleep|wait> <чч:мм> — лечь в кровать до будильника: спать или подождать (как кровать в комнате)",
 	"time": "time | time +<минут> | time <день> <чч:мм> — показать, продвинуть или перевести время",
 	"seed": "seed [значение] — показать или задать сид случайности",
@@ -54,6 +55,10 @@ static func run(line: String) -> String:
 			return _change_number(args, "heat")
 		"bed":
 			return _bed(args)
+		"dialogue":
+			if args.is_empty():
+				return "dialogue: " + str(HELP["dialogue"])
+			return "диалог: %s" % args[0] if DialogueManager.request(args[0]) else "нет такого диалога: %s" % args[0]
 		"needs":
 			return _needs(args)
 		"time":

@@ -30,7 +30,32 @@ func _ready() -> void:
 	_fullscreen.toggled.connect(_on_fullscreen_toggled)
 	_ui_scale.item_selected.connect(_on_ui_scale_selected)
 	_resolution.item_selected.connect(_on_resolution_selected)
+	_add_text_speed()
 	$Rows/Back.pressed.connect(_on_back)
+
+
+## Скорость текста в диалогах (docs/tech/dialogue-format.md): строка собирается кодом, чтобы не
+## править сцену ради одного выпадающего списка.
+func _add_text_speed() -> void:
+	var row := HBoxContainer.new()
+	row.name = "TextSpeedRow"
+	var label := Label.new()
+	label.text = "Скорость текста"
+	label.custom_minimum_size = Vector2(160, 0)
+	row.add_child(label)
+	var speed := OptionButton.new()
+	speed.name = "TextSpeed"
+	for item: Dictionary in AppSettings.TEXT_SPEEDS:
+		speed.add_item(str(item["title"]))
+		speed.set_item_metadata(speed.item_count - 1, float(item["cps"]))
+		if is_equal_approx(float(item["cps"]), _settings.text_speed):
+			speed.select(speed.item_count - 1)
+	speed.item_selected.connect(func(index: int) -> void:
+		_settings.text_speed = float(speed.get_item_metadata(index))
+		_apply_and_save())
+	row.add_child(speed)
+	$Rows.add_child(row)
+	$Rows.move_child(row, $Rows/Fullscreen.get_index())
 
 
 ## Список разрешений: только те, что влезают в экран, плюс «по размеру окна» —

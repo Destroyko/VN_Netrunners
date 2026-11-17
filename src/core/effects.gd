@@ -32,6 +32,7 @@ const KNOWN_TYPES: PackedStringArray = [
 	"add_contact",
 	"hero_thought",
 	"forget_contact",
+	"start_dialogue",
 ]
 
 ## Типы из документации, которым нужны системы следующих этапов.
@@ -189,6 +190,9 @@ static func _apply_one(type: String, value: Variant) -> bool:
 		"add_contact":
 			Mailbox.learn_contact(str(value))
 			return true
+		"start_dialogue":
+			# Формат: {"start_dialogue": "dlg_x"} — диалог новеллы (идёт другой — встанет в очередь).
+			return DialogueManager.request(str(value))
 		"forget_contact":
 			Mailbox.forget_contact(str(value))
 			return true

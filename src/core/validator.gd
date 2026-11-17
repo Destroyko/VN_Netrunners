@@ -33,15 +33,31 @@ var _nodes: Dictionary = {}
 var _mail: Dictionary = {}
 # Новости нужны проверке эффектов: schedule_news ссылается на новость.
 var _news: Dictionary = {}
+# Диалоги — для start_dialogue и цели talk; персонажи и глоссарий — для проверки диалогов.
+var _dialogues: Dictionary = {}
 
 
 ## Проверить все данные из data/. true — ошибок нет.
 func validate_all() -> bool:
 	DataLoader.clear_cache()
+	_dialogues = DataLoader.dialogues()
 	var ok: bool = validate_data(
 		DataLoader.nodes(), DataLoader.news(), DataLoader.quests(), DataLoader.triggers(),
 		DataLoader.mail()
 	)
+	var dialogue_validator := DialogueValidator.new()
+	dialogue_validator.validate(_dialogues, DataLoader.characters(), DataLoader.glossary())
+	errors.append_array(dialogue_validator.errors)
+	warnings.append_array(dialogue_validator.warnings)
+	for id: String in _dialogues.keys():
+		for node_variant: Variant in ((_dialogues[id] as Dictionary).get("nodes", {}) as Dictionary).values():
+			var node: Dictionary = node_variant as Dictionary
+			_validate_effects("диалог %s" % id, node.get("effects", []) as Array, DataLoader.quests())
+			for choice_variant: Variant in node.get("choices", []) as Array:
+				var choice: Dictionary = choice_variant as Dictionary
+				_validate_conditions("диалог %s, выбор" % id, choice.get("requires", []) as Array)
+				_validate_effects("диалог %s, выбор" % id, choice.get("effects", []) as Array, DataLoader.quests())
+	ok = ok and errors.is_empty()
 	_validate_balance()
 	return ok and errors.is_empty()
 
@@ -283,6 +299,8 @@ func _validate_effects(where: String, effects: Array, quests: Dictionary) -> voi
 				continue
 			if type == "reveal_node":
 				errors.append_array(NodeValidator.check_reveal(where, effect[type], _nodes))
+			if type == "start_dialogue" and not _dialogues.is_empty() and not _dialogues.has(str(effect[type])):
+				errors.append("%s: start_dialogue ссылается на несуществующий диалог '%s'" % [where, effect[type]])
 			if type == "schedule_news":
 				var news_id: String = str((effect[type] as Dictionary).get("id", "")) if effect[type] is Dictionary else str(effect[type])
 				if not _news.has(news_id):

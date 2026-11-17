@@ -106,6 +106,31 @@ static func mail() -> Dictionary:
 	return load_dir(DATA_ROOT.path_join("mail"))
 
 
+## Диалоги (docs/tech/dialogue-format.md): один файл — один диалог, по полю id.
+static func dialogues() -> Dictionary:
+	return load_dir(DATA_ROOT.path_join("dialogues"))
+
+
+## Кто говорит в диалогах: подпись, портрет, цвет.
+static func characters() -> Dictionary:
+	return _dict("res://data/characters.json")
+
+
+## Имена — подстановки {name_*} в текстах.
+static func names() -> Dictionary:
+	return _dict("res://data/names.json")
+
+
+## Термины с подсказкой при наведении.
+static func glossary() -> Dictionary:
+	return _dict("res://data/glossary.json")
+
+
+static func _dict(path: String) -> Dictionary:
+	var data: Variant = load_json(path) if FileAccess.file_exists(path) else null
+	return (data as Dictionary) if data is Dictionary else {}
+
+
 static func quests() -> Dictionary:
 	var all: Dictionary = {}
 	for sub: String in ["main", "side", "radiant"]:

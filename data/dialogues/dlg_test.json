@@ -1,0 +1,57 @@
+{
+  "_note": "Пробный диалог для проверки окна (консоль F1: dialogue dlg_test). Тексты — заглушка.",
+  "id": "dlg_test",
+  "start": "hello",
+  "nodes": {
+    "hello": {
+      "speaker": "roommate",
+      "emotion": "smile",
+      "text": "О, ты новый жилец? Я {name_roommate}.",
+      "next": "ask"
+    },
+    "ask": {
+      "speaker": "roommate",
+      "emotion": "neutral",
+      "text": "Тебе, говорят, нужен [[terminal]]? Есть пара программ — например, [[passhound]].",
+      "choices": [
+        {
+          "text": "Расскажи подробнее.",
+          "next": "more"
+        },
+        {
+          "text": "Не сейчас.",
+          "next": "bye",
+          "effects": [
+            {
+              "rep": [
+                "roommate",
+                -1
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "more": {
+      "speaker": "roommate",
+      "emotion": "thoughtful",
+      "text": "Потом. Сначала разберись с ПК.",
+      "effects": [
+        {
+          "set_flag": "world.test_dialogue_more"
+        }
+      ],
+      "next": "bye"
+    },
+    "bye": {
+      "speaker": "hero",
+      "thought": true,
+      "text": "Странная она.",
+      "next": "narr"
+    },
+    "narr": {
+      "text": "Дверь за ней закрылась.",
+      "end": true
+    }
+  }
+}
