@@ -1,0 +1,13 @@
+{
+  "_note": "Стол героя: монитор и системный блок. Кадр блокаута room_desk. Прямоугольники прикидочные — уточнить по фону.",
+  "id": "loc_room_desk",
+  "title": "Комната",
+  "background": {"color": "#1f2433", "image": "res://assets/backgrounds/bg_room_desk_{time}.png"},
+  "objects": [
+    {"id": "window", "title": "Окно", "kind": "look", "rect": [0.58, 0.04, 0.24, 0.4], "text": "Двор, чужие окна, мокрый асфальт."},
+    {"id": "monitor", "title": "Монитор", "kind": "monitor", "rect": [0.58, 0.46, 0.14, 0.18]},
+    {"id": "system_block", "title": "Системный блок", "kind": "system_block", "rect": [0.76, 0.56, 0.08, 0.26]},
+    {"id": "turn_left", "title": "К кровати", "kind": "turn", "rect": [0.0, 0.3, 0.05, 0.4], "to": "loc_room_bed"},
+    {"id": "turn_right", "title": "К двери", "kind": "turn", "rect": [0.95, 0.3, 0.05, 0.4], "to": "loc_room_door"}
+  ]
+}

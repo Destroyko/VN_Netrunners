@@ -39,7 +39,7 @@ func _validate_one(id: String, loc: Dictionary, locations: Dictionary, dialogues
 			errors.append("%s: неизвестный kind '%s'" % [at, kind])
 		_check_rect(at, object.get("rect", null))
 		match kind:
-			"door":
+			"door", "turn":
 				var to: String = str(object.get("to", ""))
 				if not locations.has(to):
 					errors.append("%s: дверь ведёт в несуществующую локацию '%s'" % [at, to])

@@ -9,8 +9,13 @@ extends RefCounted
 
 const VAR_LOCATION: String = "location.current"
 ## Что умеет объект. Новый тип — сюда, в окно сцены и в locations.md.
-const KINDS: PackedStringArray = ["monitor", "system_block", "bed", "fridge", "door", "look", "dialogue"]
-const DEFAULT_HOME: String = "loc_room"
+const KINDS: PackedStringArray = ["monitor", "system_block", "bed", "fridge", "door", "turn", "look", "dialogue"]
+## Переходы: `door` — дверь в другую комнату, `turn` — повернуться к другому кадру той же
+## комнаты (стрелка у края экрана). Правило у них одно, разница — только в том, как нарисованы.
+const PASSAGES: PackedStringArray = ["door", "turn"]
+const DEFAULT_HOME: String = "loc_room_bed"
+const TIME_DAY: String = "day"
+const TIME_NIGHT: String = "night"
 const DEFAULT_LOCKED_TEXT: String = "Заперто."
 
 
@@ -18,10 +23,29 @@ static func all() -> Dictionary:
 	return DataLoader.locations()
 
 
-## Где герой просыпается после вырубания и где стоит его ПК (`balance.json`, `locations.home`).
+## Где герой начинает игру и просыпается после вырубания (`balance.json`, `locations.home`).
 static func home() -> String:
-	var section: Dictionary = DataLoader.balance().get("locations", {}) as Dictionary
-	return str(section.get("home", DEFAULT_HOME))
+	return str(_balance().get("home", DEFAULT_HOME))
+
+
+## Время суток для фона: день с `day_from` до `night_from` часов (`balance.json`, `locations`).
+static func time_of_day(minute_of_day: int) -> String:
+	var section: Dictionary = _balance()
+	var hour: int = minute_of_day / 60
+	var day_from: int = int(section.get("day_from", 7))
+	var night_from: int = int(section.get("night_from", 21))
+	return TIME_DAY if hour >= day_from and hour < night_from else TIME_NIGHT
+
+
+## Путь к фону: `{time}` в пути из данных — день или ночь (`bg_<кадр>_<время>.png`,
+## art/style-guide.md). Пустая строка — фона нет.
+static func background_image(id: String, minute_of_day: int) -> String:
+	var background: Dictionary = def_of(id).get("background", {}) as Dictionary
+	return str(background.get("image", "")).replace("{time}", time_of_day(minute_of_day))
+
+
+static func _balance() -> Dictionary:
+	return DataLoader.balance().get("locations", {}) as Dictionary
 
 
 ## Текущая локация. Нет записи или локацию убрали из данных — дом: старый сейв не ломается.
@@ -62,10 +86,11 @@ static func enter(id: String) -> bool:
 	return true
 
 
-## Пройти через дверь текущей локации. {ok, text}: заперто — `locked_text` из данных.
+## Пройти через дверь (или повернуться к другому кадру) текущей локации. {ok, text}: заперто —
+## `locked_text` из данных.
 static func use_door(object_id: String) -> Dictionary:
 	var door: Dictionary = object(object_id)
-	if str(door.get("kind", "")) != "door":
+	if not PASSAGES.has(str(door.get("kind", ""))):
 		return {"ok": false, "text": ""}
 	if not Conditions.check_all(door.get("open_requires", []) as Array):
 		return {"ok": false, "text": str(door.get("locked_text", DEFAULT_LOCKED_TEXT))}

@@ -1,11 +1,11 @@
 {
-  "_note": "Общая кухня. Заглушка M3: прямоугольники прикидочные.",
+  "_note": "Общая кухня. Кадр блокаута kitchen. Прямоугольники прикидочные — уточнить по фону.",
   "id": "loc_kitchen",
   "title": "Кухня",
-  "background": {"color": "#2a2620", "image": "res://assets/backgrounds/bg_loc_kitchen.png"},
+  "background": {"color": "#2a2620", "image": "res://assets/backgrounds/bg_kitchen_{time}.png"},
   "objects": [
-    {"id": "fridge", "title": "Холодильник", "kind": "fridge", "rect": [0.08, 0.18, 0.14, 0.58]},
-    {"id": "table", "title": "Стол", "kind": "look", "rect": [0.36, 0.52, 0.30, 0.20], "text": "Клеёнка в крошках. Чужая кружка."},
-    {"id": "door_hall", "title": "В прихожую", "kind": "door", "rect": [0.82, 0.18, 0.12, 0.62], "to": "loc_hall"}
+    {"id": "fridge", "title": "Холодильник", "kind": "fridge", "rect": [0.02, 0.1, 0.14, 0.7]},
+    {"id": "table", "title": "Стол", "kind": "look", "rect": [0.56, 0.56, 0.3, 0.2], "text": "Клеёнка в крошках. Чужая кружка."},
+    {"id": "door_corridor", "title": "В коридор", "kind": "turn", "rect": [0.0, 0.3, 0.05, 0.4], "to": "loc_corridor"}
   ]
 }

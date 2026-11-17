@@ -8,33 +8,34 @@ func before_each() -> void:
 
 
 func test_hero_starts_at_home() -> void:
-	assert_eq(Locations.current(), "loc_room")
-	assert_eq(Locations.home(), "loc_room", "дом — из balance.json")
+	assert_eq(Locations.current(), "loc_room_bed", "начинает игру у кровати")
+	assert_eq(Locations.home(), "loc_room_bed", "дом — из balance.json")
 
 
 func test_unknown_location_in_save_falls_back_home() -> void:
 	GameState.set_var(Locations.VAR_LOCATION, "loc_gone")
-	assert_eq(Locations.current(), "loc_room", "локацию убрали из данных — сейв не ломается")
+	assert_eq(Locations.current(), "loc_room_bed", "локацию убрали из данных — сейв не ломается")
 
 
 func test_door_moves_hero_and_tells_the_bus() -> void:
 	watch_signals(EventBus)
-	var result: Dictionary = Locations.use_door("door_hall")
-	assert_true(bool(result["ok"]))
-	assert_eq(Locations.current(), "loc_hall")
-	assert_signal_emitted_with_parameters(EventBus, "location_entered", ["loc_hall"])
-	assert_eq(str(GameState.to_dict()["vars"].get(Locations.VAR_LOCATION, "")), "loc_hall", "место — в сейве")
+	var result: Dictionary = Locations.use_door("turn_left")
+	assert_true(bool(result["ok"]), "поворот к другому кадру — тот же переход")
+	assert_eq(Locations.current(), "loc_room_door")
+	assert_signal_emitted_with_parameters(EventBus, "location_entered", ["loc_room_door"])
+	assert_true(bool(Locations.use_door("door_corridor")["ok"]))
+	assert_eq(str(GameState.to_dict()["vars"].get(Locations.VAR_LOCATION, "")), "loc_corridor", "место — в сейве")
 
 
 func test_door_of_another_location_is_not_usable() -> void:
-	assert_false(bool(Locations.use_door("door_kitchen")["ok"]), "дверь на кухню — в прихожей, не в комнате")
-	assert_eq(Locations.current(), "loc_room")
+	assert_false(bool(Locations.use_door("door_kitchen")["ok"]), "дверь на кухню — в коридоре, не в комнате")
+	assert_eq(Locations.current(), "loc_room_bed")
 
 
 func test_object_visibility_and_locked_door_follow_conditions() -> void:
 	var def: Dictionary = {"id": "loc_t", "title": "T", "objects": [
 		{"id": "secret", "kind": "look", "text": "!", "rect": [0, 0, 0.1, 0.1], "requires": [{"flag": "world.t_seen"}]},
-		{"id": "door", "kind": "door", "to": "loc_room", "rect": [0, 0, 0.1, 0.1],
+		{"id": "door", "kind": "door", "to": "loc_room_desk", "rect": [0, 0, 0.1, 0.1],
 			"open_requires": [{"flag": "world.t_key"}], "locked_text": "Закрыто на ключ."},
 	]}
 	DataLoader.locations()["loc_t"] = def
@@ -47,8 +48,15 @@ func test_object_visibility_and_locked_door_follow_conditions() -> void:
 	assert_eq(str(locked["text"]), "Закрыто на ключ.")
 	GameState.set_flag("world.t_key")
 	assert_true(bool(Locations.use_door("door")["ok"]))
-	assert_eq(Locations.current(), "loc_room")
+	assert_eq(Locations.current(), "loc_room_desk")
 	DataLoader.clear_cache()
+
+
+func test_background_is_day_or_night() -> void:
+	assert_eq(Locations.time_of_day(12 * 60), Locations.TIME_DAY)
+	assert_eq(Locations.time_of_day(23 * 60), Locations.TIME_NIGHT)
+	assert_eq(Locations.time_of_day(3 * 60), Locations.TIME_NIGHT)
+	assert_eq(Locations.background_image("loc_kitchen", 9 * 60), "res://assets/backgrounds/bg_kitchen_day.png")
 
 
 func test_visit_location_objective() -> void:

@@ -188,7 +188,10 @@
   },
 
   "locations": {
-    "_note": "Локации (docs/gameplay/locations.md). home — где стоит ПК героя и где он просыпается после вырубания.",
-    "home": "loc_room"
+    "_note": "Локации (docs/gameplay/locations.md). home — где герой начинает игру и просыпается после вырубания (кадр с кроватью).",
+    "home": "loc_room_bed",
+    "_note_time": "Фон дневной с day_from до night_from часов, иначе ночной (bg_<кадр>_day / _night). Прикидка, уточнить по артам.",
+    "day_from": 7,
+    "night_from": 21
   }
 }

@@ -1,0 +1,14 @@
+{
+  "_note": "Коридор — развязка квартиры. Кадр блокаута corridor. Гостиная и ванная — пока не сцены (разработчик, 17.11.2026). Прямоугольники прикидочные — уточнить по фону.",
+  "id": "loc_corridor",
+  "title": "Коридор",
+  "background": {"color": "#24262b", "image": "res://assets/backgrounds/bg_corridor_{time}.png"},
+  "objects": [
+    {"id": "door_room", "title": "Твоя комната", "kind": "door", "rect": [0.08, 0.15, 0.1, 0.7], "to": "loc_room_desk"},
+    {"id": "door_bath", "title": "Ванная", "kind": "look", "rect": [0.22, 0.2, 0.07, 0.6], "text": "Ванная. Делать там пока нечего."},
+    {"id": "door_neighbor", "title": "Соседняя дверь", "kind": "look", "rect": [0.33, 0.24, 0.06, 0.5], "text": "Заперто."},
+    {"id": "door_kitchen", "title": "Кухня", "kind": "door", "rect": [0.62, 0.24, 0.06, 0.5], "to": "loc_kitchen"},
+    {"id": "door_living", "title": "Гостиная", "kind": "look", "rect": [0.72, 0.2, 0.07, 0.6], "text": "Гостиная. Делать там пока нечего."},
+    {"id": "door_hall", "title": "Прихожая", "kind": "door", "rect": [0.84, 0.15, 0.1, 0.7], "to": "loc_hall"}
+  ]
+}

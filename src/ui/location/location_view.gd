@@ -8,7 +8,8 @@ extends Control
 ## - `system_block` — панель: питание, осмотреть железо, подключить предмет;
 ## - `bed` — панель: будильник, «спать» или «подождать»;
 ## - `fridge` — панель: что съесть из запаса;
-## - `door` — сразу в другую локацию (или «заперто»);
+## - `door` — сразу в другую локацию (или «заперто»); `turn` — то же, но это поворот к другому
+##   кадру комнаты: рисуется стрелкой у края экрана;
 ## - `look` — текст в строке внизу; `dialogue` — диалог новеллы.
 ##
 ## Арта пока нет: фон — цвет из данных, объект — полупрозрачная плашка с подписью. Появится
@@ -30,6 +31,8 @@ var _pause: PauseMenu
 var _selected: String = ""
 ## Какие объекты сейчас нарисованы: перестраиваем, только если набор изменился.
 var _shown_ids: PackedStringArray = []
+## Какой фон показан: меняем, только когда сменилось время суток или локация.
+var _shown_background: String = ""
 var _hour: SpinBox
 var _minute: SpinBox
 
@@ -45,7 +48,9 @@ func _ready() -> void:
 	EventBus.flag_changed.connect(func(_flag: String, _value: bool) -> void: _refresh_objects())
 	EventBus.quest_stage_changed.connect(func(_q: String, _s: String) -> void: _refresh_objects())
 	EventBus.dialogue_ended.connect(func(_id: String) -> void: _refresh_objects())
-	EventBus.time_advanced.connect(func(_minute_now: int, _passed: int) -> void: _refresh_clock())
+	EventBus.time_advanced.connect(func(_minute_now: int, _passed: int) -> void:
+		_refresh_clock()
+		_refresh_background())
 	EventBus.need_warned.connect(func(kind: String) -> void: _output.text = HeroThoughts.thought(kind))
 	# Герой дома — курьера слышит в любой комнате квартиры, а не только за ПК.
 	EventBus.order_delivered.connect(func(_id: String) -> void: _output.text = HeroThoughts.thought("delivered"))
@@ -68,13 +73,26 @@ func _show_location() -> void:
 	_title.text = str(def.get("title", id))
 	var background: Dictionary = def.get("background", {}) as Dictionary
 	_background.color = Color(str(background.get("color", "#1f2433")))
-	var image: String = str(background.get("image", ""))
-	var has_art: bool = not image.is_empty() and ResourceLoader.exists(image)
-	_background_art.visible = has_art
-	_background_art.texture = load(image) as Texture2D if has_art else null
+	_shown_background = "-"
+	_refresh_background()
 	_shown_ids = []
 	_close_panel()
 	_refresh_objects()
+
+
+## Фон по времени суток. Картинки нет — остаётся цвет из данных.
+func _refresh_background() -> void:
+	var image: String = Locations.background_image(Locations.current(), GameState.minute)
+	if image == _shown_background:
+		return
+	_shown_background = image
+	var has_art: bool = not image.is_empty() and ResourceLoader.exists(image)
+	_background_art.visible = has_art
+	_background_art.texture = load(image) as Texture2D if has_art else null
+
+
+func background_path() -> String:
+	return _shown_background
 
 
 ## Перерисовать объекты, если изменился набор видимых.
@@ -117,6 +135,11 @@ func _object_button(object: Dictionary) -> Button:
 		art.set_anchors_preset(Control.PRESET_FULL_RECT)
 		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(art)
+	elif str(object.get("kind", "")) == "turn":
+		# Поворот к другому кадру — стрелка у края, подпись во всплывающей подсказке.
+		button.flat = true
+		button.text = "‹" if float(rect[0]) + float(rect[2]) / 2.0 < 0.5 else "›"
+		button.add_theme_font_size_override("font_size", 48)
 	else:
 		# Заглушка без арта: полупрозрачная плашка с подписью.
 		button.text = str(object.get("title", id))
@@ -155,7 +178,7 @@ func click(object_id: String) -> void:
 				_on_sit()
 			else:
 				_output.text = "Экран чёрный: компьютер выключен."
-		"door":
+		"door", "turn":
 			var result: Dictionary = Locations.use_door(object_id)
 			if not bool(result["ok"]):
 				_output.text = str(result["text"])
