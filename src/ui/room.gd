@@ -22,6 +22,9 @@ func _ready() -> void:
 	$Rows/BedPanel/Wait.pressed.connect(_on_rest.bind(Rest.MODE_WAIT))
 	EventBus.time_advanced.connect(func(_minute: int, _passed: int) -> void: _refresh_clock())
 	EventBus.need_warned.connect(func(kind: String) -> void: _output.text = HeroThoughts.thought(kind))
+	# Герой дома — курьера слышит здесь же, а не только за ПК.
+	EventBus.order_delivered.connect(func(_id: String) -> void: _output.text = HeroThoughts.thought("delivered"))
+	EventBus.hero_thought.connect(func(text: String) -> void: _output.text = text)
 	EventBus.passed_out.connect(_on_passed_out)
 	for sig: Signal in [EventBus.order_delivered, EventBus.food_consumed]:
 		sig.connect(func(_id: String) -> void: _refresh_kitchen())

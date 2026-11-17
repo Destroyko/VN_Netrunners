@@ -168,3 +168,11 @@ func test_quest_console_commands() -> void:
 	assert_string_contains(DebugCommands.run("quest start " + QUEST), "начат")
 	assert_string_contains(DebugCommands.run("quest"), "этап get_in")
 	assert_string_contains(DebugCommands.run("quest choose %s send" % QUEST), "нет")
+
+
+func test_validator_refuses_hidden_mandatory_objective() -> void:
+	var v := Validator.new()
+	v.validate_data({}, {}, {"side_x": {"id": "side_x", "type": "side", "stages": [
+		{"id": "a", "objectives": [{"type": "read_file", "hidden": true}]}]}}, {})
+	assert_string_contains("\n".join(v.errors), "только необязательная")
+

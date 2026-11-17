@@ -151,3 +151,10 @@ func test_room_kitchen_eats_from_pantry() -> void:
 	eat.emit_signal("pressed")
 	assert_almost_eq(Needs.satiety(), 30.0, 0.5)
 
+
+func test_room_hears_the_courier() -> void:
+	GameState.reset()
+	var room: Node = _open(Screens.ROOM)
+	EventBus.order_delivered.emit("food_lunch")
+	assert_string_contains(room.get_node("Rows/Output").text, "Курьер", "герой дома — слышит курьера здесь")
+

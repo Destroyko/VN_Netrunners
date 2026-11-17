@@ -116,7 +116,7 @@ static func on_day_started(day: int) -> void:
 				b["reminded"] = true
 				EventBus.bill_overdue.emit(str(b["id"]))
 	if int(Clock.date_of(day)["weekday"]) == _num("rent_day_of_week", 1):
-		issue(KIND_RENT, "Аренда квартиры", _num("rent_per_week", 200))
+		issue(KIND_RENT, "Аренда комнаты", _num("rent_per_week", 200))
 
 
 ## Сколько недель счёт просрочен (0 — в срок). Пока только для банка; на этом счётчике потом

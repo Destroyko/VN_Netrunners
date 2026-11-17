@@ -25,6 +25,7 @@ func _init() -> void:
 func _ready() -> void:
 	EventBus.need_warned.connect(func(kind: String) -> void: say(thought(kind)))
 	EventBus.order_delivered.connect(func(_id: String) -> void: say(thought("delivered")))
+	EventBus.hero_thought.connect(say)
 
 
 static func thought(kind: String) -> String:

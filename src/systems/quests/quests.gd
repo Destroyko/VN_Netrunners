@@ -60,6 +60,25 @@ static func current_stage(id: String) -> Dictionary:
 	return {}
 
 
+## Чекпоинты текущего этапа, как их видит игрок: [{key, objective, done, optional}].
+## Скрытая цель (`"hidden": true`, только среди необязательных) появляется в списке лишь после
+## выполнения — так игрок узнаёт, что в игре бывают этапы, о которых не говорят заранее
+## (разработчик, 17.11.2026). Окна журнала пока нет — это его данные.
+static func visible_objectives(id: String) -> Array:
+	var stage: Dictionary = current_stage(id)
+	var shown: Array = []
+	for pair: Array in [["o", stage.get("objectives", []), false], ["p", stage.get("optional", []), true]]:
+		var list: Array = pair[1] as Array
+		for i: int in list.size():
+			var key: String = "%s%d" % [pair[0], i]
+			var objective: Dictionary = list[i]
+			var done: bool = is_done(id, key)
+			if bool(objective.get("hidden", false)) and not done:
+				continue
+			shown.append({"key": key, "objective": objective, "done": done, "optional": bool(pair[2])})
+	return shown
+
+
 static func is_done(id: String, key: String) -> bool:
 	return bool((GameState.quest_entry(id).get("done", {}) as Dictionary).get(key, false))
 

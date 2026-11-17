@@ -117,12 +117,18 @@ func _build() -> void:
 	_windows.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_area.add_child(_windows)
 
+	# Сообщения системы ПК — вверху по центру, поверх окон (не мысли героя).
+	var notice := SystemNotice.new()
+	notice.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, 8)
+	notice.grow_horizontal = Control.GROW_DIRECTION_BOTH
+
 	# Мысль поверх окон: её должно быть видно, даже когда стол завален окнами.
 	var thoughts := HeroThoughts.new()
 	thoughts.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 16)
 	thoughts.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	thoughts.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_area.add_child(thoughts)
+	_area.add_child(notice)
 
 	_taskbar = Taskbar.new()
 	_taskbar.window_button_pressed.connect(_on_taskbar_button)
@@ -330,12 +336,12 @@ func _on_menu(action: String) -> void:
 			get_tree().change_scene_to_file(Screens.MAIN_MENU)
 
 
-## Ручное сохранение. Итог — короткой строкой внизу стола.
+## Ручное сохранение. Итог — сообщением системы вверху стола (не мыслью героя).
 func save_game() -> String:
 	var error: String = SaveSystem.save(SaveSystem.SLOT_MANUAL)
-	var notice: HeroThoughts = find_child("HeroThoughts", true, false) as HeroThoughts
+	var notice: SystemNotice = find_child("SystemNotice", true, false) as SystemNotice
 	if notice != null:
-		notice.say("Игра сохранена." if error.is_empty() else "Не удалось сохранить: " + error)
+		notice.show_text("игра сохранена" if error.is_empty() else "ошибка сохранения: " + error)
 	return error
 
 

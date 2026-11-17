@@ -437,3 +437,15 @@ func test_reboot_reports_stopped_tasks() -> void:
 		"locked": {"text": "x"}})
 	run("decrypt /home/dump/arhiv.enc -auto")
 	assert_string_contains(run("reboot"), "прервано")
+
+
+func test_decrypt_is_in_help() -> void:
+	assert_string_contains(run("help"), "decrypt")
+	assert_string_contains(run("help decrypt"), "-auto")
+
+
+func test_rent_bill_is_for_a_room() -> void:
+	var b: Dictionary = Economy.issue(Economy.KIND_RENT, "x", 1)
+	Economy.on_day_started(5)
+	assert_eq(str(Economy.unpaid()[-1]["title"]), "Аренда комнаты", "по завязке герой снимает комнату")
+

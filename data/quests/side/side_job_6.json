@@ -1,5 +1,5 @@
 {
-  "_note": "Заказ первой подработки (docs/story/side-quests/first-job.md). Тексты — заглушки.",
+  "_note": "Заказ первой подработки (docs/story/side-quests/first-job.md). Тексты — заглушки. Выбора нет (разработчик, 17.11.2026): закрыть заказ можно, только удалив корпоративные данные. Скопировать их себе — скрытая необязательная цель: видна в чекпоинтах только после выполнения. Намёк — мысль героя вслух при первом входе на ноутбук.",
   "id": "side_job_6",
   "title": "Заказ: возврат ноутбука",
   "type": "side",
@@ -7,7 +7,7 @@
   "channel": "email",
   "stages": [
     {
-      "id": "collect",
+      "id": "do",
       "effects": [
         {
           "send_message": "mail_job_6"
@@ -33,25 +33,19 @@
           "node": "node_job6_laptop",
           "file": "/home/corp/baza_klientov.db"
         }
-      ]
-    },
-    {
-      "id": "decide",
-      "effects": [
-        {
-          "send_message": "mail_job_6_decide"
-        }
       ],
-      "choices": [
+      "optional": [
         {
-          "id": "send",
-          "text": "Сдать как есть",
-          "outcome": "done"
-        },
-        {
-          "id": "keep",
-          "text": "Оставить копию себе",
-          "outcome": "kept"
+          "type": "copy_file",
+          "node": "node_job6_laptop",
+          "file": "/home/corp/baza_klientov.db",
+          "hidden": true,
+          "title": "Скопировать корпоративную базу себе",
+          "on_done": [
+            {
+              "set_flag": "world.job6_kept"
+            }
+          ]
         }
       ]
     }
@@ -64,19 +58,6 @@
         },
         {
           "set_flag": "story.first_job_done"
-        }
-      ]
-    },
-    "kept": {
-      "effects": [
-        {
-          "money": 150
-        },
-        {
-          "set_flag": "story.first_job_done"
-        },
-        {
-          "set_flag": "world.job6_kept"
         }
       ]
     }

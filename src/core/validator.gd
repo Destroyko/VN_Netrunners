@@ -173,6 +173,11 @@ func _validate_quest(
 		var stage_where: String = "%s, этап %s" % [where, stage_id]
 		_validate_conditions(stage_where, stage.get("requires", []) as Array)
 		_validate_objectives(stage_where, stage.get("objectives", []) as Array, nodes)
+		# Скрытой может быть только необязательная цель: обязательную скрытую игрок не увидит
+		# и не поймёт, почему квест не закрывается.
+		for objective_variant: Variant in stage.get("objectives", []) as Array:
+			if objective_variant is Dictionary and bool((objective_variant as Dictionary).get("hidden", false)):
+				errors.append("%s: скрытой (hidden) может быть только необязательная цель" % stage_where)
 		_validate_objectives(stage_where, stage.get("optional", []) as Array, nodes)
 		_validate_choices(stage_where, stage.get("choices", []) as Array, outcomes)
 		_validate_effects(stage_where, stage.get("effects", []) as Array, quests)

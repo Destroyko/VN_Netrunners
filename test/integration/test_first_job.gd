@@ -58,18 +58,38 @@ func test_job4_deliver_report_to_boss_by_mail() -> void:
 	assert_true(GameState.is_quest_completed("side_job_4"), "отчёт доставлен — заказ закрыт")
 
 
-func test_job6_choice_to_keep_copy() -> void:
+func test_job6_hidden_copy_shows_only_after_done() -> void:
+	_start_job_chain()
+	Effects.apply({"unlock_quest": "side_job_6"})
+	var said: Dictionary = {"text": ""}
+	var spy := func(text: String) -> void: said["text"] = text
+	EventBus.hero_thought.connect(spy)
+	run("connect 203.0.113.61")
+	EventBus.hero_thought.disconnect(spy)
+	assert_string_contains(str(said["text"]), "одним глазком", "намёк — мысль вслух при первом входе")
+	var keys: Array = Quests.visible_objectives("side_job_6").map(func(o: Dictionary) -> String: return str(o["key"]))
+	assert_false(keys.has("p0"), "скрытая цель не видна, пока не сделана")
+	run("cp /home/corp/baza_klientov.db")
+	keys = Quests.visible_objectives("side_job_6").map(func(o: Dictionary) -> String: return str(o["key"]))
+	assert_true(keys.has("p0"), "сделал — появилась в чекпоинтах")
+	assert_true(GameState.has_flag("world.job6_kept"))
+
+
+func test_job6_closes_by_deleting_without_choice() -> void:
 	_start_job_chain()
 	Effects.apply({"unlock_quest": "side_job_6"})
 	run("connect 203.0.113.61")
 	run("cp /home/work/proekt_itog.doc")
 	run("rm /home/corp/baza_klientov.db")
-	assert_eq(GameState.get_quest_stage("side_job_6"), "decide", "рабочий снят, корп удалён")
-	var uid: String = ""
-	for e: Dictionary in Mailbox.inbox():
-		if str(e["id"]) == "mail_job_6_decide":
-			uid = str(e["uid"])
-	assert_true(Mailbox.reply(uid, "keep"))
-	assert_true(GameState.is_quest_completed("side_job_6"))
-	assert_true(GameState.has_flag("world.job6_kept"))
+	assert_true(GameState.is_quest_completed("side_job_6"), "выбора нет: удалил — заказ закрыт")
+	assert_false(GameState.has_flag("world.job6_kept"), "не копировал — скрытая цель не сделана")
 	assert_true(GameState.has_flag("story.first_job_done"))
+
+
+func test_job_machines_keep_no_logs_under_cover() -> void:
+	_start_job_chain()
+	assert_true(GameState.has_flag("gate.cover"), "на подработке за героем подчищают")
+	run("connect 203.0.113.11")
+	run("put /home/job/programma.bin /home/work/programma.bin")
+	run("dc")
+	assert_true(Logbook.for_node("node_job1_pc_a").is_empty(), "записей о герое в логе клиента нет")

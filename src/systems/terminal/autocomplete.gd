@@ -10,7 +10,7 @@ extends RefCounted
 ##   дальше — то, что ждёт эта команда (файл, адрес, сервис).
 ## Адреса — только те, что игрок уже знает: иначе Tab выдавал бы карту сети (решено 15.11.2026).
 
-const PATH_COMMANDS: PackedStringArray = ["ls", "cd", "cat", "cp", "mv", "rm", "mkdir", "put"]
+const PATH_COMMANDS: PackedStringArray = ["ls", "cd", "cat", "cp", "mv", "rm", "mkdir", "put", "decrypt"]
 const ADDRESS_COMMANDS: PackedStringArray = ["connect", "probe"]
 
 

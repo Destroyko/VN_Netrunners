@@ -228,6 +228,17 @@ func test_mail_compose_sends_to_known_address() -> void:
 	assert_true((Mailbox.sent()[0]["file_ids"] as Array).has("file_test_instruction"))
 
 
+func test_save_notice_is_a_system_message() -> void:
+	SaveSystem.dir = "user://test_saves_desktop"
+	desktop.save_game()
+	var notice: SystemNotice = desktop.find_child("SystemNotice", true, false) as SystemNotice
+	assert_true(notice.visible)
+	assert_eq(notice.text(), "игра сохранена", "сообщение системы, не мысль героя")
+	assert_false((desktop.find_child("HeroThoughts", true, false) as HeroThoughts).visible)
+	SaveSystem.delete(SaveSystem.SLOT_MANUAL)
+	SaveSystem.dir = SaveSystem.DEFAULT_DIR
+
+
 func test_news_app_shows_feed_and_marks_read() -> void:
 	News.publish("news_weather", 1)
 	var icon: Button = desktop.find_child("Icon_news", true, false) as Button
