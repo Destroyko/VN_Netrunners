@@ -75,6 +75,8 @@ def args(extra=None):
                    help="карта глубины вместо цвета: вход для ControlNet depth")
     p.add_argument("--depth-range", default="1.8,5.2",
                    help="ближняя,дальняя граница глубины в метрах")
+    p.add_argument("--mannequin", default="",
+                   help="фигура 175 см в точке x,y — проверить пропорции и высоту камеры")
     if extra:
         extra(p)
     return p.parse_args(argv)
@@ -91,6 +93,18 @@ def reset():
     sc.eevee.taa_render_samples = 32
     sc.unit_settings.system = "METRIC"
     _mats.clear()
+
+
+def mannequin(pos, shade="flat", name="mannequin"):
+    """Фигура ростом 175 см: линейка для пропорций и высоты камеры.
+
+    Глазами человека мебель читается сразу — стол по пояс, шкаф выше головы.
+    В рендер для генератора не идёт: это проверка для себя.
+    """
+    x, y = pos
+    box(f"{name}_legs", (x - 0.17, y - 0.12, 0.0), (0.34, 0.24, 0.86), "accent", shade)
+    box(f"{name}_body", (x - 0.21, y - 0.14, 0.86), (0.42, 0.28, 0.62), "accent", shade)
+    box(f"{name}_head", (x - 0.10, y - 0.09, 1.48), (0.20, 0.18, 0.27), "accent", shade)
 
 
 def depth_setup(near=1.8, far=5.2):
@@ -429,6 +443,8 @@ def finish(cams, a, default_out, default_blend, hide=None):
     """Сохранить .blend и отрендерить. Без --background остаёмся в редакторе."""
     out = resolve(a.out or default_out)
     blend = resolve(a.save or default_blend)
+    if getattr(a, "mannequin", ""):
+        mannequin(tuple(float(v) for v in a.mannequin.split(",")), a.shade)
     if getattr(a, "depth", False):
         near, far = (float(v) for v in a.depth_range.split(","))
         depth_setup(near, far)
