@@ -71,6 +71,10 @@ def args(extra=None):
                    help="имена камер через запятую или all; пусто — только собрать сцену")
     p.add_argument("--out", default="", help="папка для рендеров")
     p.add_argument("--save", default="", help="куда сохранить .blend")
+    p.add_argument("--depth", action="store_true",
+                   help="карта глубины вместо цвета: вход для ControlNet depth")
+    p.add_argument("--depth-range", default="1.8,5.2",
+                   help="ближняя,дальняя граница глубины в метрах")
     if extra:
         extra(p)
     return p.parse_args(argv)
@@ -87,6 +91,33 @@ def reset():
     sc.eevee.taa_render_samples = 32
     sc.unit_settings.system = "METRIC"
     _mats.clear()
+
+
+def depth_setup(near=1.8, far=5.2):
+    """Карта глубины вместо цвета: ближе — светлее, дальше — темнее.
+
+    Это вход для ControlNet depth. Своя карта из Blender точнее любого препроцессора:
+    тот угадывает глубину по картинке, а здесь она известна точно — сцена построена нами.
+    Границы в метрах: вне них всё упирается в чёрное или белое.
+    """
+    sc = bpy.context.scene
+    sc.view_layers[0].use_pass_z = True
+    # В Blender 5.x композитор живёт отдельной нодовой группой, а не scene.node_tree
+    nt = bpy.data.node_groups.new("blk_depth", "CompositorNodeTree")
+    sc.compositing_node_group = nt
+    for n in list(nt.nodes):
+        nt.nodes.remove(n)
+    rl = nt.nodes.new("CompositorNodeRLayers")
+    # Normalize сам растягивает глубину сцены в 0..1: границы в метрах подбирать
+    # не нужно, а в комнате они каждый раз свои
+    nrm = nt.nodes.new("CompositorNodeNormalize")
+    nt.links.new(rl.outputs["Depth"], nrm.inputs[0])
+    # Инверсию (ближнее белое) делаем уже в ComfyUI: ShaderNodeMapRange в композиторе
+    # 5.3 ведёт себя как порог и превращает карту в чёрно-белую маску
+    # В 5.x композитор — нодовая группа, выход у неё обычный Group Output
+    nt.interface.new_socket(name="Image", in_out="OUTPUT", socket_type="NodeSocketColor")
+    out = nt.nodes.new("NodeGroupOutput")
+    nt.links.new(nrm.outputs[0], out.inputs[0])
 
 
 def mat(key, shade):
@@ -398,8 +429,13 @@ def finish(cams, a, default_out, default_blend, hide=None):
     """Сохранить .blend и отрендерить. Без --background остаёмся в редакторе."""
     out = resolve(a.out or default_out)
     blend = resolve(a.save or default_blend)
-    suffix = "" if a.shade == "flat" else f"_{a.phase}"
-    suffix = f"_{a.shade}{suffix}"
+    if getattr(a, "depth", False):
+        near, far = (float(v) for v in a.depth_range.split(","))
+        depth_setup(near, far)
+        suffix = "_depth"
+    else:
+        suffix = "" if a.shade == "flat" else f"_{a.phase}"
+        suffix = f"_{a.shade}{suffix}"
     files = render(cams, out, suffix, a.render, hide)
     if blend:
         os.makedirs(os.path.dirname(blend), exist_ok=True)
