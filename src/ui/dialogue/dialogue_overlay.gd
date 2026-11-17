@@ -188,19 +188,25 @@ func _build() -> void:
 	box.offset_top = -220
 	box.gui_input.connect(_on_click)
 	add_child(box)
+	# Клик по любому месту панели — дальше: всё внутри пропускает мышь к панели. Иначе текст и
+	# плашка «съедали» клик (плейтест M3).
 	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_theme_constant_override("separation", 16)
 	box.add_child(row)
 	var portrait_slot := Control.new()
+	portrait_slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	portrait_slot.custom_minimum_size = Vector2(PORTRAIT_SIZE.x, 200)
 	row.add_child(portrait_slot)
 	_portrait = TextureRect.new()
 	_portrait.size = PORTRAIT_SIZE
 	_portrait.position = Vector2(0, 200 - PORTRAIT_SIZE.y)
 	_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	portrait_slot.add_child(_portrait)
 	_plaque = ColorRect.new()
 	_plaque.size = Vector2(PORTRAIT_SIZE.x, 200)
+	_plaque.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	portrait_slot.add_child(_plaque)
 	_plaque_label = Label.new()
 	_plaque_label.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -208,6 +214,7 @@ func _build() -> void:
 	_plaque_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_plaque.add_child(_plaque_label)
 	var column := VBoxContainer.new()
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(column)
 	_name = Label.new()
@@ -219,11 +226,14 @@ func _build() -> void:
 	_text.fit_content = true
 	_text.scroll_active = false
 	_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# PASS, а не IGNORE: наведение на термин должно работать, а клик — уйти дальше к панели.
+	_text.mouse_filter = Control.MOUSE_FILTER_PASS
 	_text.meta_hover_started.connect(_on_meta_hover)
 	_text.meta_hover_ended.connect(func(_meta: Variant) -> void: _tooltip.visible = false)
 	column.add_child(_text)
 	_choices = VBoxContainer.new()
 	_choices.name = "Choices"
+	_choices.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(_choices)
 
 	_tooltip = PanelContainer.new()
