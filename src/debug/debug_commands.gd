@@ -16,6 +16,7 @@ const HELP: Dictionary = {
 	"heat": "heat <±сколько> | heat =<значение> — изменить или задать заметность",
 	"needs": "needs | needs <energy|satiety> <±сколько|=значение> — показать или изменить энергию и сытость",
 	"dialogue": "dialogue <id> — запустить диалог (например, dialogue dlg_test)",
+	"go": "go | go <loc_id> — где герой и куда можно; перейти в локацию без дверей",
 	"bed": "bed <sleep|wait> <чч:мм> — лечь в кровать до будильника: спать или подождать (как кровать в комнате)",
 	"time": "time | time +<минут> | time <день> <чч:мм> — показать, продвинуть или перевести время",
 	"seed": "seed [значение] — показать или задать сид случайности",
@@ -59,6 +60,11 @@ static func run(line: String) -> String:
 			if args.is_empty():
 				return "dialogue: " + str(HELP["dialogue"])
 			return "диалог: %s" % args[0] if DialogueManager.request(args[0]) else "нет такого диалога: %s" % args[0]
+		"go":
+			if args.is_empty():
+				return "герой: %s
+локации: %s" % [Locations.current(), ", ".join(PackedStringArray(Locations.all().keys()))]
+			return "герой: %s" % args[0] if Locations.enter(args[0]) else "нет такой локации: %s" % args[0]
 		"needs":
 			return _needs(args)
 		"time":

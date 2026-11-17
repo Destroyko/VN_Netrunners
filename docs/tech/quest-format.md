@@ -47,7 +47,7 @@ data/
 
 Условия (`requires`): `flag`, `not_flag`, `rank_at_least`, `episode_at_least`, `skill_at_least` (`["hacking", 4]`), `has_file` (по `file_id`, где бы он ни лежал на ПК героя), `time_of_day`, `money_at_least`, `heat_at_most`, `day_at_least`, `has_item` (id предмета из `data/items.json`).
 
-Эффекты (`effects`): `money`, `rep` (персонаж / фракция), `heat`, `set_flag`, `set_var`, `clear_flag`, `unlock_quest`, `add_file`, `schedule_news`, `send_message`, `add_note` (запись в блокнот, → [notebook.md](../gameplay/notebook.md)), `reveal_node` (точка входа в сеть, ниже), `give_item` / `take_item` (предмет инвентаря, `data/items.json`), `energy` / `satiety` (прибавить или убавить) и `set_energy` / `set_satiety` (задать) — шкалы героя по ходу сцены (`gameplay/needs.md`). Поле `"admin": true` — логин администратора: на узле сразу с правами (`gameplay/hacking.md`, «Права»).
+Эффекты (`effects`): `money`, `rep` (персонаж / фракция), `heat`, `set_flag`, `set_var`, `clear_flag`, `unlock_quest`, `add_file`, `schedule_news`, `send_message`, `add_note` (запись в блокнот, → [notebook.md](../gameplay/notebook.md)), `reveal_node` (точка входа в сеть, ниже), `give_item` / `take_item` (предмет инвентаря, `data/items.json`), `move_to` (перевести героя в локацию, → [locations.md](../gameplay/locations.md)), `energy` / `satiety` (прибавить или убавить) и `set_energy` / `set_satiety` (задать) — шкалы героя по ходу сцены (`gameplay/needs.md`). Поле `"admin": true` — логин администратора: на узле сразу с правами (`gameplay/hacking.md`, «Права»).
 
 `reveal_node` — заказ даёт игроку адрес узла и, если клиент его знает, логины. Узел попадает в адресную книгу под своим именем, а перечисленные сервисы открыты заранее (на срок, как у любого вскрытого сервиса):
 
@@ -226,7 +226,8 @@ data/
 | `wait_until` | Выполнены условия `until` (проверяется раз в игровой час) |
 
   `talk` (`{"type": "talk", "dialogue": "dlg_x"}`) закрывается, когда диалог закончился (M3, 17.11.2026).
-  `visit_location`, `mask_backup` валидатор знает, но пока они не закрываются (нет карты и `archmask`).
+  `visit_location` (`{"type": "visit_location", "location": "loc_x"}`) закрывается на входе в локацию
+  (M3, 17.11.2026). `mask_backup` валидатор знает, но пока она не закрывается (нет `archmask`).
 - **Необязательные цели** (`optional`) закрываются, пока этап активен; их `on_done` — бонус.
 - **Скрытая цель** — необязательная с `"hidden": true` (и `title` для журнала): в чекпоинтах
   видна только после выполнения (`Quests.visible_objectives`). Обязательная скрытой быть не

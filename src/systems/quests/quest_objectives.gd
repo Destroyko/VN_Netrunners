@@ -15,12 +15,12 @@ const BY_EVENT: Dictionary = {
 	"wipe_logs": "node_disconnected",
 	"deliver": "mail_sent",
 	"talk": "dialogue_ended",
+	"visit_location": "location_entered",
 }
 ## Цели, которые закрываются состоянием мира.
 const BY_STATE: PackedStringArray = ["file_at", "wait_until"]
-## Цели следующих этапов: валидатор их пропускает, но в M2 они не закрываются (диалогов, карты
-## и `archmask` ещё нет).
-const NOT_YET: PackedStringArray = ["visit_location", "mask_backup"]
+## Цели следующих этапов: валидатор их пропускает, но пока они не закрываются (`archmask` ещё нет).
+const NOT_YET: PackedStringArray = ["mask_backup"]
 
 
 ## Закрывает ли событие `event` цель `objective`.
@@ -35,6 +35,8 @@ static func matches(objective: Dictionary, event: Dictionary) -> bool:
 	if type == "talk":
 		# Разговор состоялся: диалог `dialogue` закончился.
 		return str(objective.get("dialogue", "")) == str(event.get("dialogue", ""))
+	if type == "visit_location":
+		return str(objective.get("location", "")) == str(event.get("location", ""))
 	if type == "wipe_logs":
 		return logs_clean(str(event.get("node", "")))
 	if type == "deliver":

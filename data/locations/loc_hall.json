@@ -1,0 +1,12 @@
+{
+  "_note": "Прихожая: двери в комнату героя, на кухню, в комнату соседки (пока заперта) и на улицу (до карты города идти некуда).",
+  "id": "loc_hall",
+  "title": "Прихожая",
+  "background": {"color": "#23262b", "image": "res://assets/backgrounds/bg_loc_hall.png"},
+  "objects": [
+    {"id": "door_room", "title": "В комнату", "kind": "door", "rect": [0.06, 0.18, 0.12, 0.62], "to": "loc_room"},
+    {"id": "door_kitchen", "title": "На кухню", "kind": "door", "rect": [0.30, 0.18, 0.12, 0.62], "to": "loc_kitchen"},
+    {"id": "door_neighbor", "title": "Соседняя дверь", "kind": "look", "rect": [0.54, 0.18, 0.12, 0.62], "text": "Заперто."},
+    {"id": "door_street", "title": "Входная дверь", "kind": "look", "rect": [0.80, 0.14, 0.14, 0.68], "text": "Выходить пока незачем."}
+  ]
+}

@@ -16,6 +16,8 @@ func _ready() -> void:
 	EventBus.time_advanced.connect(func(_m: int, passed: int) -> void: _on_time(passed))
 	EventBus.dialogue_ended.connect(func(id: String) -> void:
 		Quests.on_event({"event": "dialogue_ended", "dialogue": id}))
+	EventBus.location_entered.connect(func(id: String) -> void:
+		Quests.on_event({"event": "location_entered", "location": id}))
 	EventBus.day_started.connect(Quests.on_day_started)
 
 

@@ -131,6 +131,14 @@ static func _dict(path: String) -> Dictionary:
 	return (data as Dictionary) if data is Dictionary else {}
 
 
+## Локации (docs/gameplay/locations.md): один файл — одна локация.
+## Кэшируются целиком: сцена спрашивает их на каждый клик (и тест может подложить свою).
+static func locations() -> Dictionary:
+	if not _cache.has("@locations"):
+		_cache["@locations"] = load_dir(DATA_ROOT.path_join("locations"))
+	return _cache["@locations"] as Dictionary
+
+
 static func quests() -> Dictionary:
 	var all: Dictionary = {}
 	for sub: String in ["main", "side", "radiant"]:

@@ -35,12 +35,15 @@ var _mail: Dictionary = {}
 var _news: Dictionary = {}
 # Диалоги — для start_dialogue и цели talk; персонажи и глоссарий — для проверки диалогов.
 var _dialogues: Dictionary = {}
+# Локации — для move_to и цели visit_location.
+var _locations: Dictionary = {}
 
 
 ## Проверить все данные из data/. true — ошибок нет.
 func validate_all() -> bool:
 	DataLoader.clear_cache()
 	_dialogues = DataLoader.dialogues()
+	_locations = DataLoader.locations()
 	var ok: bool = validate_data(
 		DataLoader.nodes(), DataLoader.news(), DataLoader.quests(), DataLoader.triggers(),
 		DataLoader.mail()
@@ -57,6 +60,18 @@ func validate_all() -> bool:
 				var choice: Dictionary = choice_variant as Dictionary
 				_validate_conditions("диалог %s, выбор" % id, choice.get("requires", []) as Array)
 				_validate_effects("диалог %s, выбор" % id, choice.get("effects", []) as Array, DataLoader.quests())
+	var location_validator := LocationValidator.new()
+	location_validator.validate(_locations, _dialogues)
+	errors.append_array(location_validator.errors)
+	warnings.append_array(location_validator.warnings)
+	for id: String in _locations.keys():
+		for object_variant: Variant in (_locations[id] as Dictionary).get("objects", []) as Array:
+			var object: Dictionary = object_variant as Dictionary
+			if object == null:
+				continue
+			var at: String = "локация %s, объект %s" % [id, object.get("id", "")]
+			_validate_conditions(at, object.get("requires", []) as Array)
+			_validate_conditions(at, object.get("open_requires", []) as Array)
 	ok = ok and errors.is_empty()
 	_validate_balance()
 	return ok and errors.is_empty()
@@ -301,6 +316,8 @@ func _validate_effects(where: String, effects: Array, quests: Dictionary) -> voi
 				errors.append_array(NodeValidator.check_reveal(where, effect[type], _nodes))
 			if type == "start_dialogue" and not _dialogues.is_empty() and not _dialogues.has(str(effect[type])):
 				errors.append("%s: start_dialogue ссылается на несуществующий диалог '%s'" % [where, effect[type]])
+			if type == "move_to" and not _locations.is_empty() and not _locations.has(str(effect[type])):
+				errors.append("%s: move_to ссылается на несуществующую локацию '%s'" % [where, effect[type]])
 			if type == "schedule_news":
 				var news_id: String = str((effect[type] as Dictionary).get("id", "")) if effect[type] is Dictionary else str(effect[type])
 				if not _news.has(news_id):
@@ -339,6 +356,8 @@ func _validate_objectives(where: String, objectives: Array, nodes: Dictionary) -
 			var node_id: String = str(objective["node"])
 			if not _is_template(node_id) and not nodes.has(node_id):
 				errors.append("%s: цель ссылается на несуществующий узел '%s'" % [where, node_id])
+		if type == "visit_location" and not _locations.is_empty() and not _locations.has(str(objective.get("location", ""))):
+			errors.append("%s: visit_location ссылается на несуществующую локацию '%s'" % [where, objective.get("location", "")])
 		if objective.has("on_done"):
 			_validate_effects(where + ", on_done", objective["on_done"] as Array, {})
 

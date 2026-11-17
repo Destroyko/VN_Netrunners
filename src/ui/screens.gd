@@ -8,7 +8,8 @@ const MAIN_MENU: String = "res://src/ui/main_menu.tscn"
 const NEW_GAME: String = "res://src/ui/new_game.tscn"
 const SETTINGS: String = "res://src/ui/settings_screen.tscn"
 const ABOUT: String = "res://src/ui/about.tscn"
-## Комната героя: отсюда начинается игра (заглушка M1).
-const ROOM: String = "res://src/ui/room.tscn"
+## Квартира: сцена текущей локации (docs/gameplay/locations.md). Отсюда начинается игра, сюда
+## уходят от ПК. Имя константы осталось с M1, когда была одна комната.
+const ROOM: String = "res://src/ui/location/location_view.tscn"
 ## Рабочий стол (M1, шаг 7). Заменил заглушку M0.
 const DESKTOP: String = "res://src/ui/desktop/desktop.tscn"

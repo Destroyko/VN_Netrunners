@@ -47,6 +47,8 @@ signal decrypt_done(path: String)
 signal game_started
 ## Диалоги (DialogueManager): начался, показан новый узел, закончился (квесты ждут «поговорить»).
 signal dialogue_started(dialogue_id: String)
+## Герой перешёл в локацию (Locations.enter): окно сцены перестраивается, цель visit_location.
+signal location_entered(location_id: String)
 signal dialogue_node_changed(dialogue_id: String, node_id: String)
 signal dialogue_ended(dialogue_id: String)
 ## Игра сохранена в слот / загружена из слота (SaveSystem).

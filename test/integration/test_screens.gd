@@ -101,38 +101,52 @@ func test_desktop_opens() -> void:
 	assert_true(desktop is Desktop)
 
 
+func _room() -> Node:
+	GameState.reset()
+	return _open(Screens.ROOM)
+
+
 func test_room_has_its_objects() -> void:
-	var room: Node = _open(Screens.ROOM)
-	for node_name: String in ["Clock", "Monitor", "SystemBlock", "Actions", "Bed", "Output", "Menu"]:
-		assert_not_null(room.get_node_or_null("Rows/" + node_name), "на месте: " + node_name)
+	var room: Node = _room()
+	assert_eq(room.call("title_text"), "Комната", "игра начинается в комнате героя")
+	for id: String in ["monitor", "system_block", "bed", "door_hall"]:
+		assert_not_null(room.call("object_button", id), "на месте: " + id)
+	for node_name: String in ["Clock", "Output", "Menu"]:
+		assert_not_null(room.find_child(node_name, true, false), "на месте: " + node_name)
+
+
+func test_room_object_follows_its_rect() -> void:
+	var room: Node = _room()
+	var bed: Button = room.call("object_button", "bed") as Button
+	assert_almost_eq(bed.anchor_left, 0.04, 0.001, "доли экрана из данных — якоря")
+	assert_almost_eq(bed.anchor_right, 0.34, 0.001)
 
 
 func test_room_lists_inventory_items_as_buttons() -> void:
 	GameState.reset()
 	Inventory.give("item_flash_backup")
 	var room: Node = _open(Screens.ROOM)
-	room.get_node("Rows/SystemBlock").emit_signal("pressed")
-	assert_not_null(room.get_node_or_null("Rows/Actions/Act_item_item_flash_backup"), "у системного блока — подключить флешку")
+	room.call("click", "system_block")
+	assert_not_null(room.call("action", "Act_item_item_flash_backup"), "у системного блока — подключить флешку")
 
 
 func test_room_bed_sleeps_until_alarm() -> void:
 	GameState.reset()
 	Clock.set_time(1, 22 * 60)
 	var room: Node = _open(Screens.ROOM)
-	room.get_node("Rows/Bed").emit_signal("pressed")
-	assert_true(room.get_node("Rows/BedPanel").visible, "кровать спрашивает будильник")
-	room.get_node("Rows/BedPanel/Hour").value = 9
-	room.get_node("Rows/BedPanel/Minute").value = 0
-	room.get_node("Rows/BedPanel/Sleep").emit_signal("pressed")
+	room.call("click", "bed")
+	assert_true(bool(room.call("actions_shown")), "кровать спрашивает будильник")
+	room.call("set_alarm", 9, 0)
+	(room.call("action", "Act_sleep") as Button).emit_signal("pressed")
 	assert_eq(GameState.day, 2)
 	assert_eq(GameState.minute, 9 * 60)
-	assert_false(room.get_node("Rows/BedPanel").visible)
-	assert_string_contains(room.get_node("Rows/Clock").text, "пт, 3 апреля 09:00")
-
+	assert_false(bool(room.call("actions_shown")))
+	assert_string_contains(str(room.call("clock_text")), "пт, 3 апреля 09:00")
 
 
 func test_room_fades_in_once_after_pass_out() -> void:
 	GameState.reset()
+	Locations.enter("loc_kitchen")
 	PassOutCurtain.animate = false
 	Clock.pause(PassOutCurtain.PAUSE_REASON)
 	GameState.set_var(Needs.VAR_WOKE_AFTER_PASS_OUT, true)
@@ -140,49 +154,82 @@ func test_room_fades_in_once_after_pass_out() -> void:
 	PassOutCurtain.animate = true
 	assert_false(bool(GameState.get_var_or(Needs.VAR_WOKE_AFTER_PASS_OUT, false)), "проявляется один раз")
 	assert_false(Clock.is_paused(), "картинка вернулась — часы снова идут")
-	assert_string_contains(room.get_node("Rows/Output").text, "комната", "время пробуждения герой вслух не называет")
+	assert_eq(Locations.current(), "loc_room", "упал на кухне — проснулся у себя")
+	assert_eq(room.call("title_text"), "Комната")
+	assert_false(str(room.call("output_text")).contains(Clock.format_now()), "время пробуждения герой вслух не называет")
 
 
-func test_room_kitchen_eats_from_pantry() -> void:
+func test_kitchen_fridge_feeds_from_pantry() -> void:
 	GameState.reset()
 	Shop.pantry()["food_noodles"] = 1
 	Needs.set_satiety(10.0)
+	Locations.enter("loc_kitchen")
 	var room: Node = _open(Screens.ROOM)
-	var eat: Button = room.get_node("Rows/Kitchen/Eat_food_noodles") as Button
+	room.call("click", "fridge")
+	var eat: Button = room.call("action", "Eat_food_noodles") as Button
+	assert_not_null(eat, "в холодильнике — еда из запаса")
 	eat.emit_signal("pressed")
 	assert_almost_eq(Needs.satiety(), 30.0, 0.5)
+	assert_not_null(room.call("action", "Empty"), "съел последнее — пусто")
 
 
 func test_room_hears_the_courier() -> void:
-	GameState.reset()
-	var room: Node = _open(Screens.ROOM)
+	var room: Node = _room()
 	EventBus.order_delivered.emit("food_lunch")
-	assert_string_contains(room.get_node("Rows/Output").text, "Курьер", "герой дома — слышит курьера здесь")
-
+	assert_string_contains(str(room.call("output_text")), "Курьер", "герой дома — слышит курьера здесь")
 
 
 func test_room_power_is_an_action_of_system_block() -> void:
-	GameState.reset()
-	var room: Node = _open(Screens.ROOM)
-	assert_eq(room.get_node("Rows/Actions").get_child_count(), 0, "пока ничего не выбрано — действий нет")
-	room.get_node("Rows/SystemBlock").emit_signal("pressed")
-	var power: Button = room.get_node("Rows/Actions/Act_power") as Button
+	var room: Node = _room()
+	assert_false(bool(room.call("actions_shown")), "пока ничего не выбрано — действий нет")
+	room.call("click", "system_block")
+	var power: Button = room.call("action", "Act_power") as Button
 	assert_eq(power.text, "Выключить компьютер")
-	assert_not_null(room.get_node_or_null("Rows/Actions/Act_hardware"))
+	assert_not_null(room.call("action", "Act_hardware"))
 	power.emit_signal("pressed")
 	assert_false(PcPower.is_on())
-	room.get_node("Rows/Monitor").emit_signal("pressed")
-	assert_string_contains(room.get_node("Rows/Output").text, "выключен", "монитор чёрный")
-	room.get_node("Rows/SystemBlock").emit_signal("pressed")
-	(room.get_node("Rows/Actions/Act_power") as Button).emit_signal("pressed")
+	room.call("click", "monitor")
+	assert_string_contains(str(room.call("output_text")), "выключен", "монитор чёрный")
+	room.call("click", "system_block")
+	(room.call("action", "Act_power") as Button).emit_signal("pressed")
 	assert_true(PcPower.is_on())
+
+
+func test_second_click_closes_actions() -> void:
+	var room: Node = _room()
+	room.call("click", "system_block")
+	room.call("click", "system_block")
+	assert_false(bool(room.call("actions_shown")))
+
+
+func test_doors_walk_through_the_flat() -> void:
+	var room: Node = _room()
+	(room.call("object_button", "door_hall") as Button).emit_signal("pressed")
+	await wait_process_frames(1)
+	assert_eq(room.call("title_text"), "Прихожая")
+	assert_null(room.call("object_button", "monitor"), "монитор остался в комнате")
+	room.call("click", "door_kitchen")
+	await wait_process_frames(1)
+	assert_eq(room.call("title_text"), "Кухня")
+	assert_not_null(room.call("object_button", "fridge"))
+	room.call("click", "door_hall")
+	room.call("click", "door_street")
+	assert_eq(room.call("title_text"), "Прихожая", "на улицу пока не выйти")
+	assert_string_contains(str(room.call("output_text")), "незачем")
+
+
+func test_scene_reopens_where_the_hero_is() -> void:
+	GameState.reset()
+	Locations.enter("loc_hall")
+	var room: Node = _open(Screens.ROOM)
+	assert_eq(room.call("title_text"), "Прихожая", "загрузили сейв или отошли — та же локация")
 
 
 func test_room_pause_menu_saves_and_stops_time() -> void:
 	GameState.reset()
 	SaveSystem.dir = "user://test_saves_pause"
 	var room: Node = _open(Screens.ROOM)
-	room.get_node("Rows/Menu").emit_signal("pressed")
+	(room.find_child("Menu", true, false) as Button).emit_signal("pressed")
 	var menu: PauseMenu = room.pause_menu()
 	assert_true(menu.visible)
 	assert_true(Clock.is_paused(), "в меню время стоит")
@@ -194,4 +241,3 @@ func test_room_pause_menu_saves_and_stops_time() -> void:
 	assert_false(Clock.is_paused())
 	SaveSystem.delete(SaveSystem.SLOT_MANUAL)
 	SaveSystem.dir = SaveSystem.DEFAULT_DIR
-
