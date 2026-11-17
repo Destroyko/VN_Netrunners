@@ -23,6 +23,7 @@ const APPS: Array[Dictionary] = [
 	{"id": "bank", "title": "Банк", "color": Color(0.5, 0.5, 0.25), "size": Vector2(520, 380), "min": Vector2(320, 220)},
 	{"id": "news", "title": "Новости", "color": Color(0.55, 0.3, 0.3), "size": Vector2(520, 380), "min": Vector2(320, 220)},
 	{"id": "shop", "title": "Магазин", "color": Color(0.45, 0.3, 0.55), "size": Vector2(520, 380), "min": Vector2(320, 220)},
+	{"id": "tasks", "title": "Задачи", "color": Color(0.35, 0.5, 0.35), "size": Vector2(440, 480), "min": Vector2(320, 260)},
 	{"id": "messenger", "title": "Сообщения", "color": Color(0.25, 0.5, 0.55), "size": Vector2(420, 460), "min": Vector2(300, 260)},
 	# «Работа» (поиск работы и подработки, devices.md) — шаг 8 M3: пока серая.
 	{"id": "work", "title": "Работа", "color": Color(0.4, 0.4, 0.4), "size": Vector2(520, 380), "min": Vector2(320, 220), "stub": true},
@@ -113,8 +114,12 @@ func _build() -> void:
 	for app: Dictionary in APPS:
 		_icons.add_child(_make_icon(app))
 
-	# Самочувствие и деньги — в строке свёрнутого телефона (PhoneOverlay), мысли героя — внизу
-	# по центру.
+	# Самочувствие и деньги — в строке свёрнутого телефона (PhoneOverlay), трекер задачи — в
+	# правом верхнем углу стола, мысли героя — внизу по центру.
+	var tracker := QuestTracker.new()
+	tracker.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 12)
+	tracker.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_area.add_child(tracker)
 
 	_windows = Control.new()
 	_windows.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -257,6 +262,8 @@ func _make_content(app_id: String) -> Control:
 		return NewsApp.new()
 	if app_id == "messenger":
 		return MessagesApp.new()
+	if app_id == "tasks":
+		return PlannerApp.new()
 	if app_id == "terminal":
 		var view := TerminalView.new()
 		view.setup(terminal)

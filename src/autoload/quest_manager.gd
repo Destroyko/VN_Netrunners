@@ -16,6 +16,10 @@ func _ready() -> void:
 	EventBus.time_advanced.connect(func(_m: int, passed: int) -> void: _on_time(passed))
 	EventBus.dialogue_ended.connect(func(id: String) -> void:
 		Quests.on_event({"event": "dialogue_ended", "dialogue": id}))
+	# Прочитал письмо — цель «проверить почту» перепроверяется (она по состоянию).
+	EventBus.mail_read.connect(func(_uid: String, _mail_id: String) -> void: Quests.on_event({}))
+	# Мини-квест закончился — этап родителя («закончить мини-квест») перепроверяется.
+	EventBus.quest_completed.connect(func(_id: String, _outcome: String) -> void: Quests.on_event({}))
 	EventBus.location_entered.connect(func(id: String) -> void:
 		Quests.on_event({"event": "location_entered", "location": id}))
 	EventBus.day_started.connect(Quests.on_day_started)

@@ -1,17 +1,30 @@
 {
-  "_note": "Заказ первой подработки (docs/story/side-quests/first-job.md). Тексты — заглушки.",
+  "_note": "Заказ первой подработки (docs/story/side-quests/first-job.md). Тексты — заглушки. Мини-квест недели подработки (parent: side_first_job): следующий заказ запускает родитель, не исход.",
   "id": "side_job_2",
   "title": "Заказ: подготовить ПК",
   "type": "side",
+  "parent": "side_first_job",
   "giver": "autsors",
   "channel": "email",
   "stages": [
     {
-      "id": "do",
+      "id": "mail",
       "effects": [
         {
           "send_message": "mail_job_2"
-        },
+        }
+      ],
+      "objectives": [
+        {
+          "type": "read_mail",
+          "mail": "mail_job_2",
+          "title": "Проверить почту"
+        }
+      ]
+    },
+    {
+      "id": "do",
+      "effects": [
         {
           "reveal_node": {
             "node": "node_job2_pc",
@@ -59,17 +72,6 @@
         },
         {
           "money": 70
-        },
-        {
-          "schedule": {
-            "delay_days": 1,
-            "at": "09:00",
-            "effects": [
-              {
-                "unlock_quest": "side_job_3"
-              }
-            ]
-          }
         }
       ]
     }

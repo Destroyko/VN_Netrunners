@@ -17,8 +17,10 @@ const BY_EVENT: Dictionary = {
 	"talk": "dialogue_ended",
 	"visit_location": "location_entered",
 }
-## Цели, которые закрываются состоянием мира.
-const BY_STATE: PackedStringArray = ["file_at", "wait_until"]
+## Цели, которые закрываются состоянием мира. `complete_quest` — этап квеста-родителя ждёт, пока
+## закончится его мини-квест (docs/tech/quest-format.md, «Квест из мини-квестов»).
+## `read_mail` — тоже по состоянию: письмо могли прочитать раньше, чем начался этап.
+const BY_STATE: PackedStringArray = ["file_at", "wait_until", "complete_quest", "read_mail"]
 ## Цели следующих этапов: валидатор их пропускает, но пока они не закрываются (`archmask` ещё нет).
 const NOT_YET: PackedStringArray = ["mask_backup"]
 
@@ -51,15 +53,32 @@ static func matches(objective: Dictionary, event: Dictionary) -> bool:
 	return true
 
 
-## Выполнена ли цель «по состоянию» прямо сейчас.
-static func satisfied(objective: Dictionary) -> bool:
+## Выполнена ли цель «по состоянию» прямо сейчас. `stage_day` — день, когда начался этап (для
+## «дождаться» относительно него).
+static func satisfied(objective: Dictionary, stage_day: int = 0) -> bool:
 	match str(objective.get("type", "")):
 		"file_at":
 			# Файл лежит по пути `path` на узле `node` (по умолчанию — ПК героя).
 			return Filesystem.for_node(str(objective.get("node", Network.HOME_ID))).has_file(str(objective.get("path", "")))
 		"wait_until":
+			if objective.has("after") and Clock.total_minutes() < wait_target(objective, stage_day):
+				return false
 			return Conditions.check_all(objective.get("until", []) as Array)
+		"complete_quest":
+			return GameState.is_quest_completed(str(objective.get("quest", "")))
+		"read_mail":
+			var mail_id: String = str(objective.get("mail", ""))
+			return Mailbox.inbox().any(func(e: Dictionary) -> bool: return str(e["id"]) == mail_id and bool(e["read"]))
 	return false
+
+
+## «Дождаться» относительно начала этапа: `"after": {"days": 1, "at": "09:00"}` — завтра в 9:00
+## («дождаться утра»), `days: 0` — сегодня в это время (уже прошло — сразу). В минутах от начала игры.
+static func wait_target(objective: Dictionary, stage_day: int) -> int:
+	var after: Dictionary = objective.get("after", {}) as Dictionary
+	var day: int = maxi(stage_day, 1) + int(after.get("days", 0))
+	var at: int = Rest.parse_clock(str(after.get("at", "00:00")))
+	return (day - 1) * Clock.minutes_per_day + maxi(at, 0)
 
 
 static func is_state_objective(objective: Dictionary) -> bool:

@@ -43,7 +43,21 @@ data/
 
 ## Словарь (стандартные типы)
 
-Цели (`objective.type`): `hack_node`, `read_file`, `copy_file`, `delete_file`, `wipe_logs` (почистить логи узла), `mask_backup` (вычистить файл из архивов узла), `talk`, `visit_location`, `wait_until`, `deliver` (отправить файл / сообщение).
+Цели (`objective.type`): `hack_node`, `read_file`, `copy_file`, `delete_file`, `wipe_logs` (почистить логи узла), `mask_backup` (вычистить файл из архивов узла), `talk`, `visit_location`, `wait_until`, `deliver` (отправить файл / сообщение), `read_mail` (прочитать письмо `mail`), `complete_quest` (закончился квест `quest`). У любой цели может быть `title` — так она называется в трекере; без него текст собирается по типу (`Planner.objective_text`).
+
+### Квест из мини-квестов (M3, 17.11.2026)
+
+Большая задача — квест-родитель, его этапы — мини-квесты и условия перехода между ними
+(разработчик): «первая неделя подработки» — шесть заказов, между ними «дождаться утра».
+
+- Этап-мини-квест: эффект `{"unlock_quest": "side_job_2"}` и цель
+  `{"type": "complete_quest", "quest": "side_job_2"}`. У мини-квеста поле `"parent": "<родитель>"`:
+  планировщик показывает его внутри родителя, а не отдельной строкой.
+- Этап-переход — обычные цели родителя: `wait_until`, `talk`, `visit_location`, `read_mail`,
+  условия (`until`: ранг, флаг…). С `title` они читаются в трекере как задача («Дождаться утра»).
+- `wait_until` с `"after": {"days": 1, "at": "09:00"}` — относительно дня начала этапа: завтра в
+  9:00. `days: 0` — сегодня (уже прошло — сразу). Можно вместе с `until`.
+- В трекере — название родителя, под ним идущий мини-квест и его шаги (`gameplay/planner.md`).
 
 Условия (`requires`): `flag`, `not_flag`, `rank_at_least`, `episode_at_least`, `skill_at_least` (`["hacking", 4]`), `has_file` (по `file_id`, где бы он ни лежал на ПК героя), `time_of_day`, `money_at_least`, `heat_at_most`, `day_at_least`, `has_item` (id предмета из `data/items.json`).
 

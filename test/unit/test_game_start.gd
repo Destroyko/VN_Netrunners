@@ -13,4 +13,5 @@ func test_new_game_gives_start_money_and_starts_first_job() -> void:
 	assert_true(Clock.running, "время пошло")
 	assert_true(Filesystem.for_node(Network.HOME_ID).has_file("/home/dnevnik/01_nachalo.txt"),
 		"game_started: дневник на месте")
-	assert_eq(Schedule.pending().size(), 1, "первый заказ ждёт 9:00")
+	assert_true(Quests.is_active("side_first_job"), "неделя подработки началась")
+	assert_eq(GameState.get_quest_stage("side_first_job"), "start", "первый заказ ждёт 9:00")

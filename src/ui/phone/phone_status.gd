@@ -17,8 +17,8 @@ func _init() -> void:
 	name = "Status"
 	add_theme_constant_override("separation", 8)
 	_time = _label("Time")
-	_energy = _bar("Energy", "Энергия")
-	_satiety = _bar("Satiety", "Сытость")
+	_energy = _bar("Energy", "Энергия", Color("#7fd36b"))
+	_satiety = _bar("Satiety", "Сытость", Color("#e8a24a"))
 	_money = _label("Money")
 	_money.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_money.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -63,7 +63,7 @@ func _label(node_name: String) -> Label:
 
 
 ## Полоска с буквой: текст на полоске не помещается, полное число — во всплывающей подсказке.
-func _bar(node_name: String, caption: String) -> ProgressBar:
+func _bar(node_name: String, caption: String, color: Color) -> ProgressBar:
 	var box := HBoxContainer.new()
 	box.add_theme_constant_override("separation", 3)
 	box.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -77,6 +77,15 @@ func _bar(node_name: String, caption: String) -> ProgressBar:
 	bar.custom_minimum_size = Vector2(BAR_WIDTH, 10)
 	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bar.mouse_filter = Control.MOUSE_FILTER_PASS
+	# Цвет — чтобы полоска читалась на тёмном телефоне: светлая серая сливалась с фоном.
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = color
+	fill.set_corner_radius_all(3)
+	bar.add_theme_stylebox_override("fill", fill)
+	var back := StyleBoxFlat.new()
+	back.bg_color = Color(1, 1, 1, 0.12)
+	back.set_corner_radius_all(3)
+	bar.add_theme_stylebox_override("background", back)
 	box.add_child(bar)
 	return bar
 

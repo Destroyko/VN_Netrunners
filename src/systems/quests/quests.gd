@@ -132,6 +132,8 @@ static func finish(id: String, outcome: String) -> void:
 static func _enter_stage(id: String, stage_id: String) -> void:
 	var entry: Dictionary = GameState.quest_entry(id)
 	entry["done"] = {}
+	# День начала этапа: от него считается «дождаться утра».
+	entry["stage_day"] = GameState.day
 	GameState.set_quest_stage(id, stage_id)
 	var stage: Dictionary = current_stage(id)
 	Effects.apply_all(stage.get("effects", []) as Array)
@@ -161,7 +163,8 @@ static func _mark(id: String, list: Array, prefix: String, event: Dictionary, do
 		if done.has(key):
 			continue
 		var objective: Dictionary = list[i]
-		var hit: bool = QuestObjectives.satisfied(objective) if QuestObjectives.is_state_objective(objective) \
+		var stage_day: int = int(GameState.quest_entry(id).get("stage_day", GameState.day))
+		var hit: bool = QuestObjectives.satisfied(objective, stage_day) if QuestObjectives.is_state_objective(objective) \
 			else (not event.is_empty() and QuestObjectives.matches(objective, event))
 		if not hit:
 			continue

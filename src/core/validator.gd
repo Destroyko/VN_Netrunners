@@ -19,6 +19,8 @@ const OBJECTIVE_TYPES: PackedStringArray = [
 	"wait_until",
 	"deliver",
 	"file_at",
+	"read_mail",
+	"complete_quest",
 ]
 
 const QUEST_TYPES: PackedStringArray = ["main", "side", "radiant"]
@@ -177,6 +179,10 @@ func _validate_quest(
 		errors.append("%s: неизвестный канал '%s'" % [where, quest["channel"]])
 
 	_validate_conditions(where, quest.get("requires", []) as Array)
+
+	# Мини-квест знает родителя: планировщик показывает его внутри родителя, а не отдельной строкой.
+	if quest.has("parent") and not quests.has(str(quest["parent"])):
+		errors.append("%s: parent ссылается на несуществующий квест '%s'" % [where, quest["parent"]])
 
 	var stages: Array = quest.get("stages", []) as Array
 	if stages.is_empty():
@@ -388,6 +394,12 @@ func _validate_objectives(where: String, objectives: Array, nodes: Dictionary) -
 			var node_id: String = str(objective["node"])
 			if not _is_template(node_id) and not nodes.has(node_id):
 				errors.append("%s: цель ссылается на несуществующий узел '%s'" % [where, node_id])
+		if type == "read_mail" and not _mail.is_empty() and not _mail.has(str(objective.get("mail", ""))):
+			errors.append("%s: read_mail ссылается на несуществующее письмо '%s'" % [where, objective.get("mail", "")])
+		if type == "complete_quest" and not DataLoader.quests().has(str(objective.get("quest", ""))):
+			errors.append("%s: complete_quest ссылается на несуществующий квест '%s'" % [where, objective.get("quest", "")])
+		if type == "wait_until" and not objective.has("until") and not objective.has("after"):
+			errors.append("%s: у wait_until нужно until или after" % where)
 		if type == "visit_location" and not _locations.is_empty() and not _locations.has(str(objective.get("location", ""))):
 			errors.append("%s: visit_location ссылается на несуществующую локацию '%s'" % [where, objective.get("location", "")])
 		if objective.has("on_done"):

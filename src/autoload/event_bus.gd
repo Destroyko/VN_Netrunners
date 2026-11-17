@@ -85,6 +85,8 @@ signal pc_power_changed(on: bool)
 
 signal quest_stage_changed(quest_id: String, stage_id: String)
 signal quest_completed(quest_id: String, outcome: String)
+## Игрок выбрал задачу для трекера (Planner.track).
+signal task_tracked(quest_id: String)
 ## Цель этапа выполнена: `key` — "o<номер>" (обязательная) или "p<номер>" (необязательная).
 signal quest_objective_done(quest_id: String, key: String, optional: bool)
 

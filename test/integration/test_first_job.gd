@@ -4,10 +4,23 @@ extends "res://test/unit/terminal_fixture.gd"
 
 
 func _start_job_chain() -> void:
-	# День 1, 08:00 — как при «Новой игре»; триггер старта шлёт дневник и ставит заказ на 09:00.
+	# День 1, 08:00 — как при «Новой игре»; триггер старта шлёт дневник и начинает неделю
+	# подработки (side_first_job): первый заказ — в 09:00.
 	Clock.set_time(1, 8 * 60)
 	EventBus.game_started.emit()
 	Clock.advance(60)  # 09:00 — приходит первый заказ
+	_read_all_mail()
+
+
+## Заказ начинается с «проверить почту»: адреса машин открываются, когда письмо прочитано.
+func _read_all_mail() -> void:
+	for e: Dictionary in Mailbox.inbox():
+		Mailbox.mark_read(str(e["uid"]))
+
+
+func _unlock(id: String) -> void:
+	Effects.apply({"unlock_quest": id})
+	_read_all_mail()
 
 
 func test_start_sends_diary_and_first_order() -> void:
@@ -21,18 +34,45 @@ func test_start_sends_diary_and_first_order() -> void:
 
 func test_job_order_two_three_one_four() -> void:
 	var order: Array = []
-	for n: int in [2, 3, 1, 4, 5]:
-		var next: Array = []
-		for e: Dictionary in (Quests.definition("side_job_%d" % n)["outcomes"]["done"]["effects"] as Array):
-			if e.has("schedule"):
-				next.append(str(((e["schedule"] as Dictionary)["effects"] as Array)[0]["unlock_quest"]))
-		order.append(next[0])
-	assert_eq(order, ["side_job_3", "side_job_1", "side_job_4", "side_job_5", "side_job_6"])
+	for stage: Dictionary in Quests.definition("side_first_job")["stages"] as Array:
+		for objective: Dictionary in stage.get("objectives", []) as Array:
+			if str(objective["type"]) == "complete_quest":
+				order.append(str(objective["quest"]))
+	assert_eq(order, ["side_job_2", "side_job_3", "side_job_1", "side_job_4", "side_job_5", "side_job_6"])
+
+
+func test_order_waits_for_mail_to_be_read() -> void:
+	Clock.set_time(1, 8 * 60)
+	EventBus.game_started.emit()
+	Clock.advance(60)
+	assert_eq(GameState.get_quest_stage("side_job_2"), "mail", "сначала — проверить почту")
+	_read_all_mail()
+	assert_eq(GameState.get_quest_stage("side_job_2"), "do", "прочитал письмо — за работу")
+
+
+func test_week_goes_on_next_morning() -> void:
+	_start_job_chain()
+	assert_eq(Planner.tracked(), "side_first_job", "в трекере — неделя, а не отдельный заказ")
+	assert_eq(Planner.subtitle("side_first_job"), Planner.title_of("side_job_2"))
+	run("connect 203.0.113.21")
+	run("rm /home/lichnoe/foto_s_dachi.jpg")
+	run("rm /home/lichnoe/spisok_del.txt")
+	run("rm /home/work/staryj_otchet.doc")
+	run("dc")
+	_report()
+	assert_true(GameState.is_quest_completed("side_job_2"))
+	var steps: Array = Planner.current_steps("side_first_job")
+	assert_string_contains(str(steps[0]["text"]), "утра", "между заказами — «дождаться утра»")
+	Clock.advance(23 * 60)  # 08:00 следующего дня
+	assert_false(Quests.is_active("side_job_3"), "раньше девяти заказа нет")
+	Clock.advance(60)
+	assert_true(Quests.is_active("side_job_3"), "утром — следующий заказ")
+	assert_eq(str(Planner.current_steps("side_first_job")[0]["text"]), "Проверить почту")
 
 
 func test_job1_files_come_as_attachments() -> void:
 	_start_job_chain()
-	Effects.apply({"unlock_quest": "side_job_1"})
+	_unlock("side_job_1")
 	assert_false(Filesystem.for_node(Network.HOME_ID).has_file("/home/job/programma.bin"), "файлы сами на ПК не появляются")
 	var letter: Dictionary = {}
 	for e: Dictionary in Mailbox.inbox():
@@ -56,7 +96,7 @@ func _save_job1_attachments() -> void:
 
 func test_job1_put_on_four_pcs_pays_and_chains() -> void:
 	_start_job_chain()
-	Effects.apply({"unlock_quest": "side_job_1"})
+	_unlock("side_job_1")
 	_save_job1_attachments()
 	GameState.set_money(0)
 	for addr: String in ["203.0.113.11", "203.0.113.12", "203.0.113.13", "203.0.113.14"]:
@@ -73,9 +113,6 @@ func test_job1_put_on_four_pcs_pays_and_chains() -> void:
 	assert_eq(GameState.money, 60, "оплата за заказ")
 	var ids: Array = Mailbox.inbox().map(func(e: Dictionary) -> String: return str(e["id"]))
 	assert_true(ids.has("mail_job_done"), "заказчик ответил: принято, на сегодня всё")
-	# Следующий заказ запланирован на завтра 9:00.
-	Clock.advance(24 * 60)
-	assert_true(Quests.is_active("side_job_4"), "после «4 ПК» назавтра — заказ коллеги")
 
 
 func test_job2_delete_files() -> void:
@@ -90,7 +127,7 @@ func test_job2_delete_files() -> void:
 
 func test_job4_deliver_report_to_boss_by_mail() -> void:
 	_start_job_chain()
-	Effects.apply({"unlock_quest": "side_job_4"})
+	_unlock("side_job_4")
 	assert_true(Mailbox.contacts().has("boss@firma.local"), "адрес босса — из письма коллеги")
 	run("connect 203.0.113.41")
 	run("cp /home/work/otchet_nedelya.doc")
@@ -106,7 +143,7 @@ func test_job4_deliver_report_to_boss_by_mail() -> void:
 
 func test_job6_hidden_copy_shows_only_after_done() -> void:
 	_start_job_chain()
-	Effects.apply({"unlock_quest": "side_job_6"})
+	_unlock("side_job_6")
 	var said: Dictionary = {"text": ""}
 	var spy := func(text: String) -> void: said["text"] = text
 	EventBus.hero_thought.connect(spy)
@@ -123,7 +160,7 @@ func test_job6_hidden_copy_shows_only_after_done() -> void:
 
 func test_job6_closes_by_deleting_without_choice() -> void:
 	_start_job_chain()
-	Effects.apply({"unlock_quest": "side_job_6"})
+	_unlock("side_job_6")
 	run("connect 203.0.113.61")
 	run("cp /home/work/proekt_itog.doc")
 	run("rm /home/corp/baza_klientov.db")
@@ -135,7 +172,7 @@ func test_job6_closes_by_deleting_without_choice() -> void:
 
 func test_job_machines_keep_no_logs_under_cover() -> void:
 	_start_job_chain()
-	Effects.apply({"unlock_quest": "side_job_1"})
+	_unlock("side_job_1")
 	_save_job1_attachments()
 	assert_true(GameState.has_flag("gate.cover"), "на подработке за героем подчищают")
 	run("connect 203.0.113.11")

@@ -404,6 +404,13 @@ func _build() -> void:
 	_output.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_output)
 
+	# Трекер задачи — в правом верхнем углу, под часами.
+	var tracker := QuestTracker.new()
+	tracker.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 12)
+	tracker.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	tracker.offset_top = 48
+	add_child(tracker)
+
 	_panel = PanelContainer.new()
 	_panel.name = "ActionPanel"
 	_panel.visible = false

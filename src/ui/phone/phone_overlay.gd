@@ -2,6 +2,7 @@ extends CanvasLayer
 ## Смартфон (docs/gameplay/devices.md, «Смартфон»): поверх сцены квартиры и рабочего стола.
 ## Свёрнутый лежит в правом нижнем углу и показывает строку состояния — самочувствие, деньги и
 ## непрочитанное видны всегда. `Q`, клик по строке — достать; `Q`, `Esc`, клик снова — убрать.
+## `J` — сразу на «Задачах» (планировщик); на них же `J` убирает телефон.
 ##
 ## Правил здесь нет: приложения те же, что на ПК (данные одни), и читают свои системы.
 ## Телефон есть только в игре: сцена его «берёт» (`attach`) и «отдаёт» (`detach`); в главном
@@ -21,7 +22,7 @@ const APPS: Array[Dictionary] = [
 	{"id": "news", "title": "Новости"},
 	{"id": "shop", "title": "Магазин"},
 	{"id": "alarm", "title": "Будильник"},
-	{"id": "tasks", "title": "Задачи", "stub": true},
+	{"id": "tasks", "title": "Задачи"},
 	{"id": "map", "title": "Карта", "stub": true},
 ]
 
@@ -122,6 +123,8 @@ func _make_app(app: String) -> Control:
 			return NewsApp.new()
 		"shop":
 			return ShopApp.new()
+		"tasks":
+			return PlannerApp.new()
 		"alarm":
 			var alarm := AlarmApp.new()
 			alarm.rested.connect(func(_mode: String) -> void: close())
@@ -187,13 +190,18 @@ func _input(event: InputEvent) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	var key: InputEventKey = event as InputEventKey
-	if key == null or not key.pressed or key.echo or key.keycode != KEY_Q:
+	if key == null or not key.pressed or key.echo or not [KEY_Q, KEY_J].has(key.keycode):
 		return
-	# Пока печатают, Q — буква; пока идёт диалог, телефон не достать.
+	# Пока печатают, буквы — это текст; пока идёт диалог, телефон не достать.
 	if _typing_in_field() or DialogueManager.is_active() or not is_available():
 		return
 	get_viewport().set_input_as_handled()
-	toggle()
+	if key.keycode == KEY_Q:
+		toggle()
+	elif _open and _app == "tasks":
+		close()
+	else:
+		open("tasks")
 
 
 func _typing_in_field() -> bool:

@@ -139,6 +139,20 @@ func test_phone_shows_needs_at_the_pc() -> void:
 	assert_false(PhoneOverlay.frame.visible, "отошёл от ПК — стол телефон отдал")
 
 
+func test_tracker_and_tasks_on_the_pc() -> void:
+	Clock.set_time(1, 9 * 60)
+	Effects.apply({"unlock_quest": "side_first_job"})
+	var tracker: QuestTracker = desktop.find_child("QuestTracker", true, false) as QuestTracker
+	assert_not_null(tracker, "трекер в углу стола")
+	assert_eq(tracker.title_text(), Planner.title_of("side_first_job"))
+	assert_eq(tracker.subtitle_text(), Planner.title_of("side_job_2"), "идущий заказ")
+	assert_string_contains(tracker.steps_text(), "Проверить почту")
+	for e: Dictionary in Mailbox.inbox():
+		Mailbox.mark_read(str(e["uid"]))
+	assert_false(tracker.steps_text().contains("Проверить почту"), "прочитал — следующий шаг")
+	assert_not_null(desktop.open_app("tasks"), "«Задачи» на ПК")
+
+
 func test_messages_app_on_the_pc() -> void:
 	var window: DesktopWindow = desktop.open_app("messenger")
 	assert_not_null(window, "«Сообщения» на ПК — настоящее приложение")

@@ -1,0 +1,172 @@
+{
+  "_note": "Неделя первой подработки одним квестом (плейтест M2, разработчик 17.11.2026): этапы — мини-квесты заказов (complete_quest) и условия перехода между ними. Порядок заказов 2 → 3 → 1 → 4 → 5 → 6. Тексты — заглушки.",
+  "id": "side_first_job",
+  "title": "Подработка: первая неделя",
+  "type": "side",
+  "giver": "autsors",
+  "channel": "email",
+  "stages": [
+    {
+      "id": "start",
+      "objectives": [
+        {
+          "type": "wait_until",
+          "after": {
+            "days": 0,
+            "at": "09:00"
+          },
+          "title": "Дождаться 9:00 — придёт первый заказ"
+        }
+      ]
+    },
+    {
+      "id": "job_1",
+      "effects": [
+        {
+          "unlock_quest": "side_job_2"
+        }
+      ],
+      "objectives": [
+        {
+          "type": "complete_quest",
+          "quest": "side_job_2"
+        }
+      ]
+    },
+    {
+      "id": "wait_1",
+      "objectives": [
+        {
+          "type": "wait_until",
+          "after": {
+            "days": 1,
+            "at": "09:00"
+          },
+          "title": "Дождаться утра — новый заказ придёт в 9:00"
+        }
+      ]
+    },
+    {
+      "id": "job_2",
+      "effects": [
+        {
+          "unlock_quest": "side_job_3"
+        }
+      ],
+      "objectives": [
+        {
+          "type": "complete_quest",
+          "quest": "side_job_3"
+        }
+      ]
+    },
+    {
+      "id": "wait_2",
+      "objectives": [
+        {
+          "type": "wait_until",
+          "after": {
+            "days": 1,
+            "at": "09:00"
+          },
+          "title": "Дождаться утра — новый заказ придёт в 9:00"
+        }
+      ]
+    },
+    {
+      "id": "job_3",
+      "effects": [
+        {
+          "unlock_quest": "side_job_1"
+        }
+      ],
+      "objectives": [
+        {
+          "type": "complete_quest",
+          "quest": "side_job_1"
+        }
+      ]
+    },
+    {
+      "id": "wait_3",
+      "objectives": [
+        {
+          "type": "wait_until",
+          "after": {
+            "days": 1,
+            "at": "09:00"
+          },
+          "title": "Дождаться утра — новый заказ придёт в 9:00"
+        }
+      ]
+    },
+    {
+      "id": "job_4",
+      "effects": [
+        {
+          "unlock_quest": "side_job_4"
+        }
+      ],
+      "objectives": [
+        {
+          "type": "complete_quest",
+          "quest": "side_job_4"
+        }
+      ]
+    },
+    {
+      "id": "wait_4",
+      "objectives": [
+        {
+          "type": "wait_until",
+          "after": {
+            "days": 1,
+            "at": "09:00"
+          },
+          "title": "Дождаться утра — новый заказ придёт в 9:00"
+        }
+      ]
+    },
+    {
+      "id": "job_5",
+      "effects": [
+        {
+          "unlock_quest": "side_job_5"
+        }
+      ],
+      "objectives": [
+        {
+          "type": "complete_quest",
+          "quest": "side_job_5"
+        }
+      ]
+    },
+    {
+      "id": "wait_5",
+      "objectives": [
+        {
+          "type": "wait_until",
+          "after": {
+            "days": 1,
+            "at": "09:00"
+          },
+          "title": "Дождаться утра — новый заказ придёт в 9:00"
+        }
+      ]
+    },
+    {
+      "id": "job_6",
+      "effects": [
+        {
+          "unlock_quest": "side_job_6"
+        }
+      ],
+      "objectives": [
+        {
+          "type": "complete_quest",
+          "quest": "side_job_6"
+        }
+      ]
+    }
+  ]
+}

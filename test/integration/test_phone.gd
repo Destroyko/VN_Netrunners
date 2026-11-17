@@ -96,5 +96,34 @@ func test_alarm_from_phone_only_sets_time() -> void:
 
 func test_stub_apps_are_grey() -> void:
 	PhoneOverlay.open()
-	for id: String in ["tasks", "map"]:
+	for id: String in ["map"]:
 		assert_true((PhoneOverlay.app_node().find_child("App_" + id, true, false) as Button).disabled, id)
+
+
+func _press(code: Key) -> void:
+	var key := InputEventKey.new()
+	key.keycode = code
+	key.pressed = true
+	PhoneOverlay._unhandled_input(key)
+
+
+func test_j_opens_tasks_and_closes_them() -> void:
+	_press(KEY_J)
+	assert_eq(PhoneOverlay.current_app(), "tasks", "J — сразу «Задачи»")
+	assert_true(PhoneOverlay.app_node() is PlannerApp)
+	_press(KEY_J)
+	assert_false(PhoneOverlay.is_open(), "на «Задачах» J убирает телефон")
+
+
+func test_planner_app_tracks_task() -> void:
+	Clock.set_time(1, 8 * 60)
+	Effects.apply({"unlock_quest": "side_first_job"})
+	Effects.apply({"unlock_quest": "side_test_courier"})
+	PhoneOverlay.open("tasks")
+	var app: PlannerApp = PhoneOverlay.app_node() as PlannerApp
+	assert_string_contains(app.text(), "Подработка")
+	assert_string_contains(app.text(), "Неделя")
+	assert_true(app.track_button("side_first_job").disabled, "первая задача уже в трекере")
+	app.track_button("side_test_courier").emit_signal("pressed")
+	assert_eq(Planner.tracked(), "side_test_courier")
+
