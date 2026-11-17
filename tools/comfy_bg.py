@@ -53,7 +53,10 @@ STYLE = ("pixel art, detailed modern pixel art, slightly chunky pixels, "
          "limited palette, visual novel background, no people, empty room, "
          "realistic proportions and real-world scale, furniture sized for an adult, "
          "lived-in and cluttered, worn surfaces, large flat areas of solid colour, "
-         "dark outline on objects, two or three tones per material, sharp highlights")
+         "dark outline on objects, two or three tones per material, sharp highlights, "
+         # один и тот же набор цветов во всех кадрах комнаты — это и держит её целой
+         "deep muted blue walls, dark grey floor, warm brown wooden furniture, "
+         "pale bedding, black computer hardware")
 
 # Свет по фазе суток. Он же решает, какой кадр блокаута брать (--shade lit --phase ...),
 # но вход берём всегда плоский: lit-рендер навязывает генератору свою светотень
@@ -67,30 +70,26 @@ PHASES = {
 
 # Содержание кадров. Одна комната — один промпт: «и ещё на заднем плане» модель смешает
 SCENES = {
-    "room_desk": "a small rented bedroom of a young programmer: a desk against the wall "
-                 "with a modern black tower PC and a widescreen flat monitor, keyboard, mug "
-                 "and scattered "
-                 "papers, a swivel chair, a window above the desk, cables on the floor, "
-                 "deep muted blue walls, dark grey floor, pale bedding",
+    # Четыре вида одной комнаты из одной точки: игрок поворачивается стрелками.
+    # Общее во всех промптах — стены, пол и свет: иначе комната развалится между кадрами
+    "room_desk": "a small rented bedroom of a young programmer, looking at the desk wall: "
+                 "a desk with a modern black tower PC and a widescreen flat monitor, "
+                 "keyboard, mug, scattered papers, an office chair, a shelf with books above "
+                 "the desk, a window covered by closed vertical slat blinds, narrow upright slats, behind the desk, "
+                 "cables running along the floor",
+    "room_closet": "a small rented bedroom, looking at the wardrobe wall: a tall wooden "
+                   "wardrobe with its doors shut, a chest of drawers beside it, cardboard "
+                   "boxes and folded clothes stacked on top, a worn rug on the floor",
+    "room_door": "a small rented bedroom, looking at the door wall: the room door shut, "
+                 "a coat and a bag hanging on wall hooks beside it, a cork board covered "
+                 "with pinned notes, photos and a calendar page, a light switch",
+    "room_bed": "a small rented bedroom, looking at the bed wall: an unmade single bed with "
+                "pale rumpled bedding and a pillow, a bedside table with a phone and a lamp, "
+                "a laundry basket, a poster taped to the wall above the bed",
     "room_pc": "the desk of a young programmer seen close up: a modern black tower PC with "
                "a side panel, a widescreen flat monitor with a glowing screen, a mechanical "
-               "keyboard, a mug, papers and sticky notes, tangled cables, a window frame "
-               "above, deep muted blue wall, dark grey floor",
-    "room_bed": "a small rented bedroom seen from the desk side: an unmade single bed with "
-                "pale bedding, a bedside table with a phone, a wardrobe, a window with thin "
-                "curtains, deep muted blue walls, dark grey floor",
-    "room_door": "a small rented bedroom seen from the window: the room door standing ajar, "
-                 "a tall wardrobe beside it, a bookshelf with clutter, a poster on the wall, "
-                 "deep muted blue walls, dark grey floor",
-    "kitchen": "a cramped kitchen of an old rented flat: a counter with a sink and a kettle, "
-               "a small gas stove, wall cabinets, a tiny table with two stools, "
-               "a fridge, a window above the sink, tiled splashback, linoleum floor",
-    "corridor": "a narrow corridor of an old rented flat seen along its length: "
-                "closed doors of the rooms on one side, a coat rack, a light bulb, "
-                "patterned wallpaper, linoleum floor",
-    "hall": "the entrance hall of an old rented flat seen from the front door: "
-            "a shoe rack and shoes on the floor, coats on hooks, a mirror, "
-            "the corridor leading deeper into the flat, linoleum floor",
+               "keyboard, a mug, papers and sticky notes, tangled cables, a window covered by "
+               "closed vertical slat blinds, narrow upright slats, above the desk",
 }
 
 
