@@ -27,7 +27,7 @@ __pycache__/
 # файл из игнорируемой директории
 /assets/_source/blockout/*
 # ...кроме детальной сцены и эталонных кадров: обстановку расставляли руками,
-# скриптом она не пересобирается, и потерять её нельзя (docs/art/ai-pipeline.md, 5.12)
+# скриптом она не пересобирается, и потерять её нельзя (docs/art/ai-pipeline.md, 5.10)
 !/assets/_source/blockout/apartment_detail.blend
 !/assets/_source/blockout/refs/
 
