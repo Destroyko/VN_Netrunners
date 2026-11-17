@@ -153,11 +153,29 @@ def slab(name, centre, size, angle=0.0, key="road", shade="flat", coll=None):
     return ob
 
 
-def dist_to_axis(point, centre, angle):
-    """Расстояние от точки до оси, заданной центром и углом (градусы)."""
+def side_of_axis(point, centre, angle):
+    """Расстояние от точки до оси СО ЗНАКОМ: по разные стороны — разные знаки."""
     a = math.radians(angle)
     dx, dy = point[0] - centre[0], point[1] - centre[1]
-    return abs(-math.sin(a) * dx + math.cos(a) * dy)
+    return -math.sin(a) * dx + math.cos(a) * dy
+
+
+def dist_to_axis(point, centre, angle):
+    """Расстояние от точки до оси, заданной центром и углом (градусы)."""
+    return abs(side_of_axis(point, centre, angle))
+
+
+def band_hits(rect, centre, angle, width, pad=0.0):
+    """Пересекает ли прямоугольник (x0, y0, x1, y1) полосу вдоль оси.
+
+    По углам со знаком, а не по расстоянию от центра: дом длиной в сто метров
+    своим центром может быть далеко от реки, а углом стоять в воде.
+    """
+    x0, y0, x1, y1 = rect
+    ds = [side_of_axis(p, centre, angle)
+          for p in ((x0, y0), (x1, y0), (x0, y1), (x1, y1))]
+    half = width / 2 + pad
+    return min(ds) < half and max(ds) > -half
 
 
 def wall(name, p1, p2, height, thick=0.12, key="wall", shade="flat",

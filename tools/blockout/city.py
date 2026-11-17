@@ -46,7 +46,7 @@ AVENUE_AT = 5                           # индекс улицы-проспек
 # Диагональный проспект и река: (точка на оси, угол в градусах, ширина)
 DIAGONAL = ((660.0, 560.0), 28.0, 42.0)
 RIVER = ((520.0, 980.0), -22.0, 90.0)
-BRIDGES = [0.25, 0.62, 0.88]            # где мосты, доля вдоль реки
+BRIDGE_STREETS = [3, 6, 9]              # на каких улицах (индексы по Y) есть мосты
 
 # Зоны. (этажи от, этажи до, как застраивается)
 ZONE_RULES = {
@@ -56,11 +56,14 @@ ZONE_RULES = {
     "commercial": (1, 3, "big"),
     "industrial": (1, 2, "sheds"),
 }
+# Кварталы, где col + row == 9, оставлены пустыми под жильё намеренно: по этой
+# диагонали проходит река. Иначе ей негде течь — локации забивают центр кадра,
+# и подбор оси уводит её за край.
 ZONES = {
     (6, 5): "downtown", (7, 5): "downtown", (6, 6): "downtown", (7, 6): "downtown",
-    (7, 4): "downtown", (8, 5): "downtown", (6, 4): "downtown",
+    (7, 4): "downtown", (8, 5): "downtown", (8, 4): "downtown",
     (3, 3): "slums", (4, 3): "slums", (3, 4): "slums", (2, 3): "slums", (3, 2): "slums",
-    (5, 4): "commercial", (6, 2): "commercial",
+    (6, 2): "commercial", (5, 1): "commercial",
     (8, 2): "industrial", (9, 2): "industrial", (9, 3): "industrial",
 }
 PARK_BLOCK = (4, 6)
@@ -72,15 +75,17 @@ LANDMARKS = {
     "school":   ((4, 4), 3, 1, 3, "facade_c", "вечерняя школа: обучение"),
     "market":   ((3, 3), 1, 1, 1, "facade_c", "барахолка: задел, стоит в трущобах"),
     "station":  ((5, 2), 0, 2, 3, "facade_b", "вокзал: задел"),
-    "hospital": ((4, 5), 2, 2, 6, "facade_b", "больница: мать героя"),
-    "mall":     ((5, 4), 2, 2, 2, "facade_a", "торговый центр: хаб, спортзал, парковка"),
+    "hospital": ((5, 3), 2, 2, 6, "facade_b", "больница: мать героя"),
+    "mall":     ((6, 2), 2, 2, 2, "facade_a", "торговый центр: хаб, спортзал, парковка"),
     "tower_b":  ((6, 5), 1, 1, 15, "facade_c", "бизнес-центр"),
     "tower_a":  ((7, 5), 3, 1, 21, "facade_b", "высотка: офисы и узлы сети"),
     "elite":    ((4, 7), 2, 2, 8, "facade_a", "элитный квартал: задел, окнами в парк"),
 }
-MALL_PARKING = ((5, 4), 0)
+MALL_PARKING = ((6, 2), 0)
 
 placed = []      # занятые прямоугольники: (x0, y0, x1, y1)
+registry = []    # то же плюс имя — для проверки «кто стоит в реке»
+RIVER_AXIS = RIVER   # рабочая ось реки: fit_river() сдвигает её под сетку улиц
 
 
 # --- сетка улиц ---------------------------------------------------------------
@@ -121,13 +126,68 @@ def quarter_rect(col, row, q, span=1):
 
 # --- что мешает ставить дома --------------------------------------------------
 
+def in_water(x, y, w, d, pad=6.0):
+    """Залезает ли пятно в реку (с запасом на набережную)."""
+    centre, angle, width = RIVER_AXIS
+    return B.band_hits((x, y, x + w, y + d), centre, angle, width, pad)
+
+
+def fit_river():
+    """Сдвинуть реку перпендикулярно её оси, пока она не режет то, что стоит жёстко:
+    парк, парковку и кликабельные здания.
+
+    Кварталы собираются из случайных шагов, а локации расставлены руками — ось реки
+    при любом сиде может пройти прямо по больнице. Подбирать числа вручную после
+    каждого сида бессмысленно, поэтому двигается река, а не город.
+    """
+    centre, angle, width = RIVER
+    a = math.radians(angle)
+    n = (-math.sin(a), math.cos(a))
+    fixed = []
+    for blk, q, span, *_ in LANDMARKS.values():
+        x, y, w, d = quarter_rect(blk[0], blk[1], q, span)
+        fixed.append((x, y, x + w, y + d))
+    for blk in (PARK_BLOCK,):
+        x, y, w, d = block_rect(*blk)
+        fixed.append((x, y, x + w, y + d))
+    x, y, w, d = quarter_rect(MALL_PARKING[0][0], MALL_PARKING[0][1], MALL_PARKING[1])
+    fixed.append((x, y, x + w, y + d))
+
+    # Ось ищем по двум условиям сразу: не резать локации и при этом быть видной.
+    # Сдвига мало — отодвинутая река уходит за край кадра, и смысла в ней нет.
+    vx, vy = view_centre()
+    reach = VIEW / 2.8           # половина стороны кадра в плане, грубо
+    best = None
+    for turn in range(-80, 81, 5):
+        ang = angle + turn
+        aa = math.radians(ang)
+        nn = (-math.sin(aa), math.cos(aa))
+        for step in range(-24, 25):
+            off = step * 16.0
+            c = (centre[0] + nn[0] * off, centre[1] + nn[1] * off)
+            if any(B.band_hits(r, c, ang, width, 10.0) for r in fixed):
+                continue
+            seen = sum(1 for t in range(-100, 101)
+                       if abs(c[0] + math.cos(aa) * t * 10 - vx) < reach
+                       and abs(c[1] + math.sin(aa) * t * 10 - vy) < reach)
+            score = (seen, -abs(turn), -abs(off))
+            if best is None or score > best[0]:
+                best = (score, (c, ang, width))
+    if best is None:
+        print("[blockout] ВНИМАНИЕ: реке не нашлось места, не задев локации")
+        return RIVER
+    (seen, _, _), axis = best
+    print(f"[blockout] ось реки: поворот {axis[1] - angle:+.0f}°, "
+          f"в кадре {seen * 10} м русла")
+    return axis
+
+
 def blocked(x, y, w, d):
     """Пересекается ли пятно с рекой, проспектом или уже поставленным домом."""
-    cx, cy = x + w / 2, y + d / 2
-    reach = max(w, d) / 2
-    for centre, angle, width in (DIAGONAL, RIVER):
-        if B.dist_to_axis((cx, cy), centre, angle) < width / 2 + reach * 0.7:
-            return True
+    if in_water(x, y, w, d):
+        return True
+    if B.band_hits((x, y, x + w, y + d), DIAGONAL[0], DIAGONAL[1], DIAGONAL[2], 2.0):
+        return True
     for px0, py0, px1, py1 in placed:
         if x < px1 and px0 < x + w and y < py1 and py0 < y + d:
             return True
@@ -138,6 +198,7 @@ def put(name, x, y, w, d, floors, tone, shade, entry=False, force=False):
     if not force and blocked(x, y, w, d):
         return 0
     placed.append((x, y, x + w, y + d))
+    registry.append((name, x, y, w, d))
     h = floors * FLOOR
     B.box(f"{name}_body", (x, y, 0.0), (w, d, h), tone, shade)
     B.box(f"{name}_roof", (x - 0.4, y - 0.4, h), (w + 0.8, d + 0.8, 0.7), "roof", shade)
@@ -169,28 +230,42 @@ def ground(shade):
     # Разделительная полоса: без неё проспект не отличить от обычной улицы
     B.slab("avenue_median", (*DIAGONAL[0], 0.16), (long_side, 5.0, 0.3),
            DIAGONAL[1], "green", shade)
-    B.slab("river", (*RIVER[0], 0.04), (long_side, RIVER[2], 0.06),
-           RIVER[1], "water", shade)
+    rc, ra_deg, rw = RIVER_AXIS
+    B.slab("river", (*rc, 0.04), (long_side, rw, 0.06), ra_deg, "water", shade)
     # Набережные по обеим сторонам реки
-    a = math.radians(RIVER[1])
+    a = math.radians(ra_deg)
     for i, side in enumerate((-1, 1)):
-        off = side * (RIVER[2] / 2 + 5)
-        c = (RIVER[0][0] - math.sin(a) * off, RIVER[0][1] + math.cos(a) * off)
-        B.slab(f"quay_{i}", (*c, 0.1), (long_side, 10.0, 0.1), RIVER[1], "pavement", shade)
-    for i, t in enumerate(BRIDGES):
-        bx = RIVER[0][0] + math.cos(a) * (t - 0.5) * long_side * 0.6
-        by = RIVER[0][1] + math.sin(a) * (t - 0.5) * long_side * 0.6
-        # Мост поднят над водой и с перилами: вровень с рекой он читается
-        # как плот, а не как переправа
-        span_d = RIVER[2] + 46
-        B.slab(f"bridge_{i}", (bx, by, 1.4), (24.0, span_d, 1.6),
-               RIVER[1] + 90, "bridge", shade)
+        off = side * (rw / 2 + 5)
+        c = (rc[0] - math.sin(a) * off, rc[1] + math.cos(a) * off)
+        B.slab(f"quay_{i}", (*c, 0.1), (long_side, 10.0, 0.1), ra_deg, "pavement", shade)
+    bridges(shade)
+
+
+def bridges(shade):
+    """Мост — продолжение улицы через реку, а не плашка посреди воды.
+
+    Раньше мост поворачивался на угол реки плюс 90° вместе со своей длинной
+    стороной — и ложился ВДОЛЬ течения. В кадре это читалось как баржа.
+    Теперь мост идёт по улице (вдоль X) и перекрывает полосу воды целиком:
+    её горизонтальная протяжённость — ширина реки, делённая на косинус наклона.
+    """
+    rc, ra_deg, rw = RIVER_AXIS
+    a = math.radians(ra_deg)
+    span = rw / abs(math.cos(a)) + 80
+    city_w = BX[-1][0] + BX[-1][1]
+    for n, idx in enumerate(BRIDGE_STREETS):
+        if idx >= len(LY):
+            continue
+        y0, road_w = LY[idx]
+        ystreet = y0 + road_w / 2
+        x = rc[0] + math.cos(a) * (ystreet - rc[1]) / math.sin(a)
+        if not -40 < x < city_w + 40:
+            continue
+        deck = max(road_w, 18.0)
+        B.slab(f"bridge_{n}", (x, ystreet, 1.1), (span, deck, 1.5), 0.0, "bridge", shade)
         for side in (-1, 1):
-            ra = math.radians(RIVER[1] + 90)
-            ox = -math.sin(ra) * side * 11.0
-            oy = math.cos(ra) * side * 11.0
-            B.slab(f"bridge_{i}_rail{side}", (bx + ox, by + oy, 3.0),
-                   (2.0, span_d, 1.4), RIVER[1] + 90, "pavement", shade)
+            B.slab(f"bridge_{n}_rail{side}", (x, ystreet + side * (deck / 2 - 1.0), 2.6),
+                   (span, 2.0, 1.5), 0.0, "pavement", shade)
 
 
 def avenue_front(shade, rnd):
@@ -211,13 +286,14 @@ def avenue_front(shade, rnd):
             off = side * (width / 2 + depth / 2 + 2.0)
             bx = cx + math.cos(a) * t - math.sin(a) * off
             by = cy + math.sin(a) * t + math.cos(a) * off
-            if B.dist_to_axis((bx, by), RIVER[0], RIVER[1]) < RIVER[2] / 2 + depth:
+            if in_water(bx - depth, by - depth, depth * 2, depth * 2, 2.0):
                 continue
             half = max(length, depth) / 2
             if any(bx - half < p2 and p0 < bx + half and by - half < p3 and p1 < by + half
                    for p0, p1, p2, p3 in placed):
                 continue
             placed.append((bx - half, by - half, bx + half, by + half))
+            registry.append((f"av_{n}", bx - half, by - half, half * 2, half * 2))
             h = floors * FLOOR
             B.slab(f"av_{n}", (bx, by, 0.0), (length, depth, h), angle,
                    rnd.choice(TONES), shade)
@@ -231,6 +307,7 @@ def avenue_front(shade, rnd):
 def park(shade):
     x, y, w, d = block_rect(*PARK_BLOCK)
     placed.append((x, y, x + w, y + d))
+    registry.append(("park", x, y, w, d))
     B.box("park_lawn", (x, y, 0.06), (w, d, 0.06), "green", shade)
     rows = int(d // 34)
     cols = int(w // 34)
@@ -246,6 +323,7 @@ def parking(shade):
     (col, row), q = MALL_PARKING
     x, y, w, d = quarter_rect(col, row, q)
     placed.append((x, y, x + w, y + d))
+    registry.append(("mall_lot", x, y, w, d))
     B.box("mall_lot", (x, y, 0.06), (w, d, 0.06), "road", shade)
     for r in range(int(d // 12)):
         for c in range(int(w // 2.7)):
@@ -368,6 +446,20 @@ def centre_of(key):
     return x + w / 2, y + d / 2
 
 
+def audit():
+    """Проверка, которую нельзя делать на глаз: кто стоит в воде.
+
+    Один раз мост уже оказался лежащим вдоль реки, и в кадре это выглядело
+    как баржа — заметно, только если смотреть прицельно.
+    """
+    bad = [n for n, x, y, w, d in registry if in_water(x, y, w, d, 0.0)]
+    if bad:
+        print(f"[blockout] ВНИМАНИЕ: в реке стоят {len(bad)} объектов: "
+              f"{', '.join(bad[:8])}")
+    else:
+        print("[blockout] в реке ничего не стоит, кроме мостов")
+
+
 def walk_report():
     hx, hy = centre_of("home")
     speed = WALK_KMH * 1000 / 60
@@ -406,10 +498,16 @@ def main():
     a = B.args(extra)
     B.reset()
     placed.clear()
+    registry.clear()
     rnd = random.Random(a.seed)
     global BX, BY
-    BX = blocks_of(street_lines(rnd, COLS))
-    BY = blocks_of(street_lines(rnd, ROWS))
+    global LX, LY
+    LX = street_lines(rnd, COLS)
+    LY = street_lines(rnd, ROWS)
+    BX = blocks_of(LX)
+    BY = blocks_of(LY)
+    global RIVER_AXIS
+    RIVER_AXIS = fit_river()
 
     ground(a.shade)
     park(a.shade)
@@ -429,7 +527,8 @@ def main():
     out = B.resolve(a.out) or os.path.join(root, "renders_city")
 
     print(f"[blockout] кликабельных зданий {len(LANDMARKS)}, фоновых {fills}, "
-          f"плюс парк, парковка, река с {len(BRIDGES)} мостами и проспект")
+          f"плюс парк, парковка, река с мостами и проспект")
+    audit()
     walk_report()
 
     if a.sprites:
