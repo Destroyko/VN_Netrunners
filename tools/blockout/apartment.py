@@ -89,7 +89,7 @@ def furniture(shade):
     # Комната героя: стол под окном — это первый кадр M3 (пробуждение → стол)
     bx("hero_desk", (0.6, 6.75, 0.0), (1.6, 0.65, 0.75), "desk")
     bx("hero_monitor", (1.15, 6.95, 0.75), (0.55, 0.06, 0.36), "screen")
-    bx("hero_tower", (0.68, 6.85, 0.0), (0.22, 0.45, 0.45), "appl")
+    bx("hero_tower", (0.68, 6.85, 0.0), (0.22, 0.45, 0.45), "pc")
     bx("hero_chair", (1.25, 6.05, 0.0), (0.55, 0.55, 0.5), "soft")
     bx("hero_bed", (0.1, 4.55, 0.0), (0.9, 2.0, 0.5), "bed")
     bx("hero_nightstand", (0.12, 6.62, 0.0), (0.42, 0.42, 0.52), "shelf")
@@ -149,6 +149,10 @@ def cameras():
     c["room_desk"] = B.camera("room_desk", (1.45, 4.45, EYE), (1.45, 7.4, 0), 22, shift=SH)
     c["room_bed"] = B.camera("room_bed", (3.15, 5.6, EYE), (0.0, 5.6, 0), 22, shift=SH)
     c["room_door"] = B.camera("room_door", (1.9, 6.6, EYE), (1.9, 4.3, 0), 22, shift=SH)
+    # Кадр рабочего места крупно: 50 мм, в кадр влезает 1,6 м вместо 4,2 м. Это рычаг
+    # детализации — плотность пикселей на предмет задаётся не разрешением фона,
+    # а тем, сколько метров помещается в кадр (ai-pipeline.md 5.10)
+    c["room_pc"] = B.camera("room_pc", (1.42, 4.55, 1.35), (1.42, 7.4, 0), 50, shift=-0.06)
     c["kitchen"] = B.camera("kitchen", (3.75, 4.6, EYE), (5.7, 6.8, 0), 28, shift=SH)
     c["living"] = B.camera("living", (9.1, 7.05, EYE), (6.4, 4.5, 0), 28, shift=SH)
     c["room_mate"] = B.camera("room_mate", (7.2, 2.85, EYE), (4.3, 0.3, 0), 28, shift=SH)

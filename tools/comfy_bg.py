@@ -50,7 +50,9 @@ PRE_COLORS = 80    # до палитры: меньше — картинка гр
 STYLE = ("pixel art, detailed modern pixel art, slightly chunky pixels, "
          "near-future grounded realistic setting, muted colors with subtle neon accents, "
          "limited palette, visual novel background, no people, empty room, "
-         "clean flat shapes, soft shading with two or three tones per material")
+         "realistic proportions and real-world scale, furniture sized for an adult, "
+         "lived-in and cluttered, worn surfaces, large flat areas of solid colour, "
+         "dark outline on objects, two or three tones per material, sharp highlights")
 
 # Свет по фазе суток. Он же решает, какой кадр блокаута брать (--shade lit --phase ...),
 # но вход берём всегда плоский: lit-рендер навязывает генератору свою светотень
@@ -63,16 +65,21 @@ PHASES = {
 
 # Содержание кадров. Одна комната — один промпт: «и ещё на заднем плане» модель смешает
 SCENES = {
-    "room_desk": "a small rented bedroom of a young programmer, seen from the doorway: "
-                 "a cheap desk against the wall with an old CRT-era computer, keyboard, "
-                 "mug and scattered papers, a swivel chair, a window above the desk, "
-                 "worn parquet floor, plain wallpaper, cables on the floor",
-    "room_bed": "a small rented bedroom seen from the desk side: an unmade single bed "
-                "against the wall, a bedside table with a phone, a wardrobe, a window "
-                "with thin curtains, worn parquet floor, plain wallpaper",
+    "room_desk": "a small rented bedroom of a young programmer: a desk against the wall "
+                 "with a modern black tower PC and a widescreen flat monitor, keyboard, mug "
+                 "and scattered "
+                 "papers, a swivel chair, a window above the desk, cables on the floor, "
+                 "deep muted blue walls, dark grey floor, pale bedding",
+    "room_pc": "the desk of a young programmer seen close up: a modern black tower PC with "
+               "a side panel, a widescreen flat monitor with a glowing screen, a mechanical "
+               "keyboard, a mug, papers and sticky notes, tangled cables, a window frame "
+               "above, deep muted blue wall, dark grey floor",
+    "room_bed": "a small rented bedroom seen from the desk side: an unmade single bed with "
+                "pale bedding, a bedside table with a phone, a wardrobe, a window with thin "
+                "curtains, deep muted blue walls, dark grey floor",
     "room_door": "a small rented bedroom seen from the window: the room door standing ajar, "
-                 "a tall wardrobe beside it, a bookshelf with clutter, worn parquet floor, "
-                 "plain wallpaper, a poster on the wall",
+                 "a tall wardrobe beside it, a bookshelf with clutter, a poster on the wall, "
+                 "deep muted blue walls, dark grey floor",
     "kitchen": "a cramped kitchen of an old rented flat: a counter with a sink and a kettle, "
                "a small gas stove, wall cabinets, a tiny table with two stools, "
                "a fridge, a window above the sink, tiled splashback, linoleum floor",
