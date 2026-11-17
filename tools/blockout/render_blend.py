@@ -22,8 +22,37 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import bl_common as B  # noqa: E402
 
 
+def extra(p):
+    p.add_argument("--cam", default="",
+                   help="подвинуть камеру только на этот рендер: "
+                        "имя:x,y,z[:цель_x,цель_y,цель_z] — сцена не меняется")
+    p.add_argument("--lens", type=float, default=0.0,
+                   help="фокусное для той же камеры, 0 — оставить как есть")
+
+
+def move_camera(spec, lens):
+    """Подбор ракурса без правки .blend: сцена остаётся за разработчиком."""
+    import mathutils
+    parts = spec.split(":")
+    name = parts[0]
+    ob = bpy.data.objects.get(name)
+    if ob is None or ob.type != "CAMERA":
+        raise SystemExit("нет камеры %s" % name)
+    if len(parts) > 1 and parts[1]:
+        ob.location = tuple(float(v) for v in parts[1].split(","))
+    if len(parts) > 2 and parts[2]:
+        tgt = mathutils.Vector(tuple(float(v) for v in parts[2].split(",")))
+        ob.rotation_euler = (tgt - ob.location).to_track_quat("-Z", "Y").to_euler()
+    if lens:
+        ob.data.lens = lens
+    print("[blockout] камера %s: %s, %.0f мм"
+          % (name, tuple(round(v, 2) for v in ob.location), ob.data.lens))
+
+
 def main():
-    a = B.args()
+    a = B.args(extra)
+    if a.cam:
+        move_camera(a.cam, a.lens)
     sc = bpy.context.scene
     # Размер кадра и движок задаём сами: в чужой сцене они могут быть любыми
     sc.render.engine = "BLENDER_EEVEE"

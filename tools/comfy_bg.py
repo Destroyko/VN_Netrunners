@@ -48,48 +48,66 @@ PRE_COLORS = 80    # до палитры: меньше — картинка гр
 
 # Общая часть промпта — из style-guide.md («Шаблон промпта»). Негатива нет: при CFG 1
 # он не работает, поэтому всё формулируется утвердительно
-STYLE = ("pixel art, detailed modern pixel art, slightly chunky pixels, "
-         "near-future grounded realistic setting, muted colors with subtle neon accents, "
-         "limited palette, visual novel background, no people, empty room, "
-         "realistic proportions and real-world scale, furniture sized for an adult, "
-         "lived-in and cluttered, worn surfaces, large flat areas of solid colour, "
-         "dark outline on objects, two or three tones per material, sharp highlights, "
-         # один и тот же набор цветов во всех кадрах комнаты — это и держит её целой
-         "deep muted blue walls, dark grey floor, warm brown wooden furniture, "
-         "pale bedding, black computer hardware")
+# Текстовый энкодер у Z-Image — языковая модель (Qwen3), а не CLIP. Ей нужна связная
+# речь, а не список тегов через запятую: предложение «слева от стола стоит кровать»
+# она понимает, а «bed, desk, left» разберёт как мешок слов и расставит наугад.
+# Поэтому и стиль, и сцены описаны предложениями, с указанием, что где стоит.
+STYLE = ("This is a background illustration for a visual novel, drawn as detailed modern "
+         "pixel art with slightly chunky pixels. The scene is an ordinary present-day room: "
+         "grounded and believable, not futuristic. Colours are muted, with large flat areas "
+         "of solid colour, two or three tones per material and a few sharp highlights. "
+         "The walls are a deep muted blue, the floor is dark grey, wooden furniture is warm "
+         "brown, bedding is pale, computer hardware is black. Everything is drawn at real "
+         "scale: the furniture is sized for an adult. The room is lived in and a little "
+         "cluttered, with worn surfaces. Nobody is in the room.")
 
-# Свет по фазе суток. Он же решает, какой кадр блокаута брать (--shade lit --phase ...),
-# но вход берём всегда плоский: lit-рендер навязывает генератору свою светотень
+# Свет по фазе суток. Он же решает, какой кадр блокаута брать (--shade lit --phase ...).
+# Для ControlNet вход всегда depth: карта глубины от освещения не зависит
 PHASES = {
-    "day": ("daytime, bright daylight pouring through the window and falling across the floor, "
-            "the window is the brightest block in the frame, clear light and shade, "
-            "the room itself stays dim and shadowed away from the window"),
-    "night": ("night, lights off, the room lit only by the blue glow of a computer monitor "
-              "and a warm desk lamp, deep shadows, dark window with distant city lights"),
+    "day": ("It is daytime. Bright daylight comes through the window and falls across the "
+            "floor in a clear stripe; the window is the brightest part of the picture. "
+            "Away from the window the room stays dim and shadowed."),
+    "night": ("It is night and the ceiling light is off. The room is lit only by the blue "
+              "glow of the computer monitor and by a warm desk lamp, so the corners fall "
+              "into deep shadow. Beyond the window the city is dark with distant lights."),
 }
 
 # Содержание кадров. Одна комната — один промпт: «и ещё на заднем плане» модель смешает
 SCENES = {
-    # Четыре вида одной комнаты из одной точки: игрок поворачивается стрелками.
-    # Общее во всех промптах — стены, пол и свет: иначе комната развалится между кадрами
-    "room_desk": "a small rented bedroom of a young programmer, looking at the desk wall: "
-                 "a desk with a modern black tower PC and a widescreen flat monitor, "
-                 "keyboard, mug, scattered papers, an office chair, a shelf with books above "
-                 "the desk, a window covered by closed vertical slat blinds, narrow upright slats, behind the desk, "
-                 "cables running along the floor",
-    "room_closet": "a small rented bedroom, looking at the wardrobe wall: a tall wooden "
-                   "wardrobe with its doors shut, a chest of drawers beside it, cardboard "
-                   "boxes and folded clothes stacked on top, a worn rug on the floor",
-    "room_door": "a small rented bedroom, looking at the door wall: the room door shut, "
-                 "a coat and a bag hanging on wall hooks beside it, a cork board covered "
-                 "with pinned notes, photos and a calendar page, a light switch",
-    "room_bed": "a small rented bedroom, looking at the bed wall: an unmade single bed with "
-                "pale rumpled bedding and a pillow, a bedside table with a phone and a lamp, "
-                "a laundry basket, a poster taped to the wall above the bed",
-    "room_pc": "the desk of a young programmer seen close up: a modern black tower PC with "
-               "a side panel, a widescreen flat monitor with a glowing screen, a mechanical "
-               "keyboard, a mug, papers and sticky notes, tangled cables, a window covered by "
-               "closed vertical slat blinds, narrow upright slats, above the desk",
+    # Каждый кадр описан как сцена: что стоит у какой стены и что с чем рядом.
+    # Порядок предложений идёт от главного к мелочам — энкодер читает их как текст
+    "room_desk": "The room is seen from the doorway, looking at the far wall. A wooden desk "
+                 "stands against that wall. A widescreen flat monitor sits in the middle of "
+                 "the desk, a black tower PC stands on the desk to the right of the monitor, "
+                 "and a keyboard and mouse lie in front of it. A desk lamp stands on the left "
+                 "end of the desk, next to a mug. Above the desk there is a window, and the "
+                 "window is covered by closed white venetian blinds. On the left wall hangs "
+                 "a wooden shelf with books on it. Below the shelf, on a low cabinet, stands "
+                 "a tall potted plant. A single bed with pale bedding takes up the left side "
+                 "of the room. On the right side of the room stands a tall wooden wardrobe "
+                 "with two doors and metal handles. A chest of drawers stands under the right "
+                 "end of the desk. Cables run from the PC down to the floor.",
+    "room_closet": "The room is seen looking at the wardrobe wall. A tall wooden wardrobe "
+                   "with closed doors stands against the wall. A chest of drawers stands "
+                   "beside it, and cardboard boxes and folded clothes are stacked on top of "
+                   "the wardrobe. A worn rug lies on the floor in front of them. The edge "
+                   "of the desk is visible at the left of the frame.",
+    "room_door": "The room is seen looking at the door wall. The room door is closed. A coat "
+                 "and a bag hang on hooks on the wall beside the door. A cork board hangs on "
+                 "the wall, covered with pinned notes, photographs and a calendar page. "
+                 "A light switch is mounted next to the door frame. The corner of the bed "
+                 "is visible at the right of the frame.",
+    "room_bed": "The room is seen looking at the bed wall. A single bed with rumpled pale "
+                "bedding and one pillow stands against the wall. A bedside table with a phone "
+                "and a small lamp stands at the head of the bed. A laundry basket stands on "
+                "the floor nearby. A poster is taped to the wall above the bed. Daylight from "
+                "the window falls across the floor in a bright stripe.",
+    "room_pc": "The desk of a young programmer, seen close up. A black tower PC stands on the "
+               "left, its side panel facing the viewer. A widescreen flat monitor stands in "
+               "the middle, its screen glowing faintly. A mechanical keyboard lies in front "
+               "of the monitor, with a mug and a few sheets of paper beside it. Sticky notes "
+               "are stuck to the edge of the monitor. Cables run behind the desk in a tangle. "
+               "Above the desk is a window covered by closed white venetian blinds.",
 }
 
 
@@ -384,7 +402,7 @@ def main() -> None:
                                  "(--render %s --shade %s --phase %s)"
                                  % (src, scene, a.shade, phase))
             ref = upload(src)
-            prompt = "%s, %s, %s" % (STYLE, SCENES[scene], PHASES[phase])
+            prompt = "%s %s %s" % (STYLE, SCENES[scene], PHASES[phase])
             for dn in denoises:
                 steps = a.steps or min(32, max(STEPS, round(STEPS / dn)))
                 suffix = "d%02d" % round(dn * 100)
