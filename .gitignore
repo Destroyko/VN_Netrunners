@@ -31,5 +31,9 @@ __pycache__/
 !/assets/_source/blockout/apartment_detail.blend
 !/assets/_source/blockout/refs/
 
+# Пробы портретов: внешность персонажей не утверждена (ai-pipeline.md, 10.4),
+# это черновики подбора стиля
+/assets/_source/portraits/
+
 # Журналы сессий и снимки «здесь баг» (F9): локальные, у каждого свои
 /bugreports/
