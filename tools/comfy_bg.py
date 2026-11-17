@@ -158,7 +158,7 @@ def graph(image_ref: str, prompt: str, denoise: float, seed: int, steps: int,
           tag: str, palette_hex: str = "", sampling: str = "flow",
           refine: float = 0.0, art=None, colors: int = 48, pixel: bool = True,
           gen=None, control="", control_strength=0.7, control_end=0.75,
-          control_start=0.0) -> dict:
+          control_start=0.0, base_ref="") -> dict:
     """API-граф: блокаут -> VAEEncode -> KSampler(denoise) -> пиксель-ноды -> два файла.
 
     control — файл патча ControlNet. Тогда схема другая: вместо «сжать силу переписывания,
@@ -244,14 +244,26 @@ def graph(image_ref: str, prompt: str, denoise: float, seed: int, steps: int,
                                 "image": ["inv", 0], "start_percent": control_start,
                                 "end_percent": control_end}}
         g["shift"]["inputs"]["model"] = ["cnet", 0]
-        # С чистого шума: геометрию держит управление, а не исходная картинка —
-        # иначе в кадре остаются гладкие градиенты и пластиковые тени рендера
-        g["lat"] = {"class_type": "EmptySD3LatentImage",
-                    "inputs": {"width": (gen or GEN)[0], "height": (gen or GEN)[1],
-                               "batch_size": 1}}
-        g["samp"]["inputs"]["latent_image"] = ["lat", 0]
-        g["samp"]["inputs"]["denoise"] = 1.0
-        del g["enc"]
+        if base_ref:
+            # Эскиз как основа, а не чистый шум. Карта глубины знает про объём, но
+            # не про плоское: монитор на столе, подушка на кровати, книги на полке
+            # в ней почти не видны — и на чистом шуме модель их теряет. Если же
+            # стартовать с самого кадра блокаута, терять нечего: предметы уже на местах,
+            # а denoise решает, насколько сильно их переписать
+            g["base"] = {"class_type": "LoadImage", "inputs": {"image": base_ref}}
+            g["basefit"] = {"class_type": "ImageScale",
+                            "inputs": {"image": ["base", 0], "upscale_method": "nearest-exact",
+                                       "width": (gen or GEN)[0], "height": (gen or GEN)[1],
+                                       "crop": "disabled"}}
+            g["enc"]["inputs"]["pixels"] = ["basefit", 0]
+        else:
+            # С чистого шума: геометрию держит управление, а не исходная картинка
+            g["lat"] = {"class_type": "EmptySD3LatentImage",
+                        "inputs": {"width": (gen or GEN)[0], "height": (gen or GEN)[1],
+                                   "batch_size": 1}}
+            g["samp"]["inputs"]["latent_image"] = ["lat", 0]
+            g["samp"]["inputs"]["denoise"] = 1.0
+            del g["enc"]
     if not pixel:
         # Без пиксельной сетки: на 1280x720 и выше квантование в сетку теряет смысл —
         # пиксели уже мельче, чем видит глаз, и картинка просто грубеет. Остаётся
@@ -322,6 +334,9 @@ def main() -> None:
     ap.add_argument("--control-end", type=float, default=0.5,
                     help="доля шагов с управлением; остаток модель дорисовывает сама")
     ap.add_argument("--control-start", type=float, default=0.0)
+    ap.add_argument("--base", default="",
+                    help="эскиз как основа вместе с управлением: flat или lit. "
+                         "Тогда denoise решает, насколько переписывать (0.5-0.7)")
     ap.add_argument("--art", default="%dx%d" % ART,
                     help="размер арта, например 1280x720 (какой базовый — открытый вопрос)")
     ap.add_argument("--gen", default="",
@@ -402,6 +417,15 @@ def main() -> None:
                                  "(--render %s --shade %s --phase %s)"
                                  % (src, scene, a.shade, phase))
             ref = upload(src)
+            # Второй вход: сам кадр блокаута как основа под латент
+            base_ref = ""
+            if a.base:
+                bname = ("blk_%s_lit_%s.png" % (scene, phase) if a.base == "lit"
+                         else "blk_%s_flat.png" % scene)
+                bsrc = os.path.join(in_dir, bname)
+                if not os.path.exists(bsrc):
+                    raise SystemExit("нет кадра-основы %s" % bsrc)
+                base_ref = upload(bsrc)
             prompt = "%s %s %s" % (STYLE, SCENES[scene], PHASES[phase])
             for dn in denoises:
                 steps = a.steps or min(32, max(STEPS, round(STEPS / dn)))
@@ -413,7 +437,8 @@ def main() -> None:
                 t0 = time.time()
                 hist = run(graph(ref, prompt, dn, seed, steps, tag, a.palette, a.sampling,
                                  a.refine, art, a.colors, not a.no_pixel, gen, control,
-                                 a.control_strength, a.control_end, a.control_start), client)
+                                 a.control_strength, a.control_end, a.control_start,
+                                 base_ref), client)
                 names = {"art": "bg_%s_%s_%s" % (scene, phase, suffix)}
                 if a.keep_raw:
                     names["raw"] = "raw_%s_%s_%s" % (scene, phase, suffix)
