@@ -4,7 +4,7 @@ extends Control
 ##
 ## Объект выбирают — под ним появляются его действия (разработчик, 17.11.2026; с графикой это
 ## будет клик по спрайту монитора или системного блока):
-## - монитор: сесть за компьютер (если включён), включить / выключить;
+## - монитор: сразу за компьютер (если включён) — других действий у него нет;
 ## - системный блок: включить / выключить, осмотреть железо, подключить предмет из инвентаря.
 ## Кровать: будильник и «спать» или «подождать» — правила сна в `Rest` (docs/gameplay/needs.md).
 
@@ -45,11 +45,17 @@ func _ready() -> void:
 
 ## Выбрать объект комнаты: под ним — его действия. Повторный выбор того же — список обновляется.
 func select_object(object: String) -> void:
-	_selected = object
 	if object == OBJECT_MONITOR:
-		_output.text = "Монитор." if PcPower.is_on() else "Экран чёрный: компьютер выключен."
-	else:
-		_output.text = "Системный блок."
+		# У монитора одно действие — сесть за компьютер, поэтому без лишнего шага (плейтест M2).
+		_selected = ""
+		_refresh_actions()
+		if PcPower.is_on():
+			_on_sit()
+		else:
+			_output.text = "Экран чёрный: компьютер выключен."
+		return
+	_selected = object
+	_output.text = "Системный блок."
 	_refresh_actions()
 
 
@@ -58,10 +64,6 @@ func _refresh_actions() -> void:
 		_actions.remove_child(child)
 		child.queue_free()
 	match _selected:
-		OBJECT_MONITOR:
-			if PcPower.is_on():
-				_action("Act_sit", "Сесть за компьютер", _on_sit)
-			_power_action()
 		OBJECT_SYSTEM_BLOCK:
 			_power_action()
 			_action("Act_hardware", "Осмотреть железо", func() -> void: _show(Room.hardware()))

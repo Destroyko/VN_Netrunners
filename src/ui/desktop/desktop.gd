@@ -23,8 +23,9 @@ const APPS: Array[Dictionary] = [
 	{"id": "bank", "title": "Банк", "color": Color(0.5, 0.5, 0.25), "size": Vector2(520, 380), "min": Vector2(320, 220)},
 	{"id": "news", "title": "Новости", "color": Color(0.55, 0.3, 0.3), "size": Vector2(520, 380), "min": Vector2(320, 220)},
 	{"id": "shop", "title": "Магазин", "color": Color(0.45, 0.3, 0.55), "size": Vector2(520, 380), "min": Vector2(320, 220)},
-	{"id": "messenger", "title": "Мессенджер", "color": Color(0.25, 0.5, 0.55), "size": Vector2(520, 380), "min": Vector2(320, 220)},
-	{"id": "work", "title": "Работа", "color": Color(0.4, 0.4, 0.4), "size": Vector2(520, 380), "min": Vector2(320, 220)},
+	# Мессенджер и «Работа» (поиск работы и подработки, devices.md) — пустые до M3: серые.
+	{"id": "messenger", "title": "Мессенджер", "color": Color(0.25, 0.5, 0.55), "size": Vector2(520, 380), "min": Vector2(320, 220), "stub": true},
+	{"id": "work", "title": "Работа", "color": Color(0.4, 0.4, 0.4), "size": Vector2(520, 380), "min": Vector2(320, 220), "stub": true},
 	{"id": "group", "title": "Сайт группы", "color": Color(0.7, 0.25, 0.45), "size": Vector2(520, 380), "min": Vector2(320, 220),
 		"requires": [{"flag": "gate.pressure"}]},
 ]
@@ -196,6 +197,8 @@ static func app_definition(app_id: String) -> Dictionary:
 
 
 static func is_available(app: Dictionary) -> bool:
+	if bool(app.get("stub", false)):
+		return false
 	return Conditions.check_all(app.get("requires", []) as Array)
 
 

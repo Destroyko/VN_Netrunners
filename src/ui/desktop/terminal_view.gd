@@ -185,10 +185,9 @@ func _step_history(direction: int) -> void:
 func show_result(result: TermResult) -> void:
 	if result.clear_screen:
 		_output.clear()
+	# Вопрос («заменить? (y/n)») уже среди строк ответа: второй раз не печатаем.
 	for line: String in result.lines:
 		_print(line)
-	if result.asks():
-		_print(result.question)
 	var request: Dictionary = result.request
 	match str(request.get("type", "")):
 		"puzzle":

@@ -255,7 +255,7 @@ func test_small_download_fits_the_trace() -> void:
 
 func test_put_uploads_a_file_and_leaves_a_trace() -> void:
 	enter_as_admin("node_training_pc")
-	assert_eq(run("put readme.txt"), "", "успешная загрузка молчит")
+	assert_string_contains(run("put readme.txt"), "readme.txt", "передача — строкой отчёта (плейтест M2: молчание путало)")
 	assert_true(Filesystem.for_node("node_training_pc").has_file("/home/readme.txt"))
 	assert_true(logbook("node_training_pc").categories().has(Logbook.CATEGORY_FILE_CREATED))
 	assert_eq(logbook("node_training_pc").heat_weight(), 4, "сеанс 1 + запись 3")

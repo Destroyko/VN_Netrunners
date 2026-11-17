@@ -40,6 +40,9 @@
     "done": {
       "effects": [
         {
+          "send_message": "mail_job_done"
+        },
+        {
           "money": 80
         },
         {

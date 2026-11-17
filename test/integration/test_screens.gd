@@ -161,7 +161,7 @@ func test_room_hears_the_courier() -> void:
 
 
 
-func test_room_power_is_an_action_of_monitor_and_system_block() -> void:
+func test_room_power_is_an_action_of_system_block() -> void:
 	GameState.reset()
 	var room: Node = _open(Screens.ROOM)
 	assert_eq(room.get_node("Rows/Actions").get_child_count(), 0, "пока ничего не выбрано — действий нет")
@@ -173,7 +173,6 @@ func test_room_power_is_an_action_of_monitor_and_system_block() -> void:
 	assert_false(PcPower.is_on())
 	room.get_node("Rows/Monitor").emit_signal("pressed")
 	assert_string_contains(room.get_node("Rows/Output").text, "выключен", "монитор чёрный")
-	assert_null(room.get_node_or_null("Rows/Actions/Act_sit"), "за выключенный ПК не сесть")
+	room.get_node("Rows/SystemBlock").emit_signal("pressed")
 	(room.get_node("Rows/Actions/Act_power") as Button).emit_signal("pressed")
-	assert_true(PcPower.is_on(), "включить можно и у монитора")
-	assert_not_null(room.get_node_or_null("Rows/Actions/Act_sit"))
+	assert_true(PcPower.is_on())

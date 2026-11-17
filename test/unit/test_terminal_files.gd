@@ -144,7 +144,7 @@ func test_quoted_path_with_spaces() -> void:
 # --- cp, mv, mkdir дома -------------------------------------------------------
 
 func test_cp_copies_at_home() -> void:
-	assert_eq(run("cp readme.txt copy.txt"), "")
+	assert_string_contains(run("cp readme.txt copy.txt"), "copy.txt", "копия — строкой отчёта")
 	assert_true(t.home_fs().has_file("/home/copy.txt"))
 	assert_true(t.home_fs().has_file("/home/readme.txt"), "оригинал на месте")
 
@@ -268,3 +268,30 @@ func test_reboot_is_refused_on_a_remote_machine() -> void:
 	Clock.set_time(1, 19 * 60)
 	enter("node_husband_pc")
 	assert_string_contains(run("reboot"), "удалённом узле")
+
+
+# --- Маски и вопрос о замене (плейтест M2) ----------------------------------------
+
+func test_cp_with_mask_copies_all_matching_files() -> void:
+	t.home_fs().put_file("/home/src/a.txt", {"text": "a"})
+	t.home_fs().put_file("/home/src/b.txt", {"text": "b"})
+	t.home_fs().put_file("/home/src/c.jpg", {"size_kb": 3})
+	var text: String = run("cp /home/src/*.txt /home/dst")
+	assert_true(t.home_fs().has_file("/home/dst/a.txt"))
+	assert_true(t.home_fs().has_file("/home/dst/b.txt"))
+	assert_false(t.home_fs().has_file("/home/dst/c.jpg"), "маска *.txt — только текстовые")
+	assert_string_contains(text, "передано файлов: 2 из 2")
+
+
+func test_mask_replace_asks_once_for_the_whole_batch() -> void:
+	t.home_fs().put_file("/home/src/a.txt", {"text": "a"})
+	t.home_fs().put_file("/home/src/b.txt", {"text": "b"})
+	run("cp /home/src/*.* /home/dst")
+	var text: String = run("cp /home/src/*.* /home/dst")
+	assert_eq(text.count("заменить?"), 1, "один вопрос на всю пачку")
+	assert_string_contains(run("y"), "заменено")
+
+
+func test_mask_with_no_matches() -> void:
+	assert_string_contains(run("cp /home/*.zzz /home/dst"), "нет таких файлов")
+

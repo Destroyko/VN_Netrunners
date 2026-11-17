@@ -79,7 +79,7 @@ func cat(args: PackedStringArray, result: TermResult) -> void:
 
 
 ## `cp`: на узле скачивает файл на свой ПК (по умолчанию в /home/dump), дома копирует
-## в пределах своей машины.
+## в пределах своей машины. Маска (`*.txt`) — все подходящие файлы каталога.
 func cp(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 	if _t.is_remote():
 		_download(args, result, confirmed)
@@ -87,9 +87,8 @@ func cp(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 	if args.size() < 2:
 		result.add("использование: cp <файл> <куда>")
 		return
-	var copied: FsResult = _t.fs().copy_to(_t.fs(), _t.cwd(), args[0], args[1], true, confirmed)
-	_finish_copy(copied, result)
-	if copied.is_ok():
+	var plan: Array = _plan(_t.fs(), _t.cwd(), args, _t.cwd(), args[1])
+	if _run_plan(_t.fs(), _t.fs(), _t.cwd(), plan, true, confirmed, result).size() > 0:
 		_t.spend(_t.minutes_of("terminal_command"), result)
 
 
@@ -102,23 +101,24 @@ func _download(args: PackedStringArray, result: TermResult, confirmed: bool) -> 
 		result.add("передача заблокирована: фаервол узла")
 		return
 	var remote: Filesystem = _t.fs()
-	var source: String = FsPath.resolve(_t.cwd(), args[0])
-	var target: String = _destination(args, source, Terminal.DUMP_DIR, 1)
-	var minutes: int = _transfer_minutes(remote.file_data(source))
+	var plan: Array = _plan(remote, _t.cwd(), args, Terminal.DUMP_DIR, "")
 
 	# Не влез в трейс — файла нет. Большая добыча требует подготовки (hacking-loop.md).
-	var readable: bool = remote.has_file(source) and (_t.admin() or not FsPath.requires_admin(source))
-	if readable and _cut_by_trace(minutes, result):
+	var readable: Array = plan.filter(func(step: Dictionary) -> bool:
+		return remote.has_file(str(step["from"])) and (_t.admin() or not FsPath.requires_admin(str(step["from"]))))
+	var minutes: int = _plan_minutes(remote, readable)
+	if not readable.is_empty() and _cut_by_trace(minutes, result):
 		return
 
-	var copied: FsResult = remote.copy_to(_t.home_fs(), _t.cwd(), args[0], target, _t.admin(), confirmed)
-	_finish_copy(copied, result)
-	if copied.is_ok():
-		EventBus.file_copied.emit(_t.node_id(), source)
+	var done: Array = _run_plan(remote, _t.home_fs(), _t.cwd(), plan, _t.admin(), confirmed, result)
+	for step: Dictionary in done:
+		EventBus.file_copied.emit(_t.node_id(), str(step["from"]))
+	if not done.is_empty():
 		_t.spend(minutes, result)
 
 
-## `put`: положить файл со своего ПК на узел. Запись на цели оставляет след в логах.
+## `put`: положить файл со своего ПК на узел (маска — все подходящие). Запись на цели оставляет
+## след в логах.
 func put(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 	if not _t.is_remote():
 		result.add("нет подключения к узлу")
@@ -128,24 +128,109 @@ func put(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 		return
 	if _guest_on_node(result):
 		return
-	var source: String = FsPath.resolve(_t.home_cwd(), args[0])
 	var home: Filesystem = _t.home_fs()
-	var target: String = _destination(args, source, _t.cwd(), 1)
-	var minutes: int = _transfer_minutes(home.file_data(source))
-
-	if home.has_file(source) and _cut_by_trace(minutes, result):
+	var plan: Array = _plan(home, _t.home_cwd(), args, _t.cwd(), "")
+	var existing: Array = plan.filter(func(step: Dictionary) -> bool: return home.has_file(str(step["from"])))
+	var minutes: int = _plan_minutes(home, existing)
+	if not existing.is_empty() and _cut_by_trace(minutes, result):
 		return
 
 	# Права на запись у узла: берём права на узле. Следствие: файл из закрытого каталога
 	# своего ПК гость на чужой не положит — крайний случай, ради него не усложняем.
-	var copied: FsResult = home.copy_to(_t.fs(), _t.home_cwd(), args[0], target, _t.admin(), confirmed)
-	_finish_copy(copied, result)
-	if not copied.is_ok():
-		return
-	EventBus.file_copied.emit(_t.node_id(), copied.path)
-	if not _in_logs(copied.path):
-		_t.note(Logbook.CATEGORY_FILE_CREATED, "записан файл %s" % FsPath.name_of(copied.path))
-	_t.spend(minutes, result)
+	var done: Array = _run_plan(home, _t.fs(), _t.home_cwd(), plan, _t.admin(), confirmed, result)
+	for step: Dictionary in done:
+		var written: String = str(step["to"])
+		EventBus.file_copied.emit(_t.node_id(), written)
+		if not _in_logs(written):
+			_t.note(Logbook.CATEGORY_FILE_CREATED, "записан файл %s" % FsPath.name_of(written))
+	if not done.is_empty():
+		_t.spend(minutes, result)
+
+
+# --- Передача файлов: один путь для cp и put -------------------------------------
+
+## Что откуда куда: [{from, to_arg, to}]. Аргумент — файл или маска (`*`, `?`) в каталоге.
+## `base` — куда класть, если места назначения не указали; `local_to` — для `cp` у себя: место
+## назначения как есть (каталог или новое имя), как у одиночного `cp`.
+func _plan(from_fs: Filesystem, from_cwd: String, args: PackedStringArray, base: String, local_to: String) -> Array:
+	var plan: Array = []
+	var mask: bool = FsPath.has_mask(args[0])
+	for source: String in _sources(from_fs, from_cwd, args[0]):
+		var to_arg: String
+		if mask:
+			# Пачка файлов всегда ложится в каталог: иначе все они затёрли бы одно имя.
+			var dir: String = FsPath.resolve(base, args[1]) if args.size() > 1 else base
+			to_arg = dir.path_join(FsPath.name_of(source))
+		elif not local_to.is_empty():
+			to_arg = local_to
+		else:
+			to_arg = _destination(args, source, base, 1)
+		plan.append({"from": source, "to_arg": to_arg})
+	return plan
+
+
+## Файлы по аргументу: маска — подходящие файлы каталога (по алфавиту), иначе один путь.
+func _sources(fs: Filesystem, cwd: String, arg: String) -> PackedStringArray:
+	if not FsPath.has_mask(arg):
+		return PackedStringArray([FsPath.resolve(cwd, arg)])
+	var with_dir: bool = arg.contains(FsPath.ROOT)
+	var dir: String = FsPath.parent(FsPath.resolve(cwd, arg)) if with_dir else FsPath.normalize(cwd)
+	var mask: String = FsPath.name_of(arg) if with_dir else arg
+	var found: PackedStringArray = []
+	for path: String in fs.paths():
+		if FsPath.is_direct_child(path, dir) and FsPath.matches_mask(FsPath.name_of(path), mask):
+			found.append(path)
+	found.sort()
+	return found
+
+
+## Сколько минут займёт передача всего плана: по суммарному объёму, не меньше команды.
+func _plan_minutes(fs: Filesystem, plan: Array) -> int:
+	var kb: int = 0
+	for step: Dictionary in plan:
+		kb += _size_kb(fs.file_data(str(step["from"])))
+	return _transfer_minutes({"size_kb": kb})
+
+
+## Выполнить план. Замена — один вопрос на всю пачку (на повтор с «y» заменяет всё). Каждый
+## переданный файл — строкой отчёта, как у настоящей утилиты копирования; ошибки — своей строкой.
+## Возвращает переданные шаги [{from, to}].
+func _run_plan(
+	from_fs: Filesystem, to_fs: Filesystem, from_cwd: String, plan: Array,
+	is_admin: bool, confirmed: bool, result: TermResult
+) -> Array:
+	if plan.is_empty():
+		result.add("нет таких файлов")
+		return []
+	if not confirmed:
+		var clashes: Array = plan.filter(func(step: Dictionary) -> bool:
+			return to_fs.has_file(to_fs._destination_for(from_cwd, str(step["from"]), str(step["to_arg"]))))
+		if clashes.size() == 1 and plan.size() == 1:
+			var target: String = to_fs._destination_for(from_cwd, str(clashes[0]["from"]), str(clashes[0]["to_arg"]))
+			_t.ask(result, FsResult.fail(FsResult.Code.NEEDS_CONFIRM_REPLACE, target).message())
+			return []
+		if not clashes.is_empty():
+			_t.ask(result, "файлов с такими именами уже есть: %d. заменить? (y/n)" % clashes.size())
+			return []
+	var done: Array = []
+	for step: Dictionary in plan:
+		var copied: FsResult = from_fs.copy_to(to_fs, from_cwd, str(step["from"]), str(step["to_arg"]), is_admin, confirmed)
+		if not copied.is_ok():
+			result.add(copied.message())
+			continue
+		var kb: int = _size_kb(from_fs.file_data(str(step["from"])))
+		var line: String = "%s  %d КБ  100%%" % [FsPath.name_of(copied.path), kb]
+		result.add(("заменено: " + line) if copied.replaced else line)
+		done.append({"from": str(step["from"]), "to": copied.path})
+	if plan.size() > 1:
+		result.add("передано файлов: %d из %d" % [done.size(), plan.size()])
+	return done
+
+
+func _size_kb(data: Dictionary) -> int:
+	if data.has("size_kb"):
+		return int(data["size_kb"])
+	return maxi(1, ceili(float(str(data.get("text", "")).length()) / 1024.0))
 
 
 func mv(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:

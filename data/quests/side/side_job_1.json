@@ -13,21 +13,6 @@
           "send_message": "mail_job_1"
         },
         {
-          "add_file": {
-            "node": "node_home_pc",
-            "path": "/home/job/programma.bin",
-            "size_kb": 40,
-            "file_id": "file_job1_prog"
-          }
-        },
-        {
-          "add_file": {
-            "node": "node_home_pc",
-            "path": "/home/job/instrukciya.txt",
-            "text": "Отправляйте еженедельные отчёты через эту программу. Руководство дополнительно не уведомлять."
-          }
-        },
-        {
           "reveal_node": {
             "node": "node_job1_pc_a",
             "open": [
@@ -91,6 +76,9 @@
   "outcomes": {
     "done": {
       "effects": [
+        {
+          "send_message": "mail_job_done"
+        },
         {
           "money": 60
         },

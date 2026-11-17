@@ -281,3 +281,11 @@ func test_discard_kept_frees_old_pc() -> void:
 	assert_null(Desktop.kept())
 	await wait_frames(1)
 	assert_false(is_instance_valid(desktop), "новая игра — стол прошлой уничтожен")
+
+
+func test_stub_apps_are_grey() -> void:
+	for app_id: String in ["work", "messenger"]:
+		var icon: Button = desktop.find_child("Icon_" + app_id, true, false) as Button
+		assert_true(icon.disabled, "пустое приложение — серое: " + app_id)
+		assert_null(desktop.open_app(app_id))
+

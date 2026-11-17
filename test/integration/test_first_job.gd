@@ -17,18 +17,37 @@ func test_start_sends_diary_and_first_order() -> void:
 	assert_true(Quests.is_active("side_job_1"), "первый заказ пришёл в 9:00")
 	var ids: Array = Mailbox.inbox().map(func(e: Dictionary) -> String: return str(e["id"]))
 	assert_true(ids.has("mail_job_1"), "письмо с заданием")
-	assert_true(home.has_file("/home/job/programma.bin"), "файлы для разноски у героя")
+	assert_false(home.has_file("/home/job/programma.bin"), "файлы сами на ПК не появляются")
+	var letter: Dictionary = {}
+	for e: Dictionary in Mailbox.inbox():
+		if str(e["id"]) == "mail_job_1":
+			letter = e
+	assert_eq(Mailbox.save_attachment(str(letter["uid"]), 0), "/home/mail/programma.bin", "программа — вложением письма")
+
+
+## Сохранить вложения письма заказа к себе (в /home/mail).
+func _save_job1_attachments() -> void:
+	for e: Dictionary in Mailbox.inbox():
+		if str(e["id"]) == "mail_job_1":
+			Mailbox.save_attachment(str(e["uid"]), 0)
+			Mailbox.save_attachment(str(e["uid"]), 1)
 
 
 func test_job1_put_on_four_pcs_pays_and_chains() -> void:
 	_start_job_chain()
+	_save_job1_attachments()
 	GameState.set_money(0)
 	for addr: String in ["203.0.113.11", "203.0.113.12", "203.0.113.13", "203.0.113.14"]:
 		run("connect " + addr)
-		run("put /home/job/programma.bin /home/work/programma.bin")
+		var text: String = run("put /home/mail/*.* /home/work/")
+		assert_string_contains(text, "programma.bin  40 КБ  100%", "отчёт о передаче")
+		assert_string_contains(text, "instrukciya.txt", "маска унесла и инструкцию")
+		assert_string_contains(text, "передано файлов:", "итог по пачке")
 		run("dc")
 	assert_true(GameState.is_quest_completed("side_job_1"), "все четыре ПК — заказ закрыт")
 	assert_eq(GameState.money, 60, "оплата за заказ")
+	var ids: Array = Mailbox.inbox().map(func(e: Dictionary) -> String: return str(e["id"]))
+	assert_true(ids.has("mail_job_done"), "заказчик ответил: принято, на сегодня всё")
 	# Следующий заказ запланирован на завтра 9:00.
 	Clock.advance(24 * 60)
 	assert_true(Quests.is_active("side_job_2"), "второй заказ пришёл на следующее утро")
@@ -88,8 +107,9 @@ func test_job6_closes_by_deleting_without_choice() -> void:
 
 func test_job_machines_keep_no_logs_under_cover() -> void:
 	_start_job_chain()
+	_save_job1_attachments()
 	assert_true(GameState.has_flag("gate.cover"), "на подработке за героем подчищают")
 	run("connect 203.0.113.11")
-	run("put /home/job/programma.bin /home/work/programma.bin")
+	run("put /home/mail/programma.bin /home/work/programma.bin")
 	run("dc")
 	assert_true(Logbook.for_node("node_job1_pc_a").is_empty(), "записей о герое в логе клиента нет")
