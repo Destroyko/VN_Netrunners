@@ -573,10 +573,22 @@ PNG. Нарисованные модели деления с ней не сов�
     --python tools\blockout\render_blend.py -- --render room_desk --depth
 ```
 
-**Состояние на 17.11.2026:** детализированы комната героя, коридор и кухня
-(коллекции `hero_detail`, `corridor_detail`, `kitchen_detail`). Гостиная, комната
-соседки и санузел пока коробки — `detail_rest_rooms.py` написан, но к сцене
-не применён.
+**Состояние на 17.11.2026:** детализирована вся квартира — коллекции `hero_detail`,
+`corridor_detail`, `kitchen_detail`, `mate_room_detail`, `bath_wc_detail`,
+`living_detail`, 223 объекта. Камер стало 15: `detail_rest_rooms.py` добавил `wc`.
+
+Скрипты детализации работают и **без окна Blender**: они трогают только `bpy.data`
+и `bpy.context.scene`, ничего интерфейсного. Поэтому применять их можно так, сразу
+с сохранением сцены:
+
+```powershell
+& "C:\Program Files\Blender Foundation\Blender 5.3\blender.exe" -b `
+    assets\_source\blockout\apartment_detail.blend `
+    --python tools\blockout\detail_rest_rooms.py `
+    --python-expr "import bpy; bpy.ops.wm.save_mainfile()"
+```
+
+Без `--python-expr` работа останется в памяти процесса и пропадёт вместе с ним.
 
 ### 5.11 ControlNet depth: рабочие настройки (проверено 17.11.2026)
 
