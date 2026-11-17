@@ -58,8 +58,9 @@ STYLE = ("pixel art, detailed modern pixel art, slightly chunky pixels, "
 # Свет по фазе суток. Он же решает, какой кадр блокаута брать (--shade lit --phase ...),
 # но вход берём всегда плоский: lit-рендер навязывает генератору свою светотень
 PHASES = {
-    "day": ("daytime, overcast daylight through the window, cool neutral light, "
-            "soft shadows, the window is the brightest block in the frame"),
+    "day": ("daytime, bright daylight pouring through the window and falling across the floor, "
+            "the window is the brightest block in the frame, clear light and shade, "
+            "the room itself stays dim and shadowed away from the window"),
     "night": ("night, lights off, the room lit only by the blue glow of a computer monitor "
               "and a warm desk lamp, deep shadows, dark window with distant city lights"),
 }
@@ -139,8 +140,13 @@ def upload(png: str) -> str:
 def graph(image_ref: str, prompt: str, denoise: float, seed: int, steps: int,
           tag: str, palette_hex: str = "", sampling: str = "flow",
           refine: float = 0.0, art=None, colors: int = 48, pixel: bool = True,
-          gen=None) -> dict:
+          gen=None, control="", control_strength=0.7, control_end=0.75,
+          control_start=0.0) -> dict:
     """API-граф: блокаут -> VAEEncode -> KSampler(denoise) -> пиксель-ноды -> два файла.
+
+    control — файл патча ControlNet. Тогда схема другая: вместо «сжать силу переписывания,
+    чтобы удержать планировку» геометрию держит карта глубины, а модель рисует с чистого
+    шума на полной силе. Это снимает выбор между планировкой и стилем (5.8, 5.10).
 
     refine > 0 добавляет второй проход от результата первого. Он нужен потому, что одним
     проходом геометрию и стиль не получить сразу: при denoise ниже 0.9 держится планировка,
@@ -211,6 +217,24 @@ def graph(image_ref: str, prompt: str, denoise: float, seed: int, steps: int,
     src = "dec2" if refine > 0 else "dec"
     g["raw"]["inputs"]["images"] = [src, 0]
     g["pp"]["inputs"]["image"] = [src, 0]
+    if control:
+        # Карта глубины: в Blender ближнее тёмное, ControlNet ждёт наоборот
+        g["inv"] = {"class_type": "ImageInvert", "inputs": {"image": ["fit", 0]}}
+        g["patch"] = {"class_type": "ModelPatchLoader", "inputs": {"name": control}}
+        g["cnet"] = {"class_type": "ZImageFunControlnet",
+                     "inputs": {"model": ["lora", 0], "model_patch": ["patch", 0],
+                                "vae": ["vae", 0], "strength": control_strength,
+                                "image": ["inv", 0], "start_percent": control_start,
+                                "end_percent": control_end}}
+        g["shift"]["inputs"]["model"] = ["cnet", 0]
+        # С чистого шума: геометрию держит управление, а не исходная картинка —
+        # иначе в кадре остаются гладкие градиенты и пластиковые тени рендера
+        g["lat"] = {"class_type": "EmptySD3LatentImage",
+                    "inputs": {"width": (gen or GEN)[0], "height": (gen or GEN)[1],
+                               "batch_size": 1}}
+        g["samp"]["inputs"]["latent_image"] = ["lat", 0]
+        g["samp"]["inputs"]["denoise"] = 1.0
+        del g["enc"]
     if not pixel:
         # Без пиксельной сетки: на 1280x720 и выше квантование в сетку теряет смысл —
         # пиксели уже мельче, чем видит глаз, и картинка просто грубеет. Остаётся
@@ -262,8 +286,8 @@ def main() -> None:
     ap.add_argument("--steps", type=int, default=0,
                     help="0 — считать как %d/denoise, чтобы шагов фактически было столько же"
                          % STEPS)
-    ap.add_argument("--shade", default="flat", choices=["flat", "lit"],
-                    help="какой кадр блокаута брать на вход: плоский или со светом фазы")
+    ap.add_argument("--shade", default="flat", choices=["flat", "lit", "depth"],
+                    help="вход: плоский кадр, со светом фазы или карта глубины (ControlNet)")
     ap.add_argument("--in-dir", default=BLOCKOUT_DIR, help="где лежат кадры блокаута")
     ap.add_argument("--out", default=OUT_DIR, help="куда класть результат")
     ap.add_argument("--palette", default="", help="строка #hex #hex … вместо палитры из кадра")
@@ -271,6 +295,13 @@ def main() -> None:
                     help="режим ModelSamplingAuraFlow")
     ap.add_argument("--refine", type=float, default=0.0,
                     help="второй проход такой силы: стиль по готовой композиции")
+    ap.add_argument("--control", default="",
+                    help="файл ControlNet из model_patches; 'auto' — первый попавшийся")
+    ap.add_argument("--control-strength", type=float, default=0.6,
+                    help="сила: 0.7+ оставляет мебель коробками, 0.45 теряет планировку")
+    ap.add_argument("--control-end", type=float, default=0.5,
+                    help="доля шагов с управлением; остаток модель дорисовывает сама")
+    ap.add_argument("--control-start", type=float, default=0.0)
     ap.add_argument("--art", default="%dx%d" % ART,
                     help="размер арта, например 1280x720 (какой базовый — открытый вопрос)")
     ap.add_argument("--gen", default="",
@@ -313,6 +344,16 @@ def main() -> None:
     except urllib.error.URLError as e:
         raise SystemExit("ComfyUI не отвечает на %s: %s" % (SERVER, e))
 
+    control = a.control
+    if control == "auto":
+        info = json.loads(get("/object_info/ModelPatchLoader").decode("utf-8"))
+        files = info["ModelPatchLoader"]["input"]["required"]["name"][0]
+        if not files:
+            raise SystemExit("в models/model_patches пусто — положите туда файл ControlNet")
+        control = files[0]
+        print("ControlNet: %s, сила %.2f, до %d%% шагов"
+              % (control, a.control_strength, round(a.control_end * 100)))
+
     total = len(scenes) * len(phases) * len(denoises)
     done = 0
     print("кадров: %d, сид %d, выход %s" % (total, seed, out_dir))
@@ -321,8 +362,12 @@ def main() -> None:
         for phase in phases:
             # при --shade lit вход свой на каждую фазу: свет в кадре задаётся блокаутом,
             # промптом его не получить — он добавит лампу, но комнату не затемнит
-            name = ("blk_%s_lit_%s.png" % (scene, phase) if a.shade == "lit"
-                    else "blk_%s_flat.png" % scene)
+            if a.shade == "depth":
+                name = "blk_%s_depth.png" % scene
+            elif a.shade == "lit":
+                name = "blk_%s_lit_%s.png" % (scene, phase)
+            else:
+                name = "blk_%s_flat.png" % scene
             src = os.path.join(in_dir, name)
             if not os.path.exists(src):
                 raise SystemExit("нет кадра блокаута %s — сначала отрендерите apartment.py "
@@ -339,7 +384,8 @@ def main() -> None:
                 tag = "%s_%s_%s" % (scene, phase, suffix)
                 t0 = time.time()
                 hist = run(graph(ref, prompt, dn, seed, steps, tag, a.palette, a.sampling,
-                                 a.refine, art, a.colors, not a.no_pixel, gen), client)
+                                 a.refine, art, a.colors, not a.no_pixel, gen, control,
+                                 a.control_strength, a.control_end, a.control_start), client)
                 names = {"art": "bg_%s_%s_%s" % (scene, phase, suffix)}
                 if a.keep_raw:
                     names["raw"] = "raw_%s_%s_%s" % (scene, phase, suffix)
