@@ -107,12 +107,14 @@ def mannequin(pos, shade="flat", name="mannequin"):
     box(f"{name}_head", (x - 0.10, y - 0.09, 1.48), (0.20, 0.18, 0.27), "accent", shade)
 
 
-def depth_setup(near=1.8, far=5.2):
+def depth_setup(near=1.8, far=5.2, margin=0.12):
     """Карта глубины вместо цвета: ближе — светлее, дальше — темнее.
 
     Это вход для ControlNet depth. Своя карта из Blender точнее любого препроцессора:
     тот угадывает глубину по картинке, а здесь она известна точно — сцена построена нами.
-    Границы в метрах: вне них всё упирается в чёрное или белое.
+
+    margin — отступ от краёв шкалы: ближний предмет не должен быть чисто белым,
+    иначе генератор принимает его за светящийся.
     """
     sc = bpy.context.scene
     sc.view_layers[0].use_pass_z = True
@@ -126,12 +128,23 @@ def depth_setup(near=1.8, far=5.2):
     # не нужно, а в комнате они каждый раз свои
     nrm = nt.nodes.new("CompositorNodeNormalize")
     nt.links.new(rl.outputs["Depth"], nrm.inputs[0])
+    # Поджимаем диапазон от краёв. Normalize растягивает ближайший объект в чистый край
+    # шкалы, и после инверсии он становится белым пятном — ControlNet читает это как
+    # светящийся предмет (на кадре так пересвечивалась спинка кресла перед камерой)
+    mul = nt.nodes.new("ShaderNodeMath")
+    mul.operation = "MULTIPLY"
+    mul.inputs[1].default_value = 1.0 - margin * 2
+    add = nt.nodes.new("ShaderNodeMath")
+    add.operation = "ADD"
+    add.inputs[1].default_value = margin
+    nt.links.new(nrm.outputs[0], mul.inputs[0])
+    nt.links.new(mul.outputs[0], add.inputs[0])
     # Инверсию (ближнее белое) делаем уже в ComfyUI: ShaderNodeMapRange в композиторе
     # 5.3 ведёт себя как порог и превращает карту в чёрно-белую маску
     # В 5.x композитор — нодовая группа, выход у неё обычный Group Output
     nt.interface.new_socket(name="Image", in_out="OUTPUT", socket_type="NodeSocketColor")
     out = nt.nodes.new("NodeGroupOutput")
-    nt.links.new(nrm.outputs[0], out.inputs[0])
+    nt.links.new(add.outputs[0], out.inputs[0])
 
 
 def mat(key, shade):

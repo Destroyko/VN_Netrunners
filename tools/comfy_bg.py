@@ -296,6 +296,9 @@ def main() -> None:
                     help="второй проход такой силы: стиль по готовой композиции")
     ap.add_argument("--control", default="",
                     help="файл ControlNet из model_patches; 'auto' — первый попавшийся")
+    ap.add_argument("--preset", default="", choices=["blocks", "detail"],
+                    help="сила управления под вход: blocks — коробки (0.6/0.5), "
+                         "detail — прокси (1.0/0.35)")
     ap.add_argument("--control-strength", type=float, default=0.6,
                     help="сила: 0.7+ оставляет мебель коробками, 0.45 теряет планировку")
     ap.add_argument("--control-end", type=float, default=0.5,
@@ -311,6 +314,14 @@ def main() -> None:
     ap.add_argument("--keep-raw", action="store_true",
                     help="сохранить и кадр до пикселизации (для разбора)")
     a = ap.parse_args()
+
+    # Пресет силы управления. Она зависит не от вкуса, а от того, насколько подробен
+    # вход: на коробках мягкое управление нужно, чтобы мебель ожила, а на готовых
+    # прокси оно только даёт генератору сочинить свою комнату (ai-pipeline.md 5.11)
+    if a.preset == "blocks":
+        a.control_strength, a.control_end = 0.6, 0.5
+    elif a.preset == "detail":
+        a.control_strength, a.control_end = 1.0, 0.35
 
     art = tuple(int(v) for v in a.art.lower().split("x"))
     if a.gen:
