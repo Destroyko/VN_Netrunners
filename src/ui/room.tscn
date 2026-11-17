@@ -41,9 +41,8 @@ text = "Монитор"
 layout_mode = 2
 text = "Системный блок"
 
-[node name="Power" type="Button" parent="Rows"]
+[node name="Actions" type="VBoxContainer" parent="Rows"]
 layout_mode = 2
-text = "Кнопка питания ПК"
 
 [node name="Bed" type="Button" parent="Rows"]
 layout_mode = 2
@@ -76,9 +75,6 @@ layout_mode = 2
 text = "Подождать"
 
 [node name="Kitchen" type="VBoxContainer" parent="Rows"]
-layout_mode = 2
-
-[node name="Inventory" type="VBoxContainer" parent="Rows"]
 layout_mode = 2
 
 [node name="Output" type="Label" parent="Rows"]

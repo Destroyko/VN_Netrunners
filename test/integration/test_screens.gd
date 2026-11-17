@@ -103,7 +103,7 @@ func test_desktop_opens() -> void:
 
 func test_room_has_its_objects() -> void:
 	var room: Node = _open(Screens.ROOM)
-	for node_name: String in ["Clock", "Monitor", "SystemBlock", "Bed", "Inventory", "Output", "Menu"]:
+	for node_name: String in ["Clock", "Monitor", "SystemBlock", "Actions", "Bed", "Output", "Menu"]:
 		assert_not_null(room.get_node_or_null("Rows/" + node_name), "на месте: " + node_name)
 
 
@@ -111,7 +111,8 @@ func test_room_lists_inventory_items_as_buttons() -> void:
 	GameState.reset()
 	Inventory.give("item_flash_backup")
 	var room: Node = _open(Screens.ROOM)
-	assert_eq(room.get_node("Rows/Inventory").get_child_count(), 1)
+	room.get_node("Rows/SystemBlock").emit_signal("pressed")
+	assert_not_null(room.get_node_or_null("Rows/Actions/Act_item_item_flash_backup"), "у системного блока — подключить флешку")
 
 
 func test_room_bed_sleeps_until_alarm() -> void:
@@ -160,15 +161,19 @@ func test_room_hears_the_courier() -> void:
 
 
 
-func test_room_power_button_turns_pc_off_and_on() -> void:
+func test_room_power_is_an_action_of_monitor_and_system_block() -> void:
 	GameState.reset()
 	var room: Node = _open(Screens.ROOM)
-	var power: Button = room.get_node("Rows/Power") as Button
+	assert_eq(room.get_node("Rows/Actions").get_child_count(), 0, "пока ничего не выбрано — действий нет")
+	room.get_node("Rows/SystemBlock").emit_signal("pressed")
+	var power: Button = room.get_node("Rows/Actions/Act_power") as Button
 	assert_eq(power.text, "Выключить компьютер")
+	assert_not_null(room.get_node_or_null("Rows/Actions/Act_hardware"))
 	power.emit_signal("pressed")
 	assert_false(PcPower.is_on())
 	room.get_node("Rows/Monitor").emit_signal("pressed")
-	assert_string_contains(room.get_node("Rows/Output").text, "выключен", "монитор чёрный — стол не открывается")
-	power.emit_signal("pressed")
-	assert_true(PcPower.is_on())
-	assert_eq(power.text, "Выключить компьютер")
+	assert_string_contains(room.get_node("Rows/Output").text, "выключен", "монитор чёрный")
+	assert_null(room.get_node_or_null("Rows/Actions/Act_sit"), "за выключенный ПК не сесть")
+	(room.get_node("Rows/Actions/Act_power") as Button).emit_signal("pressed")
+	assert_true(PcPower.is_on(), "включить можно и у монитора")
+	assert_not_null(room.get_node_or_null("Rows/Actions/Act_sit"))
