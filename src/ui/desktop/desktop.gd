@@ -66,6 +66,11 @@ func _ready() -> void:
 	_add_debug_console()
 	set_pc_sound(true)
 	EventBus.passed_out.connect(_on_passed_out)
+	# ПК загрузился (перезагрузка из меню или командой `reboot`) — стол собирается заново: окна
+	# после настоящей перезагрузки закрыты.
+	EventBus.pc_power_changed.connect(func(on: bool) -> void:
+		if on and is_inside_tree() and is_visible_in_tree():
+			call_deferred("_restart"))
 	EventBus.mail_received.connect(func(_uid: String, _id: String) -> void: _refresh_mail_icon())
 	EventBus.mail_read.connect(func(_uid: String, _id: String) -> void: _refresh_mail_icon())
 	_refresh_mail_icon()
@@ -332,6 +337,10 @@ func _on_menu(action: String) -> void:
 			save_game()
 		"back_to_room":
 			leave_to(Screens.ROOM)
+		"reboot":
+			PcPower.reboot()
+		"shut_down":
+			shut_down()
 		"main_menu":
 			get_tree().change_scene_to_file(Screens.MAIN_MENU)
 
@@ -346,6 +355,21 @@ func save_game() -> String:
 
 
 # --- Отойти от ПК и вернуться -------------------------------------------------------
+
+## Выключить ПК из меню: стол не прячется, а закрывается насовсем, герой — в комнате.
+func shut_down() -> void:
+	PcPower.shut_down()
+	if _kept == self:
+		_kept = null
+	get_tree().change_scene_to_file(Screens.ROOM)
+
+
+## Собрать стол заново после загрузки ПК.
+func _restart() -> void:
+	if _kept == self:
+		_kept = null
+	get_tree().change_scene_to_file(Screens.DESKTOP)
+
 
 ## Отойти от ПК: стол прячется (а не уничтожается) и глохнет, открывается другая сцена.
 ## Сцену меняем после того, как стол перестал быть текущей сценой, — иначе смена его освободит.

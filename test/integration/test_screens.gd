@@ -158,3 +158,17 @@ func test_room_hears_the_courier() -> void:
 	EventBus.order_delivered.emit("food_lunch")
 	assert_string_contains(room.get_node("Rows/Output").text, "Курьер", "герой дома — слышит курьера здесь")
 
+
+
+func test_room_power_button_turns_pc_off_and_on() -> void:
+	GameState.reset()
+	var room: Node = _open(Screens.ROOM)
+	var power: Button = room.get_node("Rows/Power") as Button
+	assert_eq(power.text, "Выключить компьютер")
+	power.emit_signal("pressed")
+	assert_false(PcPower.is_on())
+	room.get_node("Rows/Monitor").emit_signal("pressed")
+	assert_string_contains(room.get_node("Rows/Output").text, "выключен", "монитор чёрный — стол не открывается")
+	power.emit_signal("pressed")
+	assert_true(PcPower.is_on())
+	assert_eq(power.text, "Выключить компьютер")

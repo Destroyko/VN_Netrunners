@@ -253,7 +253,8 @@ func test_reboot_applies_the_theme_and_takes_time() -> void:
 	var before: int = minute()
 	var text: String = run("reboot")
 	assert_string_contains(text, "применена тема: theme_corp")
-	assert_eq(minute(), before + 5)
+	var pc: Dictionary = DataLoader.balance().get("pc", {}) as Dictionary
+	assert_eq(minute(), before + int(pc["shutdown_minutes"]) + int(pc["boot_minutes"]), "выключение + загрузка")
 
 
 func test_reboot_with_broken_desktop_reports_errors() -> void:

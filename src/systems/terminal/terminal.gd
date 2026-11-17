@@ -462,17 +462,17 @@ func _reboot(result: TermResult) -> void:
 	if is_remote():
 		result.add("перезагрузка недоступна на удалённом узле")
 		return
-	session.disconnect_now()
-	var stopped: int = BackgroundTasks.cancel_all()
+	# Одно правило на все кнопки питания (PcPower): сеанс оборван как `dc`, подбор прерван,
+	# тема применена. Стол, увидев загрузку, соберётся заново.
 	result.add("перезагрузка...")
-	if stopped > 0:
-		result.add("прервано фоновых задач: %d" % stopped)
-	var report: Dictionary = SystemFiles.reboot(home_fs())
-	if bool(report["theme_changed"]):
+	var report: Dictionary = PcPower.reboot()
+	_forget_session()
+	if int(report.get("stopped", 0)) > 0:
+		result.add("прервано фоновых задач: %d" % int(report["stopped"]))
+	if bool(report.get("theme_changed", false)):
 		result.add("применена тема: %s" % str(report["theme"]))
-	for error: String in report["errors"] as PackedStringArray:
+	for error: String in report.get("errors", PackedStringArray()) as PackedStringArray:
 		result.add(error)
-	spend(int((DataLoader.balance().get("nodes", {}) as Dictionary).get("action_minutes_reboot", 5)), result)
 
 
 # --- Автодополнение ----------------------------------------------------------

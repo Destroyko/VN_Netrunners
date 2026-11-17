@@ -18,6 +18,8 @@ func _ready() -> void:
 	$Rows/SystemBlock.pressed.connect(_on_system_block)
 	$Rows/Menu.pressed.connect(_on_menu)
 	$Rows/Bed.pressed.connect(_on_bed)
+	$Rows/Power.pressed.connect(_on_power)
+	_refresh_power()
 	$Rows/BedPanel/Sleep.pressed.connect(_on_rest.bind(Rest.MODE_SLEEP))
 	$Rows/BedPanel/Wait.pressed.connect(_on_rest.bind(Rest.MODE_WAIT))
 	EventBus.time_advanced.connect(func(_minute: int, _passed: int) -> void: _refresh_clock())
@@ -38,6 +40,9 @@ func _ready() -> void:
 
 
 func _on_monitor() -> void:
+	if not PcPower.is_on():
+		_output.text = "Экран чёрный: компьютер выключен."
+		return
 	var report: Dictionary = Room.monitor(Filesystem.for_node(Network.HOME_ID))
 	if bool(report["desktop"]):
 		Desktop.enter_pc(get_tree())
@@ -105,6 +110,24 @@ func _refresh_kitchen() -> void:
 		button.text = "Поесть: %s × %d" % [Shop.title_of(id), int(pantry[id])]
 		button.pressed.connect(func() -> void: Shop.consume(id))
 		_kitchen.add_child(button)
+
+
+## Кнопка питания на системном блоке: включить или выключить ПК. Выключение закрывает и
+## спрятанный стол — это уже не «отошёл», а выключил.
+func _on_power() -> void:
+	if PcPower.is_on():
+		PcPower.shut_down()
+		Desktop.discard_kept()
+		_output.text = "Компьютер выключен."
+	else:
+		var report: Dictionary = PcPower.power_on()
+		var errors: PackedStringArray = report.get("errors", PackedStringArray()) as PackedStringArray
+		_output.text = "Компьютер включён." if errors.is_empty() else "Компьютер включён, но при загрузке ошибки."
+	_refresh_power()
+
+
+func _refresh_power() -> void:
+	($Rows/Power as Button).text = "Выключить компьютер" if PcPower.is_on() else "Включить компьютер"
 
 
 func _refresh_clock() -> void:

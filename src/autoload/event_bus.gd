@@ -68,6 +68,8 @@ signal woke_after_pass_out(minutes: int)
 
 ## Флешка починила свой ПК: вернула файлы из /sys и (или) поставила обычную ОС.
 signal system_restored(paths: PackedStringArray, os_changed: bool)
+## Свой ПК выключили (false) или он загрузился (true): PcPower. Перезагрузка — оба подряд.
+signal pc_power_changed(on: bool)
 
 # --- Квесты (шлёт Quests через QuestManager, M2) -----------------------------
 

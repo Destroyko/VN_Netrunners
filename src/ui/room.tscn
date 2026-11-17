@@ -41,6 +41,10 @@ text = "Монитор"
 layout_mode = 2
 text = "Системный блок"
 
+[node name="Power" type="Button" parent="Rows"]
+layout_mode = 2
+text = "Кнопка питания ПК"
+
 [node name="Bed" type="Button" parent="Rows"]
 layout_mode = 2
 text = "Кровать"

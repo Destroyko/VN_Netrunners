@@ -6,7 +6,10 @@ extends PanelContainer
 signal window_button_pressed(app_id: String)
 signal menu_requested(action: String)
 
-const MENU_ITEMS: Dictionary = {"save_game": "Сохранить игру", "back_to_room": "В комнату", "main_menu": "В главное меню"}
+const MENU_ITEMS: Dictionary = {
+	"save_game": "Сохранить игру", "back_to_room": "В комнату",
+	"reboot": "Перезагрузить", "shut_down": "Выключить", "main_menu": "В главное меню",
+}
 
 var _time: Label
 var _money: Label
