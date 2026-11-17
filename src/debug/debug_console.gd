@@ -27,6 +27,10 @@ func _input(event: InputEvent) -> void:
 	var key_event: InputEventKey = event as InputEventKey
 	if key_event == null or not key_event.pressed or key_event.echo:
 		return
+	# Консоль живёт на рабочем столе: пока стол спрятан (герой в комнате), она молчит.
+	var owner_ui: CanvasItem = get_parent() as CanvasItem
+	if owner_ui != null and not owner_ui.is_visible_in_tree():
+		return
 
 	if key_event.keycode == TOGGLE_KEY:
 		_toggle()

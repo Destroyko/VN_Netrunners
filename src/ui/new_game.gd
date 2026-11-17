@@ -73,13 +73,9 @@ func _select(difficulty: GameState.Difficulty) -> void:
 
 
 func _on_start() -> void:
-	# Новая игра: чистое состояние с выбранной сложностью и свой сид случайности.
-	GameState.reset(_selected)
-	Economy.start_new_game()
-	Rng.randomize_seed()
-	# Новая игра началась: на этом событии висят стартовые триггеры (первая подработка). Отдельно
-	# от day_started, который Clock шлёт только при переходе через полночь.
-	EventBus.game_started.emit()
+	# Новая игра: чистое состояние с выбранной сложностью (GameStart — общий для всех кнопок).
+	Desktop.discard_kept()
+	GameStart.begin(_selected)
 	get_tree().change_scene_to_file(Screens.DESKTOP)
 
 

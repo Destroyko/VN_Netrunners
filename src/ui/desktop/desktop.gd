@@ -32,6 +32,14 @@ const APPS: Array[Dictionary] = [
 ## Положение и размер окон запоминаются между открытиями в пределах сессии.
 static var _remembered: Dictionary = {}
 
+## Шина звука ПК: все звуки рабочего стола (оповещения, программы) должны идти в неё. Пока
+## герой отошёл, она заглушена — снаружи не слышно, что ПК не выключен, а спрятан.
+const PC_BUS: String = "PC"
+
+## Стол, от которого герой отошёл: не уничтожен, а спрятан — окна, программы, открытые файлы и
+## набранная команда остаются как были (разработчик, 17.11.2026).
+static var _kept: Desktop = null
+
 ## Терминал живёт, пока открыт рабочий стол, а не окно: закрыл и открыл — история на месте.
 var terminal: Terminal
 
@@ -56,6 +64,7 @@ func _ready() -> void:
 	terminal.ticked.connect(func(_result: TermResult) -> void: _on_result_shown())
 	_build()
 	_add_debug_console()
+	set_pc_sound(true)
 	EventBus.passed_out.connect(_on_passed_out)
 	EventBus.mail_received.connect(func(_uid: String, _id: String) -> void: _refresh_mail_icon())
 	EventBus.mail_read.connect(func(_uid: String, _id: String) -> void: _refresh_mail_icon())
@@ -298,21 +307,95 @@ func _on_taskbar_button(app_id: String) -> void:
 ## Вырубился: реплика, экран гаснет, сон — и проснётся в комнате, а не за монитором
 ## (gameplay/needs.md, «Вырубание»).
 func _on_passed_out() -> void:
+	# Спрятанный стол (герой в комнате) не отвечает: занавес покажет комната.
+	if not is_visible_in_tree():
+		return
 	NeedsManager.claim_pass_out()
 	var curtain := PassOutCurtain.new()
 	add_child(curtain)
 	curtain.finished.connect(func() -> void:
 		NeedsManager.sleep_after_pass_out()
-		get_tree().change_scene_to_file(Screens.ROOM))
+		curtain.queue_free()
+		leave_to(Screens.ROOM))
 	curtain.play_falling_asleep()
 
 
 func _on_menu(action: String) -> void:
 	match action:
 		"back_to_room":
-			get_tree().change_scene_to_file(Screens.ROOM)
+			leave_to(Screens.ROOM)
 		"main_menu":
 			get_tree().change_scene_to_file(Screens.MAIN_MENU)
+
+
+# --- Отойти от ПК и вернуться -------------------------------------------------------
+
+## Отойти от ПК: стол прячется (а не уничтожается) и глохнет, открывается другая сцена.
+## Сцену меняем после того, как стол перестал быть текущей сценой, — иначе смена его освободит.
+func leave_to(path: String) -> void:
+	var tree: SceneTree = get_tree()
+	hide_pc()
+	if tree.current_scene == self:
+		tree.current_scene = null
+	tree.change_scene_to_file(path)
+
+
+## Спрятать стол: не видно, не слышно, ввод не принимает. Время и логика при этом идут —
+## трейс, фоновые задачи, таймеры головоломок (не успел — провал, как при выходе).
+func hide_pc() -> void:
+	_kept = self
+	visible = false
+	set_pc_sound(false)
+
+
+## Вернуть спрятанный стол как был. Режим (аварийная консоль) перепроверяется: пока герой был в
+## комнате, ПК могли починить флешкой.
+func show_pc() -> void:
+	visible = true
+	set_pc_sound(true)
+	apply_mode()
+	if _kept == self:
+		_kept = null
+
+
+## Сесть за ПК: вернуть спрятанный стол, а если его нет — собрать новый.
+static func enter_pc(tree: SceneTree) -> void:
+	if not is_instance_valid(_kept):
+		_kept = null
+		tree.change_scene_to_file(Screens.DESKTOP)
+		return
+	var desktop: Desktop = _kept
+	var old: Node = tree.current_scene
+	tree.current_scene = desktop
+	desktop.show_pc()
+	if old != null and old != desktop:
+		old.queue_free()
+
+
+static func kept() -> Desktop:
+	return _kept if is_instance_valid(_kept) else null
+
+
+## Новая игра или выход в меню: спрятанный стол прошлой игры уничтожается.
+static func discard_kept() -> void:
+	if is_instance_valid(_kept):
+		_kept.queue_free()
+	_kept = null
+
+
+## Звук ПК включить или заглушить (шина `PC` создаётся при первом обращении).
+static func set_pc_sound(on: bool) -> void:
+	var index: int = AudioServer.get_bus_index(PC_BUS)
+	if index < 0:
+		AudioServer.add_bus()
+		index = AudioServer.bus_count - 1
+		AudioServer.set_bus_name(index, PC_BUS)
+	AudioServer.set_bus_mute(index, not on)
+
+
+static func pc_sound_on() -> bool:
+	var index: int = AudioServer.get_bus_index(PC_BUS)
+	return index < 0 or not AudioServer.is_bus_mute(index)
 
 
 # --- Окна головоломки и удалённого сеанса ------------------------------------------
@@ -393,7 +476,7 @@ func _make_emergency(lines: PackedStringArray) -> Control:
 	var back := Button.new()
 	back.name = "BackToRoom"
 	back.text = "Отойти от компьютера"
-	back.pressed.connect(func() -> void: get_tree().change_scene_to_file(Screens.ROOM))
+	back.pressed.connect(func() -> void: leave_to(Screens.ROOM))
 	box.add_child(back)
 
 	var view := TerminalView.new()

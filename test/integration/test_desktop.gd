@@ -237,3 +237,36 @@ func test_news_app_shows_feed_and_marks_read() -> void:
 	app.open("news_weather")
 	assert_eq(icon.text, "Новости")
 	assert_string_contains((app.find_child("Body", true, false) as Label).text, "осадк")
+
+
+# --- Отойти от ПК и вернуться (разработчик, 17.11.2026) ----------------------------
+
+func test_hidden_pc_keeps_its_windows_and_is_silent() -> void:
+	var window: DesktopWindow = desktop.open_app("terminal")
+	desktop.terminal.execute("ls")
+	var history_before: int = desktop.terminal.history().size()
+	desktop.hide_pc()
+	assert_false(desktop.visible, "стол спрятан")
+	assert_false(Desktop.pc_sound_on(), "звук ПК заглушён — снаружи не слышно")
+	assert_eq(Desktop.kept(), desktop, "стол сохранён, не уничтожен")
+	desktop.show_pc()
+	assert_true(desktop.visible)
+	assert_true(Desktop.pc_sound_on())
+	assert_true(is_instance_valid(window) and window.is_inside_tree(), "окно терминала на месте")
+	assert_eq(desktop.terminal.history().size(), history_before, "история команд на месте")
+	assert_null(Desktop.kept(), "вернулись — спрятанного больше нет")
+
+
+func test_hidden_pc_ignores_pass_out() -> void:
+	desktop.hide_pc()
+	EventBus.passed_out.emit()
+	assert_null(desktop.find_child("PassOutCurtain", true, false), "занавес покажет комната, не спрятанный стол")
+	desktop.show_pc()
+
+
+func test_discard_kept_frees_old_pc() -> void:
+	desktop.hide_pc()
+	Desktop.discard_kept()
+	assert_null(Desktop.kept())
+	await wait_frames(1)
+	assert_false(is_instance_valid(desktop), "новая игра — стол прошлой уничтожен")

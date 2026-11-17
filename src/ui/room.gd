@@ -37,7 +37,7 @@ func _ready() -> void:
 func _on_monitor() -> void:
 	var report: Dictionary = Room.monitor(Filesystem.for_node(Network.HOME_ID))
 	if bool(report["desktop"]):
-		get_tree().change_scene_to_file(Screens.DESKTOP)
+		Desktop.enter_pc(get_tree())
 		return
 	_show(report["lines"] as PackedStringArray)
 

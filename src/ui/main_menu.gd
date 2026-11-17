@@ -10,6 +10,8 @@ extends Control
 func _ready() -> void:
 	# В меню время не идёт: игра ещё не начата или поставлена на выход.
 	Clock.stop()
+	# Вышли в меню — спрятанный стол прошлой игры больше не нужен.
+	Desktop.discard_kept()
 	# Настройки применяем здесь: это первый экран, и дальше они нужны уже готовыми.
 	var settings := AppSettings.new()
 	settings.load_from()
@@ -28,9 +30,8 @@ func _ready() -> void:
 ## Глобальных уровней сложности пока нет (docs/gameplay/difficulty.md): новая игра начинается сразу.
 ## Экран выбора (Screens.NEW_GAME) лежит нетронутым и вернётся вместе с уровнями.
 func _on_new_game() -> void:
-	GameState.reset()
-	Rng.randomize_seed()
-	Clock.start()
+	Desktop.discard_kept()
+	GameStart.begin()
 	get_tree().change_scene_to_file(Screens.ROOM)
 
 
