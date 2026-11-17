@@ -449,3 +449,10 @@ func test_rent_bill_is_for_a_room() -> void:
 	Economy.on_day_started(5)
 	assert_eq(str(Economy.unpaid()[-1]["title"]), "Аренда комнаты", "по завязке герой снимает комнату")
 
+
+func test_download_whole_folder_from_node() -> void:
+	enter("node_job5_pc")
+	var text: String = run("cp /home/proekt")
+	assert_true(t.home_fs().has_file(Terminal.DUMP_DIR + "/proekt/perepiska.txt"), "папка узла — к себе целиком")
+	assert_string_contains(text, "передано файлов: 3 из 3")
+

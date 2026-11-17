@@ -34,6 +34,16 @@
           "file": "/home/backup/2025-02-02.bak"
         }
       ]
+    },
+    {
+      "id": "report",
+      "objectives": [
+        {
+          "type": "deliver",
+          "to": "dispatch@autsors.local",
+          "title": "Отписаться диспетчеру"
+        }
+      ]
     }
   ],
   "outcomes": {

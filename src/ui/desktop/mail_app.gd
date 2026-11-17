@@ -10,6 +10,7 @@ var _subject: Label
 var _body: Label
 var _attachments: VBoxContainer
 var _replies: HBoxContainer
+var _answer: Button
 var _status: Label
 var _uids: PackedStringArray = []
 var _open_uid: String = ""
@@ -59,6 +60,13 @@ func _init() -> void:
 	_replies = HBoxContainer.new()
 	_replies.name = "Replies"
 	right.add_child(_replies)
+	# «Ответить» — своё письмо отправителю: тема уже стоит, можно приложить файлы.
+	_answer = Button.new()
+	_answer.name = "Answer"
+	_answer.text = "Ответить"
+	_answer.visible = false
+	_answer.pressed.connect(func() -> void: answer(_open_uid))
+	right.add_child(_answer)
 	_status = Label.new()
 	_status.name = "Status"
 	right.add_child(_status)
@@ -81,6 +89,16 @@ func refresh() -> void:
 		_body.text = "Писем нет"
 
 
+## Ответить на письмо: форма с адресом отправителя и темой («Готово» или «Re: …»).
+func answer(uid: String) -> MailCompose:
+	var draft: Dictionary = Mailbox.reply_draft(uid)
+	if draft.is_empty():
+		return null
+	var compose: MailCompose = show_compose()
+	compose.prefill(str(draft["to"]), str(draft["subject"]))
+	return compose
+
+
 ## Новое письмо вместо читалки.
 func show_compose() -> MailCompose:
 	_compose.reset()
@@ -100,6 +118,7 @@ func open(uid: String) -> void:
 	_from.text = "От: %s   %s" % [str(def.get("from", "")), Clock.format_date(int(e["day"]))]
 	_subject.text = str(def.get("subject", ""))
 	_body.text = str(def.get("body", ""))
+	_answer.visible = not Mailbox.reply_draft(uid).is_empty()
 	_status.text = ""
 	_clear(_attachments)
 	var files: Array = def.get("attachments", []) as Array

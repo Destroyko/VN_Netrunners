@@ -25,6 +25,11 @@ func test_start_sends_diary_and_first_order() -> void:
 	assert_eq(Mailbox.save_attachment(str(letter["uid"]), 0), "/home/mail/programma.bin", "программа — вложением письма")
 
 
+## Отписаться диспетчеру: заказ закрывается письмом «Готово».
+func _report() -> void:
+	assert_true(Mailbox.send("dispatch@autsors.local", "Готово", "", PackedStringArray()))
+
+
 ## Сохранить вложения письма заказа к себе (в /home/mail).
 func _save_job1_attachments() -> void:
 	for e: Dictionary in Mailbox.inbox():
@@ -44,7 +49,10 @@ func test_job1_put_on_four_pcs_pays_and_chains() -> void:
 		assert_string_contains(text, "instrukciya.txt", "маска унесла и инструкцию")
 		assert_string_contains(text, "передано файлов:", "итог по пачке")
 		run("dc")
-	assert_true(GameState.is_quest_completed("side_job_1"), "все четыре ПК — заказ закрыт")
+	assert_false(GameState.is_quest_completed("side_job_1"), "работа сделана, но ещё не отписался")
+	assert_eq(GameState.get_quest_stage("side_job_1"), "report")
+	_report()
+	assert_true(GameState.is_quest_completed("side_job_1"), "отписался — заказ закрыт")
 	assert_eq(GameState.money, 60, "оплата за заказ")
 	var ids: Array = Mailbox.inbox().map(func(e: Dictionary) -> String: return str(e["id"]))
 	assert_true(ids.has("mail_job_done"), "заказчик ответил: принято, на сегодня всё")
@@ -60,7 +68,8 @@ func test_job2_delete_files() -> void:
 	run("rm /home/lichnoe/foto_s_dachi.jpg")
 	run("rm /home/lichnoe/spisok_del.txt")
 	run("rm /home/work/staryj_otchet.doc")
-	assert_true(GameState.is_quest_completed("side_job_2"), "комп подготовлен")
+	_report()
+	assert_true(GameState.is_quest_completed("side_job_2"), "комп подготовлен и отписался")
 
 
 func test_job4_deliver_report_to_boss_by_mail() -> void:
@@ -75,6 +84,8 @@ func test_job4_deliver_report_to_boss_by_mail() -> void:
 	assert_true(t.home_fs().has_file(attachment), "отчёт скачан к себе")
 	assert_true(Mailbox.send("boss@firma.local", "Отчёт", "Во вложении", PackedStringArray([attachment])))
 	assert_true(GameState.is_quest_completed("side_job_4"), "отчёт доставлен — заказ закрыт")
+	assert_false(Mailbox.contacts().has("boss@firma.local"), "босс клиента больше не нужен — из адресной книги убран")
+	assert_false(Mailbox.contacts().has("kolleg@firma.local"))
 
 
 func test_job6_hidden_copy_shows_only_after_done() -> void:
@@ -100,7 +111,8 @@ func test_job6_closes_by_deleting_without_choice() -> void:
 	run("connect 203.0.113.61")
 	run("cp /home/work/proekt_itog.doc")
 	run("rm /home/corp/baza_klientov.db")
-	assert_true(GameState.is_quest_completed("side_job_6"), "выбора нет: удалил — заказ закрыт")
+	_report()
+	assert_true(GameState.is_quest_completed("side_job_6"), "выбора нет: удалил и отписался — заказ закрыт")
 	assert_false(GameState.has_flag("world.job6_kept"), "не копировал — скрытая цель не сделана")
 	assert_true(GameState.has_flag("story.first_job_done"))
 

@@ -81,6 +81,7 @@ func cat(args: PackedStringArray, result: TermResult) -> void:
 ## `cp`: на узле скачивает файл на свой ПК (по умолчанию в /home/dump), дома копирует
 ## в пределах своей машины. Маска (`*.txt`) — все подходящие файлы каталога.
 func cp(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
+	args = _without_flags(args)
 	if _t.is_remote():
 		_download(args, result, confirmed)
 		return
@@ -120,6 +121,7 @@ func _download(args: PackedStringArray, result: TermResult, confirmed: bool) -> 
 ## `put`: положить файл со своего ПК на узел (маска — все подходящие). Запись на цели оставляет
 ## след в логах.
 func put(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
+	args = _without_flags(args)
 	if not _t.is_remote():
 		result.add("нет подключения к узлу")
 		return
@@ -154,6 +156,19 @@ func put(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 ## назначения как есть (каталог или новое имя), как у одиночного `cp`.
 func _plan(from_fs: Filesystem, from_cwd: String, args: PackedStringArray, base: String, local_to: String) -> Array:
 	var plan: Array = []
+	# Папка — целиком, со всем содержимым, как `cp -r` (флаг можно и не писать).
+	var folder: String = FsPath.resolve(from_cwd, args[0])
+	if not FsPath.has_mask(args[0]) and not from_fs.has_file(folder) and from_fs.has_dir(folder):
+		var into: String = FsPath.resolve(base, args[1]) if args.size() > 1 else base
+		into = into.path_join(FsPath.name_of(folder))
+		var inside: PackedStringArray = []
+		for path: String in from_fs.paths():
+			if path.begins_with(folder + FsPath.ROOT):
+				inside.append(path)
+		inside.sort()
+		for path: String in inside:
+			plan.append({"from": path, "to_arg": into.path_join(path.substr(folder.length() + 1))})
+		return plan
 	var mask: bool = FsPath.has_mask(args[0])
 	for source: String in _sources(from_fs, from_cwd, args[0]):
 		var to_arg: String
@@ -225,6 +240,15 @@ func _run_plan(
 	if plan.size() > 1:
 		result.add("передано файлов: %d из %d" % [done.size(), plan.size()])
 	return done
+
+
+## Флаги (`-r`, `-a`) копированию не нужны: папка и так копируется целиком.
+func _without_flags(args: PackedStringArray) -> PackedStringArray:
+	var kept: PackedStringArray = []
+	for arg: String in args:
+		if not arg.begins_with("-"):
+			kept.append(arg)
+	return kept
 
 
 func _size_kb(data: Dictionary) -> int:

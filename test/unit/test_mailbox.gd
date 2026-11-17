@@ -137,3 +137,22 @@ func test_schedule_effect_fires_at_given_time() -> void:
 	Clock.advance(60)
 	assert_eq(Mailbox.inbox().size(), 1, "письмо пришло ровно в 9:00")
 	assert_eq(Schedule.pending().size(), 0)
+
+
+# --- Ответить и лишние адреса (плейтест M2) --------------------------------------
+
+func test_reply_draft_uses_sender_and_reply_subject() -> void:
+	Mailbox.deliver("mail_job_1")
+	var draft: Dictionary = Mailbox.reply_draft(_uid())
+	assert_eq(str(draft["to"]), "dispatch@autsors.local")
+	assert_eq(str(draft["subject"]), "Готово")
+	Mailbox.deliver("mail_rent_reminder")
+	assert_true(Mailbox.reply_draft(_uid()).is_empty(), "у домовладельца нет адреса — ответить некуда")
+
+
+func test_forget_contact_effect() -> void:
+	Mailbox.deliver("mail_job_4")
+	assert_true(Mailbox.contacts().has("boss@firma.local"))
+	Effects.apply({"forget_contact": "boss@firma.local"})
+	assert_false(Mailbox.contacts().has("boss@firma.local"))
+

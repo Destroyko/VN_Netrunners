@@ -34,9 +34,14 @@ static func matches(objective: Dictionary, event: Dictionary) -> bool:
 	if type == "wipe_logs":
 		return logs_clean(str(event.get("node", "")))
 	if type == "deliver":
-		# Отправить письмом на адрес `to` файл с `file_id` = `what` — откуда угодно с ПК героя.
+		# Отправить письмо на адрес `to`. С `what` — во вложении нужен файл с этим `file_id`
+		# (откуда угодно с ПК героя); без `what` — хватит любого письма («отписаться»).
+		if str(objective.get("to", "")) != str(event.get("to", "")):
+			return false
+		if not objective.has("what"):
+			return true
 		var sent: PackedStringArray = event.get("file_ids", PackedStringArray()) as PackedStringArray
-		return str(objective.get("to", "")) == str(event.get("to", "")) and sent.has(str(objective.get("what", "")))
+		return sent.has(str(objective.get("what", "")))
 	return true
 
 

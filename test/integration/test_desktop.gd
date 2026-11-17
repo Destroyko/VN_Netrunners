@@ -289,3 +289,16 @@ func test_stub_apps_are_grey() -> void:
 		assert_true(icon.disabled, "пустое приложение — серое: " + app_id)
 		assert_null(desktop.open_app(app_id))
 
+
+func test_answer_button_opens_filled_form() -> void:
+	Mailbox.deliver("mail_job_1")
+	var window: DesktopWindow = desktop.open_app("mail")
+	var mail: MailApp = window.find_child("MailApp", true, false) as MailApp
+	var uid: String = str(Mailbox.inbox()[0]["uid"])
+	mail.open(uid)
+	assert_true((mail.find_child("Answer", true, false) as Button).visible)
+	var compose: MailCompose = mail.answer(uid)
+	assert_eq((compose.find_child("Subject", true, false) as LineEdit).text, "Готово")
+	(compose.find_child("Send", true, false) as Button).emit_signal("pressed")
+	assert_eq(str(Mailbox.sent()[-1]["to"]), "dispatch@autsors.local")
+

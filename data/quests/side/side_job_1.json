@@ -71,6 +71,16 @@
           "path": "/home/work/programma.bin"
         }
       ]
+    },
+    {
+      "id": "report",
+      "objectives": [
+        {
+          "type": "deliver",
+          "to": "dispatch@autsors.local",
+          "title": "Отписаться диспетчеру"
+        }
+      ]
     }
   ],
   "outcomes": {

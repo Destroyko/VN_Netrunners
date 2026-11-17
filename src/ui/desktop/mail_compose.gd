@@ -88,6 +88,15 @@ func reset() -> void:
 	_status.text = "" if _to.item_count > 0 else "Адресов пока нет"
 
 
+## Ответ на письмо: адресат и тема уже заполнены. Отправитель письма снова в адресной книге,
+## даже если его оттуда убрали, — отвечаешь же на его письмо.
+func prefill(to: String, subject: String) -> void:
+	Mailbox.learn_contact(to)
+	reset()
+	pick(to)
+	_subject.text = subject
+
+
 ## Выбрать адресата по значению — для тестов и для «переслать» в будущем.
 func pick(address: String) -> void:
 	for i: int in _to.item_count:

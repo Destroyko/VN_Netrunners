@@ -66,6 +66,26 @@ static func contacts() -> Array:
 	return _state_list("contacts").duplicate()
 
 
+## Забыть адрес: человек больше не нужен на этом этапе игры (эффект `forget_contact`), чтобы
+## список «Кому» не разрастался ненужными адресами.
+static func forget_contact(address: String) -> void:
+	_state_list("contacts").erase(address)
+
+
+## Куда и с какой темой отвечать на письмо: {to, subject}. Нет адреса у отправителя — пусто.
+## Тема — поле письма `reply_subject` («Готово»), иначе «Re: <тема>».
+static func reply_draft(uid: String) -> Dictionary:
+	var e: Dictionary = entry(uid)
+	if e.is_empty():
+		return {}
+	var def: Dictionary = definition(str(e["id"]))
+	var to: String = str(def.get("from", ""))
+	if not to.contains("@"):
+		return {}
+	var subject: String = str(def.get("reply_subject", "Re: " + str(def.get("subject", ""))))
+	return {"to": to, "subject": subject}
+
+
 ## Отправить письмо со своего ПК. `files` — пути вложений на своём ПК (можно несколько или ни
 ## одного). Неизвестный адрес или хоть одного файла нет — false, ничего не ушло.
 static func send(to: String, subject: String, body: String, files: PackedStringArray = []) -> bool:

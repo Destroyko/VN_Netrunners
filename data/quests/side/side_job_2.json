@@ -39,6 +39,16 @@
           "file": "/home/work/staryj_otchet.doc"
         }
       ]
+    },
+    {
+      "id": "report",
+      "objectives": [
+        {
+          "type": "deliver",
+          "to": "dispatch@autsors.local",
+          "title": "Отписаться диспетчеру"
+        }
+      ]
     }
   ],
   "outcomes": {

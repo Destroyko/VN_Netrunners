@@ -295,3 +295,12 @@ func test_mask_replace_asks_once_for_the_whole_batch() -> void:
 func test_mask_with_no_matches() -> void:
 	assert_string_contains(run("cp /home/*.zzz /home/dst"), "нет таких файлов")
 
+
+func test_cp_copies_a_whole_folder() -> void:
+	t.home_fs().put_file("/home/src/a.txt", {"text": "a"})
+	t.home_fs().put_file("/home/src/deep/b.txt", {"text": "b"})
+	var text: String = run("cp -r /home/src /home/dst")
+	assert_true(t.home_fs().has_file("/home/dst/src/a.txt"), "папка целиком, флаг -r не мешает")
+	assert_true(t.home_fs().has_file("/home/dst/src/deep/b.txt"), "и вложенные папки")
+	assert_string_contains(text, "передано файлов: 2 из 2")
+

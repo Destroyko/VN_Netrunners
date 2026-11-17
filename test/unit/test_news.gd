@@ -23,13 +23,18 @@ func _on_published(id: String) -> void:
 	_published.append(id)
 
 
-func test_one_background_news_per_day() -> void:
-	News.publish_background(1)
-	assert_eq(News.feed().size(), 1)
-	var first: String = str(News.feed()[0]["id"])
-	News.publish_background(2)
-	assert_eq(News.feed().size(), 2)
-	assert_ne(str(News.feed()[0]["id"]), first, "два дня подряд — не одна и та же")
+func test_background_news_never_repeat() -> void:
+	var pool: int = 0
+	for item: Dictionary in DataLoader.news().values():
+		if bool(item.get("background", false)):
+			pool += 1
+	for day: int in range(1, pool + 3):
+		News.publish_background(day)
+	assert_eq(News.feed().size(), pool, "пул кончился — новых фоновых нет, повторов тоже")
+	var ids: Dictionary = {}
+	for e: Dictionary in News.feed():
+		ids[str(e["id"])] = true
+	assert_eq(ids.size(), pool, "все разные")
 
 
 func test_day_started_publishes_background() -> void:

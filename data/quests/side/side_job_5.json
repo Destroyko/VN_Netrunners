@@ -39,6 +39,16 @@
           "file": "/home/proekt/perepiska.txt"
         }
       ]
+    },
+    {
+      "id": "report",
+      "objectives": [
+        {
+          "type": "deliver",
+          "to": "dispatch@autsors.local",
+          "title": "Отписаться диспетчеру"
+        }
+      ]
     }
   ],
   "outcomes": {

@@ -31,6 +31,7 @@ const KNOWN_TYPES: PackedStringArray = [
 	"add_file",
 	"add_contact",
 	"hero_thought",
+	"forget_contact",
 ]
 
 ## Типы из документации, которым нужны системы следующих этапов.
@@ -187,6 +188,9 @@ static func _apply_one(type: String, value: Variant) -> bool:
 			return true
 		"add_contact":
 			Mailbox.learn_contact(str(value))
+			return true
+		"forget_contact":
+			Mailbox.forget_contact(str(value))
 			return true
 		"hero_thought":
 			# Формат: {"hero_thought": "текст"} — мысль вслух (намёк, не подсказка интерфейса).

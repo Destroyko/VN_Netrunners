@@ -9,7 +9,9 @@ extends RefCounted
 
 const VAR_PUBLISHED: String = "news.published"
 const VAR_QUEUE: String = "news.queue"  # совпадает с Effects.VAR_NEWS_QUEUE
-const VAR_LAST_BG: String = "news.last_background"
+## Фоновые новости, которые уже выходили: повторов нет (плейтест M2). Пул кончился — в этот
+## день фоновой новости нет, пока не напишут новые.
+const VAR_USED_BG: String = "news.used_background"
 
 
 static func definition(id: String) -> Dictionary:
@@ -69,17 +71,18 @@ static func publish_due(day: int) -> void:
 	GameState.set_var(VAR_QUEUE, left)
 
 
-## Одна фоновая новость из пула (поле `background: true`), случайно, не та же, что вчера.
+## Одна фоновая новость из пула (поле `background: true`), случайно и без повторов.
 static func publish_background(day: int) -> void:
+	var used: Array = GameState.get_var_or(VAR_USED_BG, []) as Array
 	var pool: Array = []
 	for id: String in DataLoader.news().keys():
-		if bool((DataLoader.news()[id] as Dictionary).get("background", false)):
+		if bool((DataLoader.news()[id] as Dictionary).get("background", false)) and not used.has(id):
 			pool.append(id)
 	if pool.is_empty():
 		return
-	var last: String = str(GameState.get_var_or(VAR_LAST_BG, ""))
-	if pool.size() > 1 and pool.has(last):
-		pool.erase(last)
+	pool.sort()  # порядок ключей словаря не зависит от сида — сортируем, чтобы выбор был воспроизводим
 	var id: String = str(Rng.pick(pool))
-	GameState.set_var(VAR_LAST_BG, id)
+	var next: Array = used.duplicate()
+	next.append(id)
+	GameState.set_var(VAR_USED_BG, next)
 	publish(id, day)

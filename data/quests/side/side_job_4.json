@@ -49,6 +49,12 @@
               }
             ]
           }
+        },
+        {
+          "forget_contact": "boss@firma.local"
+        },
+        {
+          "forget_contact": "kolleg@firma.local"
         }
       ]
     }
