@@ -82,6 +82,12 @@ func resume(reason: String) -> void:
 	_pauses.erase(reason)
 
 
+## Снять все паузы — после загрузки сейва: занавес или диалог, державшие паузу, остались в
+## прошлой сцене.
+func reset_pauses() -> void:
+	_pauses.clear()
+
+
 func is_paused() -> bool:
 	return not _pauses.is_empty()
 

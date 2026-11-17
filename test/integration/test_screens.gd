@@ -22,9 +22,19 @@ func test_main_menu_has_all_buttons() -> void:
 
 
 func test_continue_is_disabled_until_saves_exist() -> void:
+	# Свой пустой каталог: настоящие сохранения разработчика тест не видит и не трогает.
+	SaveSystem.dir = "user://test_saves_menu"
+	for slot: String in [SaveSystem.SLOT_AUTO, SaveSystem.SLOT_MANUAL]:
+		SaveSystem.delete(slot)
 	var menu: Node = _open(Screens.MAIN_MENU)
 	var button: Button = menu.get_node("Rows/Continue") as Button
-	assert_true(button.disabled, "сохранения появятся в M4")
+	assert_true(button.disabled, "сейвов нет — «Продолжить» серая")
+	GameState.reset()
+	SaveSystem.save(SaveSystem.SLOT_MANUAL)
+	menu = _open(Screens.MAIN_MENU)
+	assert_false((menu.get_node("Rows/Continue") as Button).disabled, "есть сейв — можно продолжить")
+	SaveSystem.delete(SaveSystem.SLOT_MANUAL)
+	SaveSystem.dir = SaveSystem.DEFAULT_DIR
 
 
 func test_new_game_lists_four_difficulties() -> void:

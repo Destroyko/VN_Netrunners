@@ -322,10 +322,21 @@ func _on_passed_out() -> void:
 
 func _on_menu(action: String) -> void:
 	match action:
+		"save_game":
+			save_game()
 		"back_to_room":
 			leave_to(Screens.ROOM)
 		"main_menu":
 			get_tree().change_scene_to_file(Screens.MAIN_MENU)
+
+
+## Ручное сохранение. Итог — короткой строкой внизу стола.
+func save_game() -> String:
+	var error: String = SaveSystem.save(SaveSystem.SLOT_MANUAL)
+	var notice: HeroThoughts = find_child("HeroThoughts", true, false) as HeroThoughts
+	if notice != null:
+		notice.say("Игра сохранена." if error.is_empty() else "Не удалось сохранить: " + error)
+	return error
 
 
 # --- Отойти от ПК и вернуться -------------------------------------------------------

@@ -25,6 +25,7 @@ EconomyManager="*res://src/autoload/economy_manager.gd"
 QuestManager="*res://src/autoload/quest_manager.gd"
 NewsManager="*res://src/autoload/news_manager.gd"
 BackgroundManager="*res://src/autoload/background_manager.gd"
+SaveManager="*res://src/autoload/save_manager.gd"
 TriggerManager="*res://src/autoload/trigger_manager.gd"
 ; Инфраструктура, а не игровая система: держит пропорции окна при ручном ресайзе.
 WindowGuard="*res://src/autoload/window_guard.gd"

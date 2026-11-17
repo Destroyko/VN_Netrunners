@@ -45,6 +45,9 @@ signal decrypt_done(path: String)
 ## Началась новая игра (не загрузка): на нём висит стартовый триггер первой подработки. Шлётся
 ## один раз из «Новой игры», отдельно от day_started — чтобы не срабатывать при любой смене дня.
 signal game_started
+## Игра сохранена в слот / загружена из слота (SaveSystem).
+signal game_saved(slot: String)
+signal game_loaded(slot: String)
 
 ## Разбудить героя: звонок, стук в дверь, конец фоновой задачи. Вне сна ничего не делает.
 signal wake_requested(reason: String)

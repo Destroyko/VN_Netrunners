@@ -84,5 +84,24 @@ func fixed(value: int) -> RandomNumberGenerator:
 	return rng
 
 
+## Снимок для сейва: сид и текущее положение общего потока и именованных потоков. Без
+## положения мир после загрузки вёл бы себя как после нового старта с тем же сидом.
+func snapshot() -> Dictionary:
+	var streams: Dictionary = {}
+	for name: String in _streams.keys():
+		streams[name] = str((_streams[name] as RandomNumberGenerator).state)
+	return {"seed": _seed, "state": str(_main.state), "streams": streams}
+
+
+## Восстановить снимок из сейва. Числа хранятся строкой: в JSON большие целые теряют точность.
+func restore(data: Dictionary) -> void:
+	set_seed(int(data.get("seed", _seed)))
+	if data.has("state"):
+		_main.state = int(str(data["state"]))
+	var streams: Dictionary = data.get("streams", {}) as Dictionary
+	for name: String in streams.keys():
+		stream(name).state = int(str(streams[name]))
+
+
 func _derive_seed(name: String) -> int:
 	return hash(str(_seed, ":", name))

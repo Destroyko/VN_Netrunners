@@ -1,8 +1,7 @@
 extends Control
 ## Главное меню. Первый экран игры (M0.5).
 ##
-## «Продолжить» неактивна: сохранения по роадмапу в M4. Кнопка есть, чтобы игрок видел,
-## что она будет, и чтобы раскладка меню не менялась потом.
+## «Продолжить» загружает самый свежий сейв (автосейв или ручной); сейвов нет — кнопка серая.
 
 @onready var _continue_button: Button = $Rows/Continue
 
@@ -17,8 +16,9 @@ func _ready() -> void:
 	settings.load_from()
 	settings.apply(get_window())
 
-	_continue_button.disabled = true
-	_continue_button.tooltip_text = "Сохранения появятся позже"
+	_continue_button.disabled = SaveSystem.latest().is_empty()
+	_continue_button.tooltip_text = "" if not _continue_button.disabled else "Сохранений пока нет"
+	_continue_button.pressed.connect(_on_continue)
 
 	$Rows/NewGame.pressed.connect(_on_new_game)
 	$Rows/Settings.pressed.connect(_on_settings)
@@ -32,6 +32,21 @@ func _ready() -> void:
 func _on_new_game() -> void:
 	Desktop.discard_kept()
 	GameStart.begin()
+	get_tree().change_scene_to_file(Screens.ROOM)
+
+
+## Загрузить самый свежий сейв и вернуться в комнату: стол соберётся заново.
+func _on_continue() -> void:
+	var slot: String = SaveSystem.latest()
+	if slot.is_empty():
+		return
+	Desktop.discard_kept()
+	var error: String = SaveSystem.load_slot(slot)
+	if not error.is_empty():
+		_continue_button.disabled = true
+		_continue_button.tooltip_text = error
+		return
+	Clock.start()
 	get_tree().change_scene_to_file(Screens.ROOM)
 
 
