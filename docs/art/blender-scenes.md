@@ -161,8 +161,7 @@ cel-шейдинг и пастель — общий язык десятков и
 ```powershell
 & "C:\Program Files\Blender Foundation\Blender 5.3\blender.exe" -b `
     assets\_source\blockout\apartment_work.blend `
-    --python tools\blockout
-efresh_palette.py
+    --python tools\blockout\refresh_palette.py
 ```
 
 Почему нужен второй шаг: `File → Append` делает **копию** материала. После пересборки
