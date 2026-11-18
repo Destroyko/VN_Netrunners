@@ -52,6 +52,23 @@ def is_arch(ob):
     return any(c.name in ARCH for c in ob.users_collection)
 
 
+def final_polys(ob, depsgraph):
+    """Полигоны с учётом модификаторов.
+
+    Считать len(ob.data.polygons) нельзя: модификатор «Упростить» не меняет
+    исходную сетку, и объект с 43 600 полигонов в базе может давать в рендер
+    6 500. Правильное число — у вычисленной копии объекта.
+    """
+    try:
+        ev = ob.evaluated_get(depsgraph)
+        me = ev.to_mesh()
+        n = len(me.polygons)
+        ev.to_mesh_clear()
+        return n
+    except Exception:
+        return len(ob.data.polygons)
+
+
 def renders(ob):
     """Попадёт ли объект в кадр: объект и все его коллекции не скрыты при рендере."""
     if ob.hide_render:
@@ -60,7 +77,9 @@ def renders(ob):
 
 
 def main():
+    depsgraph = bpy.context.evaluated_depsgraph_get()
     meshes = [o for o in bpy.data.objects if o.type == "MESH" and renders(o)]
+    polys = {o.name: final_polys(o, depsgraph) for o in meshes}
     boxes = {o.name: world_box(o) for o in meshes}
 
     proxies = sorted(o.name for o in meshes if o.name.startswith(PROXY_PREFIX))
@@ -100,13 +119,16 @@ def main():
             print("   " + ", ".join(proxies[i:i + 4]))
 
     # Тяжёлые объекты: ассеты из интернета иногда несут десятки тысяч полигонов
-    heavy = sorted(((len(o.data.polygons), o.name) for o in meshes
-                    if len(o.data.polygons) > 5000), reverse=True)
+    heavy = sorted(((polys[o.name], o.name) for o in meshes
+                    if polys[o.name] > 5000), reverse=True)
     if heavy:
         print("\n[audit] тяжёлые объекты (фон их не оправдывает):")
-        for polys, name in heavy[:10]:
-            print("   %-30s %d полигонов" % (name, polys))
-    total = sum(len(o.data.polygons) for o in meshes)
+        for n, name in heavy[:10]:
+            ob = bpy.data.objects[name]
+            raw = len(ob.data.polygons)
+            tail = "  (в сетке %d, упрощает модификатор)" % raw if raw != n else ""
+            print("   %-28s %6d полигонов%s" % (name, n, tail))
+    total = sum(polys.values())
     print("\n[audit] полигонов в кадре всего: %d" % total)
 
 
