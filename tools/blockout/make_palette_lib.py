@@ -23,70 +23,48 @@ import sys
 import bpy
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import cel_shader as C  # noqa: E402
 import palette as P  # noqa: E402
 
 OUT = "assets/_source/blockout/palette_materials.blend"
 
 
-def cel_material(name, hexcol, tones=3):
-    """Один материал: ступенчатый свет, без блика.
-
-    Diffuse, а не Principled: у Principled блик виден даже при Specular 0,
-    а в этом стиле бликов нет совсем (docs/art/blender-scenes.md).
-    """
+def cel_material(name, hexcol, tones=3, texture=None, scale=None, hatch=None):
+    """Один материал палитры. Шейдер собирает cel_shader — он же в style_cel.py,
+    чтобы вид материала в окне Blender совпадал с видом в рендере."""
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
-    nt = mat.node_tree
-    nt.nodes.clear()
-
-    out = nt.nodes.new("ShaderNodeOutputMaterial")
-    out.location = (600, 0)
-    dif = nt.nodes.new("ShaderNodeBsdfDiffuse")
-    dif.location = (-200, 0)
-    dif.inputs["Color"].default_value = (1, 1, 1, 1)
-    s2rgb = nt.nodes.new("ShaderNodeShaderToRGB")
-    s2rgb.location = (0, 0)
-    ramp = nt.nodes.new("ShaderNodeValToRGB")
-    ramp.location = (180, 0)
-    ramp.color_ramp.interpolation = "CONSTANT"
-    emit = nt.nodes.new("ShaderNodeEmission")
-    emit.location = (430, 0)
-
-    tn = P.shades(hexcol, tones)
-    els = ramp.color_ramp.elements
-    while len(els) > 1:
-        els.remove(els[-1])
-    els[0].position = 0.0
-    els[0].color = (*tn[0], 1.0)
-    for i, t in enumerate(tn[1:], start=1):
-        els.new(i / len(tn) + 0.12).color = (*t, 1.0)
-
-    nt.links.new(dif.outputs[0], s2rgb.inputs[0])
-    nt.links.new(s2rgb.outputs[0], ramp.inputs[0])
-    nt.links.new(ramp.outputs[0], emit.inputs[0])
-    nt.links.new(emit.outputs[0], out.inputs["Surface"])
-
+    light = C.build(mat.node_tree, P.srgb(hexcol), tones, texture, scale, hatch)
     # Чтобы материал пережил сохранение без пользователей
     mat.use_fake_user = True
-    # Цвет в окне вида Solid — чтобы сцена читалась и без рендера
-    mat.diffuse_color = (*tn[-1], 1.0)
+    # Цвет в режиме Solid — чтобы сцена читалась и без рендера
+    mat.diffuse_color = (*light, 1.0)
     return mat
 
 
 def main():
+    # Аргументы после -- : те же ручки фактуры, что у style_cel.py
+    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    opts = dict(zip(argv[::2], argv[1::2]))
+    texture = float(opts.get("--texture", C.DEFAULTS["texture"]))
+    scale = float(opts.get("--tex-scale", C.DEFAULTS["scale"]))
+    hatch = float(opts.get("--hatch", C.DEFAULTS["hatch"]))
+
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.context.scene.render.engine = "BLENDER_EEVEE"
 
     made = 0
     for key, hexcol in P.all_colors().items():
-        cel_material("pal_" + key.replace("/", "_"), hexcol)
+        cel_material("pal_" + key.replace("/", "_"), hexcol,
+                     texture=texture, scale=scale, hatch=hatch)
         made += 1
 
     root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
     path = os.path.normpath(os.path.join(root, OUT))
     os.makedirs(os.path.dirname(path), exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=path)
-    print("[palette] материалов: %d -> %s" % (made, path))
+    print("[palette] материалов: %d (фактура %.2f, штрих %.2f) -> %s"
+          % (made, texture, hatch, path))
 
 
 main()

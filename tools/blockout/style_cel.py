@@ -19,6 +19,7 @@ import bpy
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import bl_common as B  # noqa: E402
+import cel_shader as C  # noqa: E402
 
 # Пастельная палитра: светлота высокая, насыщенность низкая. Тёмно-синие стены
 # и тёмный пол — решение разработчика (17.11.2026), остальное подобрано под них
@@ -49,75 +50,17 @@ def shade(rgb, k):
 
 
 def celify(mat, steps=3, texture=0.0, scale=14.0, hatch=0.0):
-    """Ступенчатый свет вместо плавного: Shader to RGB -> Color Ramp (Constant).
+    """Надеть cel-шейдер на существующий материал, сохранив его цвет.
 
-    Нижняя ступень — не чёрная, а тёмный холодный оттенок того же цвета: в этом стиле
-    тень цветная, иначе кадр валится в контраст, которого в референсе нет.
-
-    texture — неоднородность тона. Ровная заливка читается как вектор, а не как
-    рисунок: поверхность должна чуть «дышать». Это не шум поверх кадра, а вариация
-    самого цвета, поэтому она живёт на предмете и не ползёт при смене ракурса.
+    Материалы не пишутся заново по одному на предмет: берётся цвет, который у объекта
+    уже есть, и оборачивается в шейдер из cel_shader — тот же, что в библиотеке палитры.
+    Поэтому скрипт работает и на блокауте, и на сцене с чужими ассетами.
     """
     if not mat:
         return
     col = base_color(mat)
     mat.use_nodes = True
-    nt = mat.node_tree
-    nt.nodes.clear()
-    out = nt.nodes.new("ShaderNodeOutputMaterial")
-    # Diffuse, а не Principled: в Principled блик живёт даже при Specular 0
-    dif = nt.nodes.new("ShaderNodeBsdfDiffuse")
-    dif.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
-    s2rgb = nt.nodes.new("ShaderNodeShaderToRGB")
-    ramp = nt.nodes.new("ShaderNodeValToRGB")
-    ramp.color_ramp.interpolation = "CONSTANT"
-    # тень холоднее и темнее, свет — сам цвет
-    tones = [shade(col, 0.45), shade(col, 0.72), col][-steps:]
-    tones[0] = (tones[0][0] * 0.92, tones[0][1] * 0.96, min(1.0, tones[0][2] * 1.08))
-    els = ramp.color_ramp.elements
-    while len(els) > 1:
-        els.remove(els[-1])
-    els[0].position = 0.0
-    els[0].color = (*tones[0], 1.0)
-    for i, t in enumerate(tones[1:], start=1):
-        e = els.new(i / len(tones) + 0.12)
-        e.color = (*t, 1.0)
-    emit = nt.nodes.new("ShaderNodeEmission")
-    nt.links.new(dif.outputs[0], s2rgb.inputs[0])
-    nt.links.new(s2rgb.outputs[0], ramp.inputs[0])
-
-    src = ramp.outputs[0]
-    if texture > 0.0:
-        # Шум в координатах объекта, крупный: мелкий даёт грязь, а нам нужна
-        # неровность краски, заметная только боковым зрением
-        coord = nt.nodes.new("ShaderNodeTexCoord")
-        vec_out = coord.outputs["Object"]
-        if hatch > 0.0:
-            # Растягиваем координаты по одной оси: тот же шум становится полосами,
-            # то есть штрихом. Чем больше hatch, тем длиннее и тоньше мазок
-            mp = nt.nodes.new("ShaderNodeMapping")
-            mp.inputs["Scale"].default_value = (1.0, 1.0 + hatch * 10.0, 1.0)
-            nt.links.new(vec_out, mp.inputs["Vector"])
-            vec_out = mp.outputs["Vector"]
-        noise = nt.nodes.new("ShaderNodeTexNoise")
-        noise.inputs["Scale"].default_value = scale
-        noise.inputs["Detail"].default_value = 2.0
-        noise.inputs["Roughness"].default_value = 0.5
-        nt.links.new(vec_out, noise.inputs["Vector"])
-        # 0..1 -> (1-k)..(1+k): цвет то чуть темнее, то чуть светлее
-        rng = nt.nodes.new("ShaderNodeMapRange")
-        rng.inputs["From Min"].default_value = 0.0
-        rng.inputs["From Max"].default_value = 1.0
-        rng.inputs["To Min"].default_value = 1.0 - texture
-        rng.inputs["To Max"].default_value = 1.0 + texture
-        nt.links.new(noise.outputs["Fac"], rng.inputs["Value"])
-        mul = nt.nodes.new("ShaderNodeVectorMath")
-        mul.operation = "MULTIPLY"
-        nt.links.new(ramp.outputs[0], mul.inputs[0])
-        nt.links.new(rng.outputs[0], mul.inputs[1])
-        src = mul.outputs[0]
-    nt.links.new(src, emit.inputs[0])
-    nt.links.new(emit.outputs[0], out.inputs["Surface"])
+    C.build(mat.node_tree, col, steps, texture, scale, hatch)
 
 
 def soft_light(phase="day", warm=1.0):
