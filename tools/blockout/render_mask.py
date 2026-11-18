@@ -8,7 +8,9 @@
 и сразу знает, на что наведено: попадание считается по силуэту предмета, а не по
 прямоугольнику. Обводка рисуется шейдером по той же маске, поверх обычного фона.
 
-Что помечается: объекты в коллекции `interactive` либо с именем на `hit_`.
+Что помечается: объекты в коллекции `interactive` либо с именем на `hit_`. Имя после
+префикса — это `id` объекта в данных локации (`data/locations/*.json`): `hit_monitor`
+даёт в таблице `monitor`, который игра уже знает.
 
     & "...blender.exe" -b assets\\_source\\blockout\\apartment_detail.blend ^
         --python tools\\blockout\\render_mask.py -- --render room_desk
@@ -113,7 +115,10 @@ def main():
         mat = flat_mat("mask_" + ob.name, lin)
         ob.data.materials.clear()
         ob.data.materials.append(mat)
-        table["#%02X%02X%02X" % (r, g, b)] = ob.name
+        # Префикс отрезаем: в таблицу идёт ровно тот id, что стоит в данных локации
+        # (data/locations/*.json, поле objects[].id) — третьей сущности не заводим
+        key = ob.name[len(MARK_PREFIX):] if ob.name.startswith(MARK_PREFIX) else ob.name
+        table["#%02X%02X%02X" % (r, g, b)] = key
 
     out_dir = B.resolve(a.out) if a.out else B.resolve("assets/_source/blockout/mask")
     files = B.render({o.name: o for o in bpy.data.objects if o.type == "CAMERA"},
