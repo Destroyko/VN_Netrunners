@@ -9,7 +9,11 @@
         --python tools\\blockout\\refresh_palette.py
 
 Можно задать фактуру: `-- --texture 0.12 --hatch 0.5 --tex-scale 8`.
-Материалы не из палитры (`pal_*`) скрипт не трогает.
+
+По умолчанию трогаются только материалы палитры (`pal_*`). Но в сцене, собранной
+скриптами детализации, материалы называются иначе — `wood_flat`, `metal_flat`.
+Для них есть `--all`: он берёт цвет, который у материала уже есть, и надевает
+тот же cel-шейдер. Так стиль ложится на всю сцену, откуда бы ни пришли материалы.
 """
 
 import os
@@ -23,6 +27,19 @@ import cel_shader as C  # noqa: E402
 import palette as P  # noqa: E402
 
 
+def own_color(mat):
+    """Цвет, который у материала уже есть: Emission из скриптов детализации,
+    Principled из чужих ассетов, иначе серый."""
+    if mat.use_nodes and mat.node_tree:
+        for n in mat.node_tree.nodes:
+            if n.type == "EMISSION":
+                return tuple(n.inputs[0].default_value)[:3]
+        for n in mat.node_tree.nodes:
+            if n.type == "BSDF_PRINCIPLED":
+                return tuple(n.inputs["Base Color"].default_value)[:3]
+    return tuple(mat.diffuse_color)[:3]
+
+
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     opts = dict(zip(argv[::2], argv[1::2]))
@@ -30,13 +47,23 @@ def main():
     scale = float(opts.get("--tex-scale", C.DEFAULTS["scale"]))
     hatch = float(opts.get("--hatch", C.DEFAULTS["hatch"]))
     dry = "--dry" in argv
+    every = "--all" in argv
 
     # ключ палитры -> цвет; имя материала получено заменой "/" на "_"
     table = {("pal_" + k.replace("/", "_")): v for k, v in P.all_colors().items()}
 
     done, skipped = [], []
     for mat in bpy.data.materials:
-        if not mat.name.startswith("pal_"):
+        if not every and not mat.name.startswith("pal_"):
+            continue
+        if every and not mat.name.startswith("pal_"):
+            # Материал не из палитры: цвет берём тот, что у него уже есть
+            if not dry:
+                rgb = own_color(mat)
+                mat.use_nodes = True
+                light = C.build(mat.node_tree, rgb, None, texture, scale, hatch)
+                mat.diffuse_color = (*light, 1.0)
+            done.append(mat.name)
             continue
         # у копий Blender добавляет .001 — отрезаем только этот суффикс:
         # в именах комнат точка своя (pal_room.hero_wall), её трогать нельзя
