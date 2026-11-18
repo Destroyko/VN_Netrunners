@@ -29,7 +29,6 @@ __pycache__/
 # ...кроме детальной сцены и эталонных кадров: обстановку расставляли руками,
 # скриптом она не пересобирается, и потерять её нельзя (docs/art/ai-pipeline.md, 5.10)
 !/assets/_source/blockout/apartment_detail.blend
-!/assets/_source/blockout/refs/
 # ...и библиотека материалов: она собирается скриптом, но нужна под рукой
 # в Blender через Append, а не после пересборки
 !/assets/_source/blockout/palette_materials.blend
