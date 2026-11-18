@@ -48,11 +48,15 @@ def shade(rgb, k):
     return tuple(min(1.0, max(0.0, c * k)) for c in rgb)
 
 
-def celify(mat, steps=3):
+def celify(mat, steps=3, texture=0.0, scale=14.0, hatch=0.0):
     """Ступенчатый свет вместо плавного: Shader to RGB -> Color Ramp (Constant).
 
     Нижняя ступень — не чёрная, а тёмный холодный оттенок того же цвета: в этом стиле
     тень цветная, иначе кадр валится в контраст, которого в референсе нет.
+
+    texture — неоднородность тона. Ровная заливка читается как вектор, а не как
+    рисунок: поверхность должна чуть «дышать». Это не шум поверх кадра, а вариация
+    самого цвета, поэтому она живёт на предмете и не ползёт при смене ракурса.
     """
     if not mat:
         return
@@ -81,7 +85,38 @@ def celify(mat, steps=3):
     emit = nt.nodes.new("ShaderNodeEmission")
     nt.links.new(dif.outputs[0], s2rgb.inputs[0])
     nt.links.new(s2rgb.outputs[0], ramp.inputs[0])
-    nt.links.new(ramp.outputs[0], emit.inputs[0])
+
+    src = ramp.outputs[0]
+    if texture > 0.0:
+        # Шум в координатах объекта, крупный: мелкий даёт грязь, а нам нужна
+        # неровность краски, заметная только боковым зрением
+        coord = nt.nodes.new("ShaderNodeTexCoord")
+        vec_out = coord.outputs["Object"]
+        if hatch > 0.0:
+            # Растягиваем координаты по одной оси: тот же шум становится полосами,
+            # то есть штрихом. Чем больше hatch, тем длиннее и тоньше мазок
+            mp = nt.nodes.new("ShaderNodeMapping")
+            mp.inputs["Scale"].default_value = (1.0, 1.0 + hatch * 10.0, 1.0)
+            nt.links.new(vec_out, mp.inputs["Vector"])
+            vec_out = mp.outputs["Vector"]
+        noise = nt.nodes.new("ShaderNodeTexNoise")
+        noise.inputs["Scale"].default_value = scale
+        noise.inputs["Detail"].default_value = 2.0
+        noise.inputs["Roughness"].default_value = 0.5
+        nt.links.new(vec_out, noise.inputs["Vector"])
+        # 0..1 -> (1-k)..(1+k): цвет то чуть темнее, то чуть светлее
+        rng = nt.nodes.new("ShaderNodeMapRange")
+        rng.inputs["From Min"].default_value = 0.0
+        rng.inputs["From Max"].default_value = 1.0
+        rng.inputs["To Min"].default_value = 1.0 - texture
+        rng.inputs["To Max"].default_value = 1.0 + texture
+        nt.links.new(noise.outputs["Fac"], rng.inputs["Value"])
+        mul = nt.nodes.new("ShaderNodeVectorMath")
+        mul.operation = "MULTIPLY"
+        nt.links.new(ramp.outputs[0], mul.inputs[0])
+        nt.links.new(rng.outputs[0], mul.inputs[1])
+        src = mul.outputs[0]
+    nt.links.new(src, emit.inputs[0])
     nt.links.new(emit.outputs[0], out.inputs["Surface"])
 
 
@@ -120,10 +155,49 @@ def soft_light(phase="day", warm=1.0):
         ob.rotation_euler = (1.5708, 0.0, 3.1416)
 
 
+def add_grain(files, strength):
+    """Зерно поверх готового кадра.
+
+    Делается после рендера, а не в сцене: зерно должно лежать ровным слоем на всей
+    картинке, а не жить на предметах. Поэтому оно одинаково для любого ракурса
+    и не мерцает между кадрами — шум берётся от номера пикселя, а не случайный.
+    """
+    try:
+        from PIL import Image
+    except ImportError:
+        print("[cel] зерно пропущено: нет Pillow")
+        return
+    import hashlib
+    for path in files:
+        im = Image.open(path).convert("RGB")
+        px = im.load()
+        w, h = im.size
+        amp = int(255 * strength)
+        for y in range(h):
+            # одна псевдослучайная строка на y: быстрее попиксельного и так же ровно
+            seed = hashlib.md5(("%d" % y).encode()).digest()
+            for x in range(w):
+                d = (seed[x % 16] % (amp * 2 + 1)) - amp
+                r, g, b = px[x, y]
+                px[x, y] = (max(0, min(255, r + d)),
+                            max(0, min(255, g + d)),
+                            max(0, min(255, b + d)))
+        im.save(path)
+
+
 def main():
     def extra(p):
         p.add_argument("--tones", type=int, default=3, help="ступеней света: 2 или 3")
         p.add_argument("--warm", type=float, default=1.0, help="сила света из окна")
+        p.add_argument("--texture", type=float, default=0.05,
+                       help="неоднородность тона: 0 — ровная заливка, 0.05 — рабочее, "
+                            "0.12 — заметная фактура")
+        p.add_argument("--tex-scale", type=float, default=14.0,
+                       help="крупность неоднородности; меньше — крупнее пятна")
+        p.add_argument("--hatch", type=float, default=0.0,
+                       help="вытянуть неоднородность в штрихи: 0 — пятна, 0.5-1.0 — мазки")
+        p.add_argument("--grain", type=float, default=0.0,
+                       help="зерно поверх кадра, 0.02-0.06; накладывается после рендера")
 
     a = B.args(extra)
     sc = bpy.context.scene
@@ -135,12 +209,14 @@ def main():
     sc.eevee.taa_render_samples = 64
 
     for mat in bpy.data.materials:
-        celify(mat, a.tones)
+        celify(mat, a.tones, a.texture, a.tex_scale, a.hatch)
     soft_light(a.phase, a.warm)
 
     cams = {o.name: o for o in bpy.data.objects if o.type == "CAMERA"}
     out = B.resolve(a.out) if a.out else B.resolve("assets/_source/blockout/cel")
     files = B.render(cams, out, "_cel_%s" % a.phase, a.render)
+    if a.grain > 0.0:
+        add_grain(files, a.grain)
     print("[cel] отрендерено: %d" % len(files))
 
 
