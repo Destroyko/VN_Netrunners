@@ -1,8 +1,7 @@
 """Портрет персонажа для окна диалога: 192x384, пиксель-арт.
 
-Отдельно от comfy_bg.py: там img2img от блокаута, тут генерация по тексту, другой размер
-и другая постобработка. Общее — модель и правило целого деления (генерация 384x768, ровно
-вдвое больше арта).
+Генерация по тексту: портрет в окне диалога. Фоны генератором больше не делаются
+(docs/art/blender-scenes.md), персонажи — делаются.
 
     python tools/comfy_portrait.py hero neutral
     python tools/comfy_portrait.py hero neutral --colors 24,32,48     # подбор палитры
@@ -19,7 +18,7 @@ import urllib.error
 import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import comfy_bg as B  # общий транспорт: очередь, ожидание, скачивание
+import comfy_api as B  # транспорт: очередь, ожидание, выгрузка результата
 
 ART = (192, 384)      # размер в окне диалога (style-guide.md)
 GEN = (384, 768)      # ровно вдвое: правило целого деления (ai-pipeline.md 4.1)

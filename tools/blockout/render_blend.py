@@ -9,8 +9,9 @@
     & "...\\blender.exe" -b assets\\_source\\blockout\\apartment_detail.blend ^
         --python tools\\blockout\\render_blend.py -- --render room_desk --depth
 
-Имена файлов те же (`blk_<камера>_flat.png`, `blk_<камера>_depth.png`), поэтому
-`comfy_bg.py` подхватывает их без изменений.
+Имена файлов: `blk_<камера>_flat.png`, `blk_<камера>_depth.png`. Карта глубины осталась
+от конвейера с ControlNet, который для фонов отменён (`docs/art/blender-scenes.md`);
+для обычного рендера она не нужна, но и не мешает.
 """
 
 import os
