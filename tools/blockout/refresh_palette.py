@@ -49,8 +49,15 @@ def main():
     dry = "--dry" in argv
     every = "--all" in argv
 
-    # ключ палитры -> цвет; имя материала получено заменой "/" на "_"
-    table = {("pal_" + k.replace("/", "_")): v for k, v in P.all_colors().items()}
+    # Имя материала: pal_<ключ палитры>_<тип>, где в ключе "/" заменён на "_".
+    # Разбираем обратно, чтобы знать и цвет, и каким профилем его собирать
+    table = {}
+    for k, v in P.all_colors().items():
+        base = "pal_" + k.replace("/", "_")
+        for kind in P.kinds_for(k):
+            table["%s_%s" % (base, kind)] = (v, kind)
+        # имена без типа остались от прежней библиотеки — понимаем и их
+        table.setdefault(base, (v, None))
 
     done, skipped = [], []
     for mat in bpy.data.materials:
@@ -68,13 +75,15 @@ def main():
         # у копий Blender добавляет .001 — отрезаем только этот суффикс:
         # в именах комнат точка своя (pal_room.hero_wall), её трогать нельзя
         base = re.sub(r"\.\d{3}$", "", mat.name)
-        hexcol = table.get(base)
-        if hexcol is None:
+        found = table.get(base)
+        if found is None:
             skipped.append(mat.name)
             continue
+        hexcol, kind = found
         if not dry:
             mat.use_nodes = True
-            light = C.build(mat.node_tree, P.srgb(hexcol), None, texture, scale, hatch)
+            light = C.build(mat.node_tree, P.srgb(hexcol), None,
+                            texture, scale, hatch, kind)
             mat.diffuse_color = (*light, 1.0)
         done.append(mat.name)
 

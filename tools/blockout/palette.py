@@ -94,6 +94,25 @@ LAMP = {
 }
 
 
+# Какие материалы уместны каждой группе цветов. Все сочетания не нужны: дерево
+# не бывает бирюзовым, а стена — металлической. Акценты, наоборот, живут на чём
+# угодно — красный встречается и на бумаге, и на пластике, и на металле
+KINDS = {
+    "neutral": ("wall", "paper", "plastic", "metal"),
+    "wood":    ("wood",),
+    "metal":   ("metal", "plastic"),
+    "accent":  ("paper", "plastic", "fabric", "metal"),
+    "fabric":  ("fabric",),
+    "room":    ("wall", "wood"),
+}
+
+
+def kinds_for(key):
+    """Типы материала для ключа палитры вида 'accent/red' или 'room.hero/wall'."""
+    group = key.split("/")[0].split(".")[0]
+    return KINDS.get(group, ("wall",))
+
+
 def srgb(hexcol):
     """#rrggbb -> линейный RGB. Blender считает свет в линейном пространстве,
     а палитру человек правит в sRGB — иначе цвета выходят темнее задуманного."""

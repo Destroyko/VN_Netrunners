@@ -1,40 +1,84 @@
-"""Cel-шейдер одной функцией: ступенчатый свет, цветная тень, фактура.
+"""Cel-шейдер одной функцией: ступенчатый свет, цветная тень, фактура, тип материала.
 
 Один источник на все скрипты. Раньше шейдер жил в двух местах — в библиотеке
-материалов и в наложении стиля на сцену, — и они начали расходиться: фактуру
-добавили только в одно. Теперь оба зовут build() отсюда.
+материалов и в наложении стиля на сцену, — и они начали расходиться.
 
 Что делает шейдер и почему (docs/art/blender-scenes.md, «Стиль: признаки»):
-- Diffuse, а не Principled: у Principled блик виден даже при Specular 0, а в этом
-  стиле бликов нет совсем;
 - Shader to RGB -> Color Ramp в режиме Constant: свет ступенями, без растяжек;
 - нижняя ступень холоднее и темнее — тень цветная, иначе кадр валится в контраст;
 - неоднородность тона и штрихи: ровная заливка читается как вектор, а не как рисунок.
+
+**Цвет и материал разделены.** Цвет — параметр, тип материала — профиль: он решает,
+сколько ступеней у света, насколько холодная тень, есть ли блик и какая фактура.
+Один и тот же красный на бумаге, дереве и металле выглядит по-разному, и для этого
+не нужно заводить три красных.
 """
+
+# Профили материалов. Числа подобраны так, чтобы тип читался с первого взгляда,
+# но кадр не распадался: блики только там, где без них предмет не узнать
+MATERIALS = {
+    # матовое и мягкое: свет ложится ровно, бликов нет совсем
+    "paper":   {"tones": 2, "texture": 0.13, "scale": 16.0, "hatch": 0.9,
+                "spec": 0.0, "cool": 1.0},
+    "fabric":  {"tones": 3, "texture": 0.17, "scale": 7.0, "hatch": 0.4,
+                "spec": 0.0, "cool": 1.1},
+    "wall":    {"tones": 3, "texture": 0.10, "scale": 10.0, "hatch": 0.8,
+                "spec": 0.0, "cool": 1.0},
+    # дерево: фактура вдоль волокон, едва заметный широкий блик
+    "wood":    {"tones": 3, "texture": 0.11, "scale": 9.0, "hatch": 1.4,
+                "spec": 0.10, "gloss": 0.42, "cool": 0.8},
+    # пластик: ровный, мягкий блик пятном
+    "plastic": {"tones": 2, "texture": 0.05, "scale": 12.0, "hatch": 0.0,
+                "spec": 0.22, "gloss": 0.30, "cool": 0.9},
+    # металл: узкий яркий блик и холодная контрастная тень — без этого не металл
+    "metal":   {"tones": 3, "texture": 0.04, "scale": 18.0, "hatch": 0.2,
+                "spec": 0.55, "gloss": 0.12, "cool": 1.4},
+    # стекло и экраны: почти без ступеней, блик сильный
+    "glass":   {"tones": 2, "texture": 0.0, "scale": 10.0, "hatch": 0.0,
+                "spec": 0.75, "gloss": 0.06, "cool": 1.0},
+    # растения: мягкая фактура, лёгкий влажный отблеск
+    "plant":   {"tones": 3, "texture": 0.15, "scale": 13.0, "hatch": 0.6,
+                "spec": 0.12, "gloss": 0.35, "cool": 0.9},
+}
+DEFAULT_KIND = "wall"
+
 
 DEFAULTS = {"tones": 3, "texture": 0.1, "scale": 10.0, "hatch": 0.8}
 
 
-def shades(rgb, tones=3):
-    """Ступени одного цвета. Тень не просто темнее — она холоднее."""
+def shades(rgb, tones=3, cool=1.0):
+    """Ступени одного цвета. Тень не просто темнее — она холоднее.
+
+    cool — насколько холоднее: у металла тень уходит в синеву сильнее, у дерева
+    остаётся тёплой. Это половина того, чем материалы отличаются на глаз.
+    """
     ks = (0.55, 1.0) if tones == 2 else (0.45, 0.74, 1.0)
     out = []
     for k in ks:
         r, g, b = (min(1.0, c * k) for c in rgb)
         if k < 1.0:
-            cool = (1.0 - k) * 0.5
-            r *= 1.0 - cool * 0.35
-            b = min(1.0, b * (1.0 + cool * 0.45))
+            shift = (1.0 - k) * 0.5 * cool
+            r *= 1.0 - shift * 0.35
+            b = min(1.0, b * (1.0 + shift * 0.45))
         out.append((r, g, b))
     return out
 
 
-def build(nt, rgb, tones=None, texture=None, scale=None, hatch=None):
-    """Собрать шейдер в пустом дереве узлов материала. Возвращает выходную ноду."""
-    tones = DEFAULTS["tones"] if tones is None else tones
-    texture = DEFAULTS["texture"] if texture is None else texture
-    scale = DEFAULTS["scale"] if scale is None else scale
-    hatch = DEFAULTS["hatch"] if hatch is None else hatch
+def build(nt, rgb, tones=None, texture=None, scale=None, hatch=None, kind=None):
+    """Собрать шейдер в пустом дереве узлов материала. Возвращает цвет света.
+
+    kind — профиль материала из MATERIALS. Он задаёт значения по умолчанию,
+    а переданные явно их перекрывают: так можно взять «металл» и всё же
+    приглушить ему фактуру для конкретного предмета.
+    """
+    prof = MATERIALS.get(kind or DEFAULT_KIND, MATERIALS[DEFAULT_KIND])
+    tones = prof["tones"] if tones is None else tones
+    texture = prof["texture"] if texture is None else texture
+    scale = prof["scale"] if scale is None else scale
+    hatch = prof["hatch"] if hatch is None else hatch
+    spec = prof.get("spec", 0.0)
+    gloss = prof.get("gloss", 0.25)
+    cool = prof.get("cool", 1.0)
 
     nt.nodes.clear()
     out = nt.nodes.new("ShaderNodeOutputMaterial")
@@ -48,7 +92,7 @@ def build(nt, rgb, tones=None, texture=None, scale=None, hatch=None):
     ramp.location = (120, 0)
     ramp.color_ramp.interpolation = "CONSTANT"
 
-    tn = shades(rgb, tones)
+    tn = shades(rgb, tones, cool)
     els = ramp.color_ramp.elements
     while len(els) > 1:
         els.remove(els[-1])
@@ -92,8 +136,36 @@ def build(nt, rgb, tones=None, texture=None, scale=None, hatch=None):
         nt.links.new(rng.outputs[0], mul.inputs[1])
         src = mul.outputs[0]
 
+    if spec > 0.0:
+        # Блик тоже ступенчатый: гладкий блик выдал бы фотореализм, а резкое
+        # пятно читается как «металл» или «пластик» и остаётся в стиле
+        gl = nt.nodes.new("ShaderNodeBsdfGlossy")
+        gl.location = (-250, 240)
+        gl.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+        gl.inputs["Roughness"].default_value = gloss
+        g2rgb = nt.nodes.new("ShaderNodeShaderToRGB")
+        g2rgb.location = (-60, 240)
+        gramp = nt.nodes.new("ShaderNodeValToRGB")
+        gramp.location = (120, 240)
+        gramp.color_ramp.interpolation = "CONSTANT"
+        ge = gramp.color_ramp.elements
+        while len(ge) > 1:
+            ge.remove(ge[-1])
+        ge[0].position = 0.0
+        ge[0].color = (0.0, 0.0, 0.0, 1.0)
+        # порог тем выше, чем слабее блик: у дерева он виден только на самом краю
+        ge.new(1.0 - spec * 0.55).color = (spec, spec, spec, 1.0)
+        nt.links.new(gl.outputs[0], g2rgb.inputs[0])
+        nt.links.new(g2rgb.outputs[0], gramp.inputs[0])
+        add = nt.nodes.new("ShaderNodeVectorMath")
+        add.location = (480, 120)
+        add.operation = "ADD"
+        nt.links.new(src, add.inputs[0])
+        nt.links.new(gramp.outputs[0], add.inputs[1])
+        src = add.outputs[0]
+
     emit = nt.nodes.new("ShaderNodeEmission")
-    emit.location = (520, 20)
+    emit.location = (620, 20)
     nt.links.new(src, emit.inputs[0])
     nt.links.new(emit.outputs[0], out.inputs["Surface"])
     return tn[-1]

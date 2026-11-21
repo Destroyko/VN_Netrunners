@@ -29,12 +29,16 @@ import palette as P  # noqa: E402
 OUT = "assets/_source/blockout/palette_materials.blend"
 
 
-def cel_material(name, hexcol, tones=3, texture=None, scale=None, hatch=None):
-    """Один материал палитры. Шейдер собирает cel_shader — он же в style_cel.py,
-    чтобы вид материала в окне Blender совпадал с видом в рендере."""
+def cel_material(name, hexcol, kind=None, texture=None, scale=None, hatch=None):
+    """Один материал палитры: цвет плюс тип поверхности.
+
+    Шейдер собирает cel_shader — он же в style_cel.py, чтобы вид материала
+    в окне Blender совпадал с видом в рендере. Ступени, фактуру и блик задаёт
+    профиль типа, а не отдельные числа на каждый материал.
+    """
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
-    light = C.build(mat.node_tree, P.srgb(hexcol), tones, texture, scale, hatch)
+    light = C.build(mat.node_tree, P.srgb(hexcol), None, texture, scale, hatch, kind)
     # Чтобы материал пережил сохранение без пользователей
     mat.use_fake_user = True
     # Цвет в режиме Solid — чтобы сцена читалась и без рендера
@@ -46,25 +50,28 @@ def main():
     # Аргументы после -- : те же ручки фактуры, что у style_cel.py
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     opts = dict(zip(argv[::2], argv[1::2]))
-    texture = float(opts.get("--texture", C.DEFAULTS["texture"]))
-    scale = float(opts.get("--tex-scale", C.DEFAULTS["scale"]))
-    hatch = float(opts.get("--hatch", C.DEFAULTS["hatch"]))
+    # Числа фактуры теперь берутся из профиля материала; ключи оставлены,
+    # чтобы можно было прогнать всю библиотеку с другой силой фактуры
+    texture = float(opts["--texture"]) if "--texture" in opts else None
+    scale = float(opts["--tex-scale"]) if "--tex-scale" in opts else None
+    hatch = float(opts["--hatch"]) if "--hatch" in opts else None
 
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.context.scene.render.engine = "BLENDER_EEVEE"
 
     made = 0
     for key, hexcol in P.all_colors().items():
-        cel_material("pal_" + key.replace("/", "_"), hexcol,
-                     texture=texture, scale=scale, hatch=hatch)
-        made += 1
+        base = "pal_" + key.replace("/", "_")
+        for kind in P.kinds_for(key):
+            # Имя говорит и цвет, и материал: pal_accent_red_metal
+            cel_material("%s_%s" % (base, kind), hexcol, kind)
+            made += 1
 
     root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
     path = os.path.normpath(os.path.join(root, OUT))
     os.makedirs(os.path.dirname(path), exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=path)
-    print("[palette] материалов: %d (фактура %.2f, штрих %.2f) -> %s"
-          % (made, texture, hatch, path))
+    print("[palette] материалов: %d -> %s" % (made, path))
 
 
 main()
