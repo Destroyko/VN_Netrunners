@@ -83,6 +83,118 @@ def _build_glow(nt, rgb, strength):
     return rgb
 
 
+def light_group():
+    """Общий узел «отклик на свет» VN_Light: один на все материалы.
+
+    Ступень цвета выбирается по яркости света, но сама ступень не темнеет: самая тёмная —
+    цвет материала с поправкой на тень, и сколько света ни убавь, ночь не наступает, а цвет
+    света теряется. Узел добавляет два числа, общие для всей сцены (они лежат внутри
+    узла, поэтому правятся в одном месте, а не в каждом материале):
+    - floor — до какой доли тон гаснет без света. 1 — как раньше, 0,2 — ночь;
+    - tint — насколько цвет света окрашивает поверхность. 0 — не окрашивает.
+    Освещённое остаётся ярким, слабо освещённое становится тёмным ступенями.
+    """
+    import bpy
+    g = bpy.data.node_groups.get("VN_Light")
+    if g is not None:
+        return g
+    g = bpy.data.node_groups.new("VN_Light", "ShaderNodeTree")
+    g.interface.new_socket("Color", in_out="OUTPUT", socket_type="NodeSocketColor")
+    g.interface.new_socket("Tone", in_out="INPUT", socket_type="NodeSocketColor")
+    g.interface.new_socket("Light", in_out="INPUT", socket_type="NodeSocketColor")
+    nodes, links = g.nodes, g.links
+    gin = nodes.new("NodeGroupInput")
+    gin.location = (-900, 0)
+    gout = nodes.new("NodeGroupOutput")
+    gout.location = (900, 0)
+
+    lum = nodes.new("ShaderNodeRGBToBW")
+    lum.location = (-700, -120)
+    links.new(gin.outputs["Light"], lum.inputs[0])
+
+    # ступени отклика: чем светлее, тем ближе множитель к единице
+    steps = nodes.new("ShaderNodeValToRGB")
+    steps.location = (-500, -200)
+    steps.color_ramp.interpolation = "CONSTANT"
+    els = steps.color_ramp.elements
+    els[0].position = 0.0
+    els[0].color = (0.0, 0.0, 0.0, 1.0)
+    for pos, v in ((0.05, 0.4), (0.25, 0.75), (0.6, 1.0)):
+        els.new(pos).color = (v, v, v, 1.0)
+    links.new(lum.outputs[0], steps.inputs[0])
+
+    floor = nodes.new("ShaderNodeValue")
+    floor.name = floor.label = "floor"
+    floor.location = (-500, -420)
+    floor.outputs[0].default_value = 1.0
+    inv = nodes.new("ShaderNodeMath")
+    inv.operation = "SUBTRACT"
+    inv.inputs[0].default_value = 1.0
+    inv.location = (-300, -420)
+    links.new(floor.outputs[0], inv.inputs[1])
+    resp = nodes.new("ShaderNodeMath")
+    resp.operation = "MULTIPLY_ADD"
+    resp.use_clamp = True
+    resp.location = (-100, -250)
+    links.new(steps.outputs[0], resp.inputs[0])
+    links.new(inv.outputs[0], resp.inputs[1])
+    links.new(floor.outputs[0], resp.inputs[2])
+
+    # цвет света: сам свет, нормированный на яркость, чтобы он менял оттенок, а не тон
+    den = nodes.new("ShaderNodeMath")
+    den.operation = "MAXIMUM"
+    den.inputs[1].default_value = 0.001
+    den.location = (-500, 120)
+    links.new(lum.outputs[0], den.inputs[0])
+    rec = nodes.new("ShaderNodeMath")
+    rec.operation = "DIVIDE"
+    rec.inputs[0].default_value = 1.0
+    rec.location = (-300, 120)
+    links.new(den.outputs[0], rec.inputs[1])
+    hue = nodes.new("ShaderNodeVectorMath")
+    hue.operation = "SCALE"
+    hue.location = (-100, 120)
+    links.new(gin.outputs["Light"], hue.inputs[0])
+    links.new(rec.outputs[0], hue.inputs["Scale"])
+    tint = nodes.new("ShaderNodeValue")
+    tint.name = tint.label = "tint"
+    tint.location = (-100, 320)
+    tint.outputs[0].default_value = 0.0
+    mixc = nodes.new("ShaderNodeMix")
+    mixc.data_type = "RGBA"
+    mixc.clamp_result = True
+    mixc.location = (120, 140)
+    mixc.inputs[6].default_value = (1.0, 1.0, 1.0, 1.0)
+    links.new(tint.outputs[0], mixc.inputs[0])
+    links.new(hue.outputs[0], mixc.inputs[7])
+
+    mul = nodes.new("ShaderNodeVectorMath")
+    mul.operation = "MULTIPLY"
+    mul.location = (360, 0)
+    links.new(gin.outputs["Tone"], mul.inputs[0])
+    links.new(mixc.outputs[2], mul.inputs[1])
+    dim = nodes.new("ShaderNodeVectorMath")
+    dim.operation = "SCALE"
+    dim.location = (580, 0)
+    links.new(mul.outputs[0], dim.inputs[0])
+    links.new(resp.outputs[0], dim.inputs["Scale"])
+    links.new(dim.outputs[0], gout.inputs["Color"])
+    return g
+
+
+def set_light_response(floor=None, tint=None):
+    """Выставить floor и tint общего узла VN_Light: одним вызовом на всю сцену."""
+    import bpy
+    g = bpy.data.node_groups.get("VN_Light")
+    if g is None:
+        return False
+    if floor is not None:
+        g.nodes["floor"].outputs[0].default_value = floor
+    if tint is not None:
+        g.nodes["tint"].outputs[0].default_value = tint
+    return True
+
+
 def build(nt, rgb, tones=None, texture=None, scale=None, hatch=None, kind=None):
     """Собрать шейдер в пустом дереве узлов материала. Возвращает цвет света.
 
@@ -156,6 +268,14 @@ def build(nt, rgb, tones=None, texture=None, scale=None, hatch=None, kind=None):
         nt.links.new(ramp.outputs[0], mul.inputs[0])
         nt.links.new(rng.outputs[0], mul.inputs[1])
         src = mul.outputs[0]
+
+    # отклик на свет: ночью без света тон гаснет, цвет света окрашивает поверхность
+    lg = nt.nodes.new("ShaderNodeGroup")
+    lg.node_tree = light_group()
+    lg.location = (360, -40)
+    nt.links.new(src, lg.inputs["Tone"])
+    nt.links.new(s2rgb.outputs[0], lg.inputs["Light"])
+    src = lg.outputs["Color"]
 
     if spec > 0.0:
         # Блик тоже ступенчатый: гладкий блик выдал бы фотореализм, а резкое

@@ -26,6 +26,8 @@ import mathutils
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import bl_common as B  # noqa: E402
+import cel_shader as C  # noqa: E402
+import palette as P  # noqa: E402
 
 # Расчётные камеры: положение, цель, фокусное. Комната по x 0–3,3 и y 4,5–7,3, окно в стене y≈7,3
 CAMERAS = {
@@ -38,15 +40,20 @@ WINDOW = {"centre": (1.96, 7.95, 1.65), "size": (1.6, 2.0)}
 # Монитор: экран смотрит на -y, лампа монитора стоит перед ним
 MONITOR = {"centre": (1.87, 6.75, 0.98), "size": (0.5, 0.28)}
 
-# Фазы суток. sky — цвет и сила мира; window — цвет и мощность окна; lamp — мощность лампы
-# и точки (0 — выключена); monitor — мощность света монитора; fill — слабая подсветка потолка
+# Фазы суток. sky — цвет и сила мира; window — свет из окна; lamp — торшер (мощность, цвет,
+# радиус действия); monitor — свет монитора, едва заметный; fill — подсветка потолка.
+# floor и tint — отклик материалов на свет (cel_shader.light_group): до какой доли тон гаснет
+# без света и насколько цвет света окрашивает поверхность
 PHASES = {
     "day":     {"sky": ((0.62, 0.72, 0.90), 1.0), "window": ((1.00, 0.97, 0.92), 260.0),
-                "lamp": 0.0, "monitor": 0.0, "fill": 70.0},
-    "evening": {"sky": ((0.95, 0.50, 0.32), 0.50), "window": ((1.00, 0.55, 0.30), 750.0),
-                "lamp": 80.0, "monitor": 18.0, "fill": 25.0},
-    "night":   {"sky": ((0.10, 0.14, 0.30), 0.15), "window": ((0.45, 0.55, 1.00), 120.0),
-                "lamp": 80.0, "monitor": 30.0, "fill": 12.0},
+                "lamp": 0.0, "lamp_color": (1.0, 0.6, 0.25), "lamp_reach": 2.4,
+                "monitor": 0.0, "fill": 70.0, "floor": 1.0, "tint": 0.0},
+    "evening": {"sky": ((0.80, 0.45, 0.35), 0.15), "window": ((1.00, 0.55, 0.30), 380.0),
+                "lamp": 35.0, "lamp_color": (1.0, 0.6, 0.25), "lamp_reach": 2.4,
+                "monitor": 3.0, "fill": 8.0, "floor": 0.55, "tint": 0.6},
+    "night":   {"sky": ((0.05, 0.08, 0.20), 0.05), "window": ((0.30, 0.45, 1.00), 70.0),
+                "lamp": 55.0, "lamp_color": (1.0, 0.5, 0.15), "lamp_reach": 2.4,
+                "monitor": 3.0, "fill": 0.0, "floor": 0.22, "tint": 0.85},
 }
 
 
@@ -90,6 +97,34 @@ def area(name, centre, size, color, power, facing, spread=180.0, specular=1.0):
     return ob
 
 
+def shade_glow(on):
+    """Абажур торшера светится, когда лампа включена: без этого свет ниоткуда не берётся."""
+    ob = bpy.data.objects.get("FloorLamp_Cover")
+    if ob is None or not ob.material_slots:
+        return
+    if "_shade_off" not in ob:
+        ob["_shade_off"] = ob.material_slots[0].material.name if ob.material_slots[0].material else ""
+    if on:
+        name = "pal_glow_orange_light"
+        mat = bpy.data.materials.get(name)
+        if mat is None:
+            mat = bpy.data.materials.new(name)
+            mat.use_nodes = True
+            C.build(mat.node_tree, P.srgb(P.COLORS["orange_light"]), kind="glow")
+            # сила 2,5 бледнит оранжевый до жёлтого: абажуру хватает мягкого свечения
+            for n in mat.node_tree.nodes:
+                if n.type == "EMISSION":
+                    n.inputs["Strength"].default_value = 1.1
+        ob.material_slots[0].material = mat
+        # абажур не должен закрывать собственный свет: тень от него гасила бы всю комнату
+        ob.visible_shadow = False
+    else:
+        ob.visible_shadow = True
+        orig = bpy.data.materials.get(ob["_shade_off"])
+        if orig is not None:
+            ob.material_slots[0].material = orig
+
+
 def build_light(phase):
     sc = bpy.context.scene
     ph = PHASES[phase]
@@ -108,19 +143,25 @@ def build_light(phase):
     lamp = bpy.data.objects.get("FloorLamp_Light")
     if lamp is not None:
         lamp.data.energy = ph["lamp"]
+        lamp.data.color = ph["lamp_color"]
         lamp.data.shadow_soft_size = 0.2
         lamp.data.specular_factor = 0.0
-        # Свет лампы живёт в радиусе метров: в cel-ступенях любой слабый свет даёт
-        # резкое пятно через всю комнату, поэтому его обрезаем по расстоянию
+        # Свет лампы живёт в радиусе метров: в cel-ступенях любой слабый источник
+        # даёт резкое пятно через всю комнату, поэтому его обрезаем по расстоянию
         lamp.data.use_custom_distance = True
-        lamp.data.cutoff_distance = 1.7
+        lamp.data.cutoff_distance = ph["lamp_reach"]
         lamp.hide_render = ph["lamp"] <= 0.0
+        shade_glow(ph["lamp"] > 0.0)
+
+    C.set_light_response(ph["floor"], ph["tint"])
 
     wcol, wpow = ph["window"]
     area("rf_window", WINDOW["centre"], WINDOW["size"], wcol, wpow, (0.0, -1.0, 0.0))
     if ph["monitor"] > 0.0:
-        area("rf_monitor", MONITOR["centre"], MONITOR["size"], (0.55, 0.72, 1.0),
-             ph["monitor"], (0.0, -1.0, -0.15), spread=70.0, specular=0.0)
+        mon = area("rf_monitor", MONITOR["centre"], MONITOR["size"], (0.55, 0.72, 1.0),
+                   ph["monitor"], (0.0, -1.0, -0.15), spread=70.0, specular=0.0)
+        mon.data.use_custom_distance = True
+        mon.data.cutoff_distance = 0.9
     # слабая подсветка сверху: без неё углы уходят в чёрное и теряют форму
     area("rf_fill", (1.7, 5.9, 2.55), (2.4, 2.4), (1.0, 0.95, 0.9), ph["fill"], (0.0, 0.0, -1.0))
 
