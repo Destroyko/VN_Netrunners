@@ -54,16 +54,16 @@ PHASES = {
                 "lamp": 22.0, "lamp_color": (1.0, 0.42, 0.10), "lamp_reach": 1.2,
                 "monitor": 3.0, "fill": 8.0, "floor": 0.55, "tint": 0.6,
                 "shadow": 0.35, "night": (0.55, 0.5, 0.95)},
-    "night":   {"sky": ((0.05, 0.08, 0.20), 0.05), "window": ((0.30, 0.45, 1.00), 70.0),
+    "night":   {"sky": ((0.05, 0.08, 0.20), 0.05), "window": ((0.25, 0.40, 1.00), 22.0),
                 "lamp": 32.0, "lamp_color": (1.0, 0.38, 0.08), "lamp_reach": 1.2,
-                "monitor": 3.0, "fill": 0.0, "floor": 0.15, "tint": 0.85,
+                "monitor": 1.5, "fill": 0.0, "floor": 0.15, "tint": 0.85,
                 "shadow": 0.6, "night": (0.22, 0.40, 1.0)},
 }
 
 
 def extra(p):
     p.add_argument("--res", default="1280,720", help="размер кадра: ширина,высота")
-    p.add_argument("--samples", type=int, default=48)
+    p.add_argument("--samples", type=int, default=64)
 
 
 def make_camera(name):
@@ -181,6 +181,11 @@ def main():
     sc.render.image_settings.file_format = "PNG"
     sc.eevee.taa_render_samples = a.samples
     B.flat_color(sc)
+    # Тени: при малом числе лучей слабо освещённые поверхности зернят (чёрный пластик
+    # выглядит дырявым), поэтому лучей и шагов больше, чем по умолчанию
+    sc.eevee.shadow_ray_count = 8
+    sc.eevee.shadow_step_count = 24
+    sc.eevee.shadow_resolution_scale = 2.0
     build_light("day" if a.phase == "morning" else a.phase)
 
     wanted = [s.strip() for s in (a.render or "main,pc").split(",") if s.strip()]
