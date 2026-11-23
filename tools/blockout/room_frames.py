@@ -64,6 +64,7 @@ PHASES = {
 def extra(p):
     p.add_argument("--res", default="1280,720", help="размер кадра: ширина,высота")
     p.add_argument("--samples", type=int, default=64)
+    p.add_argument("--pc", default="both", help="on, off или both: состояние ПК (экран и его свет)")
 
 
 def make_camera(name):
@@ -130,6 +131,63 @@ def shade_glow(on):
             ob.material_slots[0].material = orig
 
 
+SCREEN = "pal_glow_screen"
+
+
+def set_pc(on):
+    """Монитор включён или выключен: экран светится серо-белым или чёрный.
+
+    Номер слота экрана запоминается на объекте (`_screen_slot`) при первом вызове,
+    пока в слоте ещё стоит материал свечения: в выключенном виде там чёрный пластик.
+    """
+    ob = bpy.data.objects.get("Foot")
+    glow = bpy.data.materials.get(SCREEN)
+    black = bpy.data.materials.get("pal_plastic_black")
+    if ob is None or glow is None or black is None:
+        return False
+    if "_screen_slot" not in ob:
+        for i, sl in enumerate(ob.material_slots):
+            if sl.material == glow:
+                ob["_screen_slot"] = i
+    if "_screen_slot" not in ob:
+        return False
+    ob.material_slots[ob["_screen_slot"]].material = glow if on else black
+    return True
+
+
+def screen_quad(cam):
+    """Углы экрана в кадре (доли 0..1, начало слева сверху) для слоя экрана в игре.
+
+    Берутся грани объекта монитора со слотом экрана. Формат тот же, что у screen_quads.py.
+    """
+    from bpy_extras.object_utils import world_to_camera_view
+    ob = bpy.data.objects.get("Foot")
+    if ob is None or "_screen_slot" not in ob:
+        return None
+    sc = bpy.context.scene
+    idx = ob["_screen_slot"]
+    pts = {}
+    for poly in ob.data.polygons:
+        if poly.material_index != idx:
+            continue
+        for vi in poly.vertices:
+            w = ob.matrix_world @ ob.data.vertices[vi].co
+            pts[vi] = w
+    if len(pts) < 4:
+        return None
+    pr = []
+    for w in pts.values():
+        c = world_to_camera_view(sc, cam, w)
+        pr.append((round(c.x, 4), round(1.0 - c.y, 4), c.z))
+    tl = min(pr, key=lambda q: q[0] + q[1])
+    br = max(pr, key=lambda q: q[0] + q[1])
+    tr = max(pr, key=lambda q: q[0] - q[1])
+    bl = min(pr, key=lambda q: q[0] - q[1])
+    corners = [[tl[0], tl[1]], [tr[0], tr[1]], [br[0], br[1]], [bl[0], bl[1]]]
+    inside = all(0.0 <= c[0] <= 1.0 and 0.0 <= c[1] <= 1.0 for c in corners)
+    return {"corners": corners, "fully_visible": inside}
+
+
 def clear():
     """Убрать всё, что скрипт добавил в сцену: источники и расчётные камеры, абажур вернуть."""
     for ob in list(bpy.data.objects):
@@ -149,7 +207,7 @@ def ob_is_light(data):
     return isinstance(data, bpy.types.Light)
 
 
-def build_light(phase):
+def build_light(phase, pc=True):
     sc = bpy.context.scene
     clear()
     ph = PHASES[phase]
@@ -187,7 +245,7 @@ def build_light(phase):
 
     wcol, wpow = ph["window"]
     area("rf_window", WINDOW["centre"], WINDOW["size"], wcol, wpow, (0.0, -1.0, 0.0))
-    if ph["monitor"] > 0.0:
+    if ph["monitor"] > 0.0 and pc:
         mon = area("rf_monitor", MONITOR["centre"], MONITOR["size"], (0.80, 0.84, 0.92),
                    ph["monitor"], (0.0, -1.0, -0.15), spread=70.0, specular=0.0)
         mon.data.use_custom_distance = True
@@ -196,7 +254,7 @@ def build_light(phase):
     area("rf_fill", (1.7, 5.9, 2.55), (2.4, 2.4), (1.0, 0.95, 0.9), ph["fill"], (0.0, 0.0, -1.0))
 
 
-def setup(phase, samples=64):
+def setup(phase, samples=64, pc=True):
     """Настройки рендера и свет фазы. Одинаково для командной строки и окна Blender."""
     sc = bpy.context.scene
     sc.render.engine = "BLENDER_EEVEE"
@@ -212,10 +270,11 @@ def setup(phase, samples=64):
     # EEVEE обрезает свет там, где его сила падает ниже порога: при плавных переходах
     # граница видна как круг на стене. Порог ниже, и круг уходит за пределы кадра
     sc.eevee.light_threshold = 0.00001
-    build_light("day" if phase == "morning" else phase)
+    set_pc(pc)
+    build_light("day" if phase == "morning" else phase, pc)
 
 
-def gui(phase="night", view="main"):
+def gui(phase="night", view="main", pc="on"):
     """Показать свет в окне Blender (скрипт для вкладки Scripting: room_light_gui.py).
 
     phase: day, evening, night или off (убрать всё, что добавил скрипт).
@@ -231,7 +290,7 @@ def gui(phase="night", view="main"):
                     if sp.type == "VIEW_3D":
                         sp.shading.type = "MATERIAL"
         return
-    setup(phase, samples=32)
+    setup(phase, samples=32, pc=(pc != "off"))
     if view != "none":
         bpy.context.scene.camera = make_camera(view)
     for area in bpy.context.screen.areas:
@@ -247,18 +306,28 @@ def main():
     a = B.args(extra)
     sc = bpy.context.scene
     sc.render.resolution_x, sc.render.resolution_y = (int(v) for v in a.res.split(","))
-    setup(a.phase, a.samples)
 
-    wanted = [s.strip() for s in (a.render or "main,pc").split(",") if s.strip()]
+    wanted = [x.strip() for x in (a.render or "main,pc").split(",") if x.strip()]
     root = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
-    out = a.out if os.path.isabs(a.out) else os.path.join(root, a.out) if a.out else         os.path.join(root, "assets", "_source", "blockout", "renders", "room_frames")
+    out = a.out if os.path.isabs(a.out) else os.path.join(root, a.out) if a.out else \
+        os.path.join(root, "assets", "_source", "blockout", "renders", "room_frames")
     os.makedirs(out, exist_ok=True)
-    for name in wanted:
-        sc.camera = make_camera(name)
-        path = os.path.join(out, "room_%s_%s.png" % (name, a.phase))
-        sc.render.filepath = path
-        bpy.ops.render.render(write_still=True)
-        print("[room] %s" % path)
+    modes = ["on", "off"] if a.pc == "both" else [a.pc]
+    quads = {}
+    for mode in modes:
+        setup(a.phase, a.samples, pc=(mode == "on"))
+        for name in wanted:
+            cam = make_camera(name)
+            sc.camera = cam
+            path = os.path.join(out, "room_%s_%s_pc_%s.png" % (name, a.phase, mode))
+            sc.render.filepath = path
+            bpy.ops.render.render(write_still=True)
+            print("[room] %s" % path)
+            quads[name] = screen_quad(cam)
+    # Положение экрана не зависит от фазы и состояния ПК: одно на кадр
+    import json
+    with open(os.path.join(out, "room_screen.json"), "w", encoding="utf-8") as fh:
+        json.dump({"pc": quads}, fh, ensure_ascii=False, indent=2)
 
 
 if __name__ == "__main__":
