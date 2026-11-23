@@ -3,12 +3,14 @@
     & "...blender.exe" -b assets\\_source\\blockout\\apartment_lit.blend ^
         --python tools\\blockout\\room_props.py
 
-- мусорное ведро (`Trash can`) переезжает под стол героя (стоит у ножки, виден под столешницей) и
-  становится тёмно-серым;
+- мусорное ведро (`Trash can`) стоит у двери, вне кадра (под столом оно выглядело странно: там
+  разработчик ставит рюкзак), и тёмно-серое;
+- мягкие тени-накладки под настенной полкой и у подушек на изголовье кровати (`decal_*`):
+  плоский градиент чёрного с прозрачностью, ложится поверх стены и изголовья;
 - кружка `prop_mug` (белый цилиндр с ручкой) ставится на левый край стола, у клавиатуры.
 
 Повторный запуск ничего не дублирует: ведро ставится в те же координаты, кружка создаётся
-один раз. Положение правится руками в Blender. Файл сохраняется.
+один раз, накладки пересоздаются с текущими параметрами. Положение правится руками в Blender. Файл сохраняется.
 """
 
 import math
@@ -22,7 +24,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import cel_shader as C  # noqa: E402
 import palette as P  # noqa: E402
 
-CAN_CENTRE = (1.78, 6.90)       # центр ведра под столом (x, y), метры
+CAN_CENTRE = (0.33, 4.51)       # центр ведра (x, y), метры: у двери, вне кадра. Под стол разработчик ставит рюкзак
 MUG_AT = (1.52, 6.74)           # кружка на столе
 DESK_TOP = 0.78                 # высота столешницы
 
@@ -63,6 +65,97 @@ def move_can():
     return True
 
 
+def decal(name, origin, u_axis, v_axis, u_size, v_size, alpha):
+    """Мягкая тень-накладка: плоскость с градиентом прозрачности от тёмного к прозрачному.
+
+    origin — угол плоскости, u_axis и v_axis — единичные направления сторон. Тёмный край у
+    v = 0 (там, где предмет касается поверхности), к v = 1 тень гаснет; по краям u мягко
+    сходит на нет. Накладка не отбрасывает тень и рисуется поверх (режим Blended).
+    """
+    import mathutils
+    old = bpy.data.objects.get(name)
+    if old is not None:                       # пересоздаём: параметры накладки правятся здесь
+        mesh, mat_old = old.data, (old.material_slots[0].material if old.material_slots else None)
+        bpy.data.objects.remove(old)
+        bpy.data.meshes.remove(mesh)
+        if mat_old is not None:
+            bpy.data.materials.remove(mat_old)
+    o = mathutils.Vector(origin)
+    u = mathutils.Vector(u_axis) * u_size
+    v = mathutils.Vector(v_axis) * v_size
+    bm = bmesh.new()
+    verts = [bm.verts.new(c) for c in (o, o + u, o + u + v, o + v)]
+    face = bm.faces.new(verts)
+    uv = bm.loops.layers.uv.new("UV")
+    for loop, co in zip(face.loops, ((0, 0), (1, 0), (1, 1), (0, 1))):
+        loop[uv].uv = co
+    mesh = bpy.data.meshes.new(name)
+    bm.to_mesh(mesh)
+    bm.free()
+    ob = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.visible_shadow = False
+
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    mat.surface_render_method = "BLENDED"
+    nt = mat.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    out.location = (900, 0)
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    coord.location = (-700, 0)
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    sep.location = (-500, 0)
+    nt.links.new(coord.outputs["UV"], sep.inputs[0])
+    fall = nt.nodes.new("ShaderNodeMapRange")          # вдоль v: от тени к прозрачному
+    fall.location = (-300, 100)
+    fall.interpolation_type = "SMOOTHSTEP"
+    fall.clamp = True
+    fall.inputs["To Min"].default_value = alpha
+    fall.inputs["To Max"].default_value = 0.0
+    nt.links.new(sep.outputs["Y"], fall.inputs["Value"])
+    side = nt.nodes.new("ShaderNodeMath")              # |2u - 1|
+    side.location = (-500, -250)
+    side.operation = "PINGPONG"
+    side.inputs[1].default_value = 0.5
+    nt.links.new(sep.outputs["X"], side.inputs[0])
+    edge = nt.nodes.new("ShaderNodeMapRange")          # у краёв по u тень сходит на нет
+    edge.location = (-300, -250)
+    edge.interpolation_type = "SMOOTHSTEP"
+    edge.clamp = True
+    edge.inputs["From Min"].default_value = 0.0
+    edge.inputs["From Max"].default_value = 0.12
+    nt.links.new(side.outputs[0], edge.inputs["Value"])
+    mulf = nt.nodes.new("ShaderNodeMath")
+    mulf.location = (-60, 0)
+    mulf.operation = "MULTIPLY"
+    nt.links.new(fall.outputs[0], mulf.inputs[0])
+    nt.links.new(edge.outputs[0], mulf.inputs[1])
+    tr = nt.nodes.new("ShaderNodeBsdfTransparent")
+    tr.location = (160, -120)
+    dark = nt.nodes.new("ShaderNodeEmission")
+    dark.location = (160, -260)
+    dark.inputs["Color"].default_value = (0.0, 0.0, 0.0, 1.0)
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    mix.location = (560, 0)
+    nt.links.new(mulf.outputs[0], mix.inputs[0])
+    nt.links.new(tr.outputs[0], mix.inputs[1])
+    nt.links.new(dark.outputs[0], mix.inputs[2])
+    nt.links.new(mix.outputs[0], out.inputs["Surface"])
+    ob.data.materials.append(mat)
+    return True
+
+
+def make_decals():
+    """Тени-накладки: под настенной полкой и на изголовье у подушек."""
+    # Полка: стена x = 0.152, шире полки по y, вниз от её нижнего края (z = 1.188)
+    a = decal("decal_shelf", (0.152, 5.68, 1.188), (0, 1, 0), (0, 0, -1), 1.17, 0.45, 0.7)
+    # Изголовье: передняя грань y = 6.972, тень от подушек и матраса, гаснет вверх по z
+    b = decal("decal_headboard", (0.23, 6.972, 0.42), (1, 0, 0), (0, 0, 1), 1.0, 0.5, 0.65)
+    return a, b
+
+
 def make_mug():
     if bpy.data.objects.get("prop_mug") is not None:
         return False
@@ -91,8 +184,8 @@ def make_mug():
 
 
 def main():
-    print("[props] ведро перенесено: %s, перекрашено: %s, кружка создана: %s"
-          % (move_can(), recolor_can(), make_mug()))
+    print("[props] ведро перенесено: %s, перекрашено: %s, кружка создана: %s, тени-накладки: %s"
+          % (move_can(), recolor_can(), make_mug(), make_decals()))
     bpy.ops.wm.save_mainfile()
 
 
