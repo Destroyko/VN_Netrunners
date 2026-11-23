@@ -67,11 +67,11 @@ TONE_TITLE = {"light": "светлый", "mid": "средний", "dark": "тё�
 # --- Материалы ------------------------------------------------------------
 # Профили (ступени, блик, фактура) живут в cel_shader.MATERIALS. Здесь — порядок
 # и подписи; какие цвета на каких материалах бывают — ниже
-KIND_ORDER = ("wall", "paper", "fabric", "wood", "plastic", "metal", "glass", "plant")
+KIND_ORDER = ("wall", "paper", "fabric", "wood", "plastic", "metal", "glass", "plant", "glow")
 KIND_TITLE = {
     "wall": "Стена (матовая краска)", "paper": "Бумага", "fabric": "Ткань",
     "wood": "Дерево и ДСП", "plastic": "Пластик", "metal": "Металл",
-    "glass": "Стекло", "plant": "Растения",
+    "glass": "Стекло", "plant": "Растения", "glow": "Свечение",
 }
 
 # Любой цвет годится на любой из этих материалов: ДСП бывает любого цвета,
@@ -85,6 +85,11 @@ GLASS_COLORS = {"black", "graphite", "grey", "silver", "snow", "cream", "teal_li
                 "teal_mid", "blue_light", "green_light", "brown_mid", "violet_light"}
 PLANT_FAMILIES = ("green", "lime", "olive")
 PLANT_EXTRA = {"brown_mid", "brown_dark"}
+
+# Свечение — светодиоды, лампочки, индикаторы. Годятся чистые яркие тона (`vivid`) и
+# несколько светлых для тёплой лампы и холодного отсвета: цвет горящего света редко
+# бывает тёмным или грязным
+GLOW_EXTRA = {"snow", "cream", "yellow_light", "orange_light", "teal_light", "blue_light"}
 
 
 def _build():
@@ -113,6 +118,8 @@ def kinds_for(color):
         kinds.append("glass")
     if FAMILY_OF[color] in PLANT_FAMILIES or color in PLANT_EXTRA:
         kinds.append("plant")
+    if tone_of(color) == "vivid" or color in GLOW_EXTRA:
+        kinds.append("glow")
     return tuple(k for k in KIND_ORDER if k in kinds)
 
 

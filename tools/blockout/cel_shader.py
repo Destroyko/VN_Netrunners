@@ -33,12 +33,18 @@ MATERIALS = {
     # металл: узкий яркий блик и холодная контрастная тень — без этого не металл
     "metal":   {"tones": 3, "texture": 0.04, "scale": 18.0, "hatch": 0.2,
                 "spec": 0.55, "gloss": 0.12, "cool": 1.4},
-    # стекло и экраны: почти без ступеней, блик сильный
+    # стекло: сквозь него видно. Оттенок почти не виден (alpha — доля непрозрачности),
+    # зато блик остаётся плотным: стекло узнают по бликам, а не по цвету
     "glass":   {"tones": 2, "texture": 0.0, "scale": 10.0, "hatch": 0.0,
-                "spec": 0.75, "gloss": 0.06, "cool": 1.0},
+                "spec": 0.75, "gloss": 0.06, "cool": 1.0, "alpha": 0.16},
     # растения: мягкая фактура, лёгкий влажный отблеск
     "plant":   {"tones": 3, "texture": 0.15, "scale": 13.0, "hatch": 0.6,
                 "spec": 0.12, "gloss": 0.35, "cool": 0.9},
+    # свечение: не освещаемая поверхность, а источник. Ступеней, тени и блика нет —
+    # цвет палитры умножается на силу. Сила 2.5 ярче белого, и канал упирается
+    # в единицу: светодиод выглядит горящим, а не просто светлым
+    "glow":    {"tones": 1, "texture": 0.0, "scale": 10.0, "hatch": 0.0,
+                "spec": 0.0, "cool": 1.0, "emit": 2.5},
 }
 DEFAULT_KIND = "wall"
 
@@ -64,6 +70,19 @@ def shades(rgb, tones=3, cool=1.0):
     return out
 
 
+def _build_glow(nt, rgb, strength):
+    """Свечение: Emission напрямую, без cel-рампы. Возвращает цвет для режима Solid."""
+    nt.nodes.clear()
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    out.location = (300, 0)
+    em = nt.nodes.new("ShaderNodeEmission")
+    em.location = (80, 0)
+    em.inputs["Color"].default_value = (*rgb, 1.0)
+    em.inputs["Strength"].default_value = strength
+    nt.links.new(em.outputs[0], out.inputs["Surface"])
+    return rgb
+
+
 def build(nt, rgb, tones=None, texture=None, scale=None, hatch=None, kind=None):
     """Собрать шейдер в пустом дереве узлов материала. Возвращает цвет света.
 
@@ -72,6 +91,8 @@ def build(nt, rgb, tones=None, texture=None, scale=None, hatch=None, kind=None):
     приглушить ему фактуру для конкретного предмета.
     """
     prof = MATERIALS.get(kind or DEFAULT_KIND, MATERIALS[DEFAULT_KIND])
+    if "emit" in prof:
+        return _build_glow(nt, rgb, prof["emit"])
     tones = prof["tones"] if tones is None else tones
     texture = prof["texture"] if texture is None else texture
     scale = prof["scale"] if scale is None else scale
@@ -167,5 +188,36 @@ def build(nt, rgb, tones=None, texture=None, scale=None, hatch=None, kind=None):
     emit = nt.nodes.new("ShaderNodeEmission")
     emit.location = (620, 20)
     nt.links.new(src, emit.inputs[0])
-    nt.links.new(emit.outputs[0], out.inputs["Surface"])
+    alpha = prof.get("alpha")
+    if alpha is None:
+        nt.links.new(emit.outputs[0], out.inputs["Surface"])
+    else:
+        # Прозрачный материал: смесь прозрачного и закрашенного. Доля закрашенного —
+        # alpha плюс сам блик, поэтому стекло почти невидимо, а блик на нём плотный
+        tr = nt.nodes.new("ShaderNodeBsdfTransparent")
+        tr.location = (620, -160)
+        mix = nt.nodes.new("ShaderNodeMixShader")
+        mix.location = (860, 0)
+        fac = nt.nodes.new("ShaderNodeMath")
+        fac.location = (620, 220)
+        fac.operation = "ADD"
+        fac.use_clamp = True
+        fac.inputs[1].default_value = alpha
+        if spec > 0.0:
+            nt.links.new(gramp.outputs[0], fac.inputs[0])
+        else:
+            fac.inputs[0].default_value = 0.0
+        nt.links.new(fac.outputs[0], mix.inputs[0])
+        nt.links.new(tr.outputs[0], mix.inputs[1])
+        nt.links.new(emit.outputs[0], mix.inputs[2])
+        nt.links.new(mix.outputs[0], out.inputs["Surface"])
     return tn[-1]
+
+
+def surface(mat, kind):
+    """Режим поверхности материала. Стекло рисуется с настоящей прозрачностью (Blended):
+    в режиме Dithered прозрачность зашумлена и при малом числе проходов зернит."""
+    try:
+        mat.surface_render_method = "BLENDED" if kind == "glass" else "DITHERED"
+    except Exception:
+        pass

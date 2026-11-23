@@ -32,7 +32,7 @@ LINE = (200, 198, 194)
 
 # Какие цвета показывать на матрице материалов: нейтрали, тёплое, холодное, зелёное
 SAMPLE = ["black", "grey", "snow", "red_mid", "yellow_mid", "green_mid", "blue_mid",
-          "brown_mid"]
+          "brown_mid", "teal_vivid"]
 
 BALL = 84
 CHIP_W, CHIP_H = 132, 46

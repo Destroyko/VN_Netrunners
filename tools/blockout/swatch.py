@@ -27,6 +27,8 @@ def sphere(rgb_linear, kind, size=96):
     Color Ramp (0 и i/N + 0.12), поверх ступеней добавляется ступенчатый блик.
     """
     prof = C.MATERIALS.get(kind, C.MATERIALS[C.DEFAULT_KIND])
+    if "emit" in prof:
+        return _glow(rgb_linear, prof["emit"], size)
     tones = C.shades(rgb_linear, prof["tones"], prof.get("cool", 1.0))
     tn = np.array(tones, dtype=np.float32)
 
@@ -66,6 +68,23 @@ def sphere(rgb_linear, kind, size=96):
     out = np.zeros((size, size, 4), dtype=np.float32)
     out[..., :3] = rgb
     out[..., 3] = alpha
+    return out
+
+
+def _glow(rgb_linear, strength, size):
+    """Свечение: плоский диск с ярким ядром и мягким ореолом вокруг."""
+    ys, xs = np.mgrid[0:size, 0:size].astype(np.float32)
+    c = (size - 1) / 2.0
+    r = np.sqrt(((xs - c) / c) ** 2 + ((ys - c) / c) ** 2)          # 0 в центре, 1 на краю
+    lit = np.clip(np.array(rgb_linear, dtype=np.float32) * strength, 0.0, 1.0)
+    core = _to_srgb(lit)
+    out = np.zeros((size, size, 4), dtype=np.float32)
+    inside = np.clip((0.62 - r) / 0.04, 0.0, 1.0)                  # сам диск
+    halo = np.clip(1.0 - (r - 0.62) / 0.38, 0.0, 1.0) ** 2 * 0.45  # ореол
+    white = np.clip((0.30 - r) / 0.30, 0.0, 1.0)[..., None] * 0.55  # ядро светлее
+    rgb = core[None, None, :] * (1.0 - white) + white
+    out[..., :3] = rgb
+    out[..., 3] = np.maximum(inside, halo)
     return out
 
 

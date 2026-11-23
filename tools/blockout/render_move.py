@@ -43,6 +43,7 @@ def main():
     sc.render.resolution_x, sc.render.resolution_y = B.RES
     sc.render.resolution_percentage = 100
     sc.render.image_settings.file_format = "PNG"
+    B.flat_color(sc)
 
     cam = bpy.data.objects.get(a.cam)
     if cam is None or cam.type != "CAMERA":

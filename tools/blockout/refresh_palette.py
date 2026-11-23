@@ -101,6 +101,7 @@ def main():
             mat.use_nodes = True
             light = C.build(mat.node_tree, P.srgb(P.COLORS[color]), None,
                             texture, scale, hatch, kind)
+            C.surface(mat, kind)
             mat.diffuse_color = (*light, 1.0)
         if legacy:
             new = P.mat_name(kind, color)

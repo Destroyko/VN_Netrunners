@@ -88,6 +88,10 @@ def main():
     # Ни сглаживания, ни фильтра: цвет должен дойти до пикселя ровно таким, каким задан
     sc.eevee.taa_render_samples = 1
     sc.render.filter_size = 0.0
+    # Blender подмешивает в восьмибитный вывод шум (дизеринг) против полос на градиентах.
+    # В обычном кадре он невидим, а в маске цвет — это данные: сдвиг на единицу даёт
+    # «чужой» цвет, которого нет в таблице. Замерено: без этого 23 цвета вместо 3
+    sc.render.dither_intensity = 0.0
 
     targets = pick_targets()
     if a.names:
@@ -101,17 +105,46 @@ def main():
         raise SystemExit("нет интерактивных объектов: коллекция '%s' или имена на '%s'"
                          % (MARK_COLLECTION, MARK_PREFIX))
 
+    # Фон кадра — чисто чёрный: в сцене у мира свой цвет (у комнаты героя около #121419),
+    # и он попал бы в маску как «чужой» цвет, которого нет в таблице
+    world = bpy.data.worlds.new("mask_world")
+    world.use_nodes = True
+    bg = next((n for n in world.node_tree.nodes if n.type == "BACKGROUND"), None)
+    if bg is not None:
+        bg.inputs[0].default_value = (0.0, 0.0, 0.0, 1.0)
+        bg.inputs[1].default_value = 1.0
+    sc.world = world
+    sc.render.film_transparent = False
+
     black = flat_mat("mask_background", (0.0, 0.0, 0.0))
+    # Сначала чернеем ВСЁ, что может нести материал, а не только меши: кривые (провода),
+    # слоты со связью «объект» и узлы Set Material внутри Geometry Nodes — иначе их
+    # исходные материалы остаются в кадре и дают цвета, которых нет в таблице
     for ob in bpy.data.objects:
-        if ob.type != "MESH":
-            continue
-        ob.data.materials.clear()
-        ob.data.materials.append(black)
+        if ob.type == "MESH":
+            ob.data.materials.clear()
+            ob.data.materials.append(black)
+        else:
+            for slot in ob.material_slots:
+                slot.material = black
+    for ob in bpy.data.objects:
+        for slot in ob.material_slots:
+            if slot.link == "OBJECT":
+                slot.material = black
+    for group in bpy.data.node_groups:
+        for node in group.nodes:
+            if node.type == "SET_MATERIAL":
+                try:
+                    node.inputs["Material"].default_value = black
+                except Exception:
+                    pass
 
     table = {}
     for ob, (r, g, b) in zip(targets, colors_for(len(targets))):
-        # цвет задаём в линейном пространстве, чтобы в файл попали именно эти байты
-        lin = tuple((c / 255.0) ** 2.2 for c in (r, g, b))
+        # цвет задаём в линейном пространстве, чтобы в файл попали именно эти байты;
+        # преобразование точное (кусочное sRGB), а не степень 2.2 — иначе байты разойдутся
+        lin = tuple(((c / 255.0) / 12.92 if c / 255.0 <= 0.04045
+                     else ((c / 255.0 + 0.055) / 1.055) ** 2.4) for c in (r, g, b))
         mat = flat_mat("mask_" + ob.name, lin)
         ob.data.materials.clear()
         ob.data.materials.append(mat)

@@ -82,11 +82,30 @@ def args(extra=None):
     return p.parse_args(argv)
 
 
+def flat_color(sc=None):
+    """Цвет в файл — ровно тот, что задан в палитре: вид Standard, не AgX.
+
+    В Blender 5.x по умолчанию стоит AgX: он сжимает яркие цвета и обесцвечивает их.
+    На палитре это видно сразу: светлый #EDE3D2 в рендере выходит #BEBAB4, яркий бирюзовый
+    #3FB3C4 — #62A5AF. Для стилизованной игры с фиксированной палитрой это неприемлемо:
+    лист палитры и кадр расходятся. Standard возвращает заданное до байта (проверено
+    замером). Критично для маски интерактивности и карты глубины, где цвет — данные.
+    """
+    sc = sc or bpy.context.scene
+    vs = sc.view_settings
+    vs.view_transform = "Standard"
+    vs.look = "None"
+    vs.exposure = 0.0
+    vs.gamma = 1.0
+    sc.display_settings.display_device = "sRGB"
+
+
 def reset():
     """Чистый лист: --factory-startup оставляет куб, камеру и лампу."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     sc = bpy.context.scene
     sc.render.engine = "BLENDER_EEVEE"
+    flat_color(sc)
     sc.render.resolution_x, sc.render.resolution_y = RES
     sc.render.resolution_percentage = 100
     sc.render.image_settings.file_format = "PNG"
@@ -431,6 +450,7 @@ def render(cams, out_dir, suffix="", only="", hide=None):
     wanted = None if only == "all" else {s.strip() for s in only.split(",") if s.strip()}
     os.makedirs(out_dir, exist_ok=True)
     sc = bpy.context.scene
+    flat_color(sc)
     done = []
     for name, ob in cams.items():
         if wanted is not None and name not in wanted:

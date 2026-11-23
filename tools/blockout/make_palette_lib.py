@@ -86,6 +86,7 @@ def cel_material(spec):
     mat = bpy.data.materials.new(spec["name"])
     mat.use_nodes = True
     light = C.build(mat.node_tree, P.srgb(spec["hex"]), None, None, None, None, spec["kind"])
+    C.surface(mat, spec["kind"])
     # Цвет в режиме Solid — чтобы сцена читалась и без рендера
     mat.diffuse_color = (*light, 1.0)
     return mat

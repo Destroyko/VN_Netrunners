@@ -16,6 +16,7 @@ import sys
 import bpy
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import bl_common as B  # noqa: E402
 import cel_shader as C  # noqa: E402
 import palette as P  # noqa: E402
 
@@ -41,6 +42,7 @@ def main():
     sc.render.resolution_percentage = 100
     sc.render.image_settings.file_format = "PNG"
     sc.eevee.taa_render_samples = 64
+    B.flat_color(sc)
 
     rgb = P.srgb(hexcol)
     step = 2.4
