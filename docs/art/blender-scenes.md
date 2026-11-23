@@ -396,9 +396,10 @@ Nodes, его цвет в маске может не сработать.
 `frame_main` и `frame_pc`, положенные в сцену, он берёт вместо расчётных.
 
 ```powershell
-& "C:\Program Files\Blender Foundation\Blender 5.3lender.exe" -b `
+& "C:\Program Files\Blender Foundation\Blender 5.3\blender.exe" -b `
     assets\_sourcelockoutpartment_work_palette.blend `
-    --python toolslockoutoom_frames.py -- --phase evening --render main,pc
+    --python toolslockout
+oom_frames.py -- --phase evening --render main,pc
 ```
 
 Кадры: `main` (кровать, стол, шкаф, полка, календарь) и `pc` (системный блок, куда
