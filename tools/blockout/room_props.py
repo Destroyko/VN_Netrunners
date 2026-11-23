@@ -7,7 +7,9 @@
   разработчик ставит рюкзак), и тёмно-серое;
 - мягкие тени-накладки под настенной полкой и у подушек на изголовье кровати (`decal_*`):
   плоский градиент чёрного с прозрачностью, ложится поверх стены и изголовья;
-- кружка `prop_mug` (белый цилиндр с ручкой) ставится на левый край стола, у клавиатуры.
+- кружка `prop_mug` (белый цилиндр с ручкой) ставится на левый край стола, у клавиатуры;
+- мягкая тень на полу под рюкзаком (`decal_bag_floor`): вещь без неё выглядит парящей.
+  Запуск только этого: `-- --only contact` (остальное, в том числе кружка, не создаётся заново).
 
 Повторный запуск ничего не дублирует: ведро ставится в те же координаты, кружка создаётся
 один раз, накладки пересоздаются с текущими параметрами. Положение правится руками в Blender. Файл сохраняется.
@@ -156,6 +158,85 @@ def make_decals():
     return a, b
 
 
+def blob(name, centre, size, alpha, parent=None):
+    """Мягкая круглая тень на горизонтальной поверхности: плотная в центре, гаснет к краю.
+
+    centre — (x, y, z) центра на поверхности, size — (по x, по y) в метрах. Накладка не
+    отбрасывает тень, рисуется поверх (Blended). parent — предмет, с которым она двигается."""
+    import mathutils
+    old = bpy.data.objects.get(name)
+    if old is not None:
+        mesh, mat_old = old.data, (old.material_slots[0].material if old.material_slots else None)
+        bpy.data.objects.remove(old)
+        bpy.data.meshes.remove(mesh)
+        if mat_old is not None:
+            bpy.data.materials.remove(mat_old)
+    hx, hy = size[0] / 2.0, size[1] / 2.0
+    bm = bmesh.new()
+    verts = [bm.verts.new((centre[0] + dx, centre[1] + dy, centre[2]))
+             for dx, dy in ((-hx, -hy), (hx, -hy), (hx, hy), (-hx, hy))]
+    face = bm.faces.new(verts)
+    uv = bm.loops.layers.uv.new("UV")
+    for loop, co in zip(face.loops, ((0, 0), (1, 0), (1, 1), (0, 1))):
+        loop[uv].uv = co
+    mesh = bpy.data.meshes.new(name)
+    bm.to_mesh(mesh)
+    bm.free()
+    ob = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.visible_shadow = False
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    mat.surface_render_method = "BLENDED"
+    nt = mat.node_tree
+    nt.nodes.clear()
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    off = nt.nodes.new("ShaderNodeVectorMath")
+    off.operation = "SUBTRACT"
+    off.inputs[1].default_value = (0.5, 0.5, 0.0)
+    nt.links.new(coord.outputs["UV"], off.inputs[0])
+    ln = nt.nodes.new("ShaderNodeVectorMath")
+    ln.operation = "LENGTH"
+    nt.links.new(off.outputs[0], ln.inputs[0])
+    fall = nt.nodes.new("ShaderNodeMapRange")       # 0 в центре, 0,5 на краю → тень alpha .. 0
+    fall.interpolation_type = "SMOOTHSTEP"
+    fall.clamp = True
+    fall.inputs["From Min"].default_value = 0.12
+    fall.inputs["From Max"].default_value = 0.5
+    fall.inputs["To Min"].default_value = alpha
+    fall.inputs["To Max"].default_value = 0.0
+    nt.links.new(ln.outputs["Value"], fall.inputs["Value"])
+    tr = nt.nodes.new("ShaderNodeBsdfTransparent")
+    dark = nt.nodes.new("ShaderNodeEmission")
+    dark.inputs["Color"].default_value = (0.0, 0.0, 0.0, 1.0)
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    nt.links.new(fall.outputs[0], mix.inputs[0])
+    nt.links.new(tr.outputs[0], mix.inputs[1])
+    nt.links.new(dark.outputs[0], mix.inputs[2])
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(mix.outputs[0], out.inputs["Surface"])
+    ob.data.materials.append(mat)
+    if parent is not None:
+        ob.parent = parent
+        ob.matrix_parent_inverse = parent.matrix_world.inverted()
+    return ob
+
+
+def make_contact_shadows():
+    """Тень на полу под рюкзаком: размер по самому рюкзаку, чуть шире и смещена от окна и торшера."""
+    import mathutils
+    bag = bpy.data.objects.get("BACKPACK-fabric_blue")
+    if bag is None:
+        return False
+    pts = [bag.matrix_world @ mathutils.Vector(c) for c in bag.bound_box]
+    x0, x1 = min(p.x for p in pts), max(p.x for p in pts)
+    y0, y1 = min(p.y for p in pts), max(p.y for p in pts)
+    cx, cy = (x0 + x1) / 2.0 + 0.05, (y0 + y1) / 2.0 - 0.05      # свет сзади слева, тень вперёд и вправо
+    blob("decal_bag_floor", (cx, cy, 0.009), ((x1 - x0) * 1.9, (y1 - y0) * 1.9), 0.8,
+         parent=bpy.data.objects.get("Scool bagpack"))
+    return True
+
+
 def make_mug():
     if bpy.data.objects.get("prop_mug") is not None:
         return False
@@ -184,6 +265,11 @@ def make_mug():
 
 
 def main():
+    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    if "--only" in argv and argv[argv.index("--only") + 1] == "contact":
+        print("[props] тени на полу: %s" % make_contact_shadows())
+        bpy.ops.wm.save_mainfile()
+        return
     print("[props] ведро перенесено: %s, перекрашено: %s, кружка создана: %s, тени-накладки: %s"
           % (move_can(), recolor_can(), make_mug(), make_decals()))
     bpy.ops.wm.save_mainfile()

@@ -32,7 +32,7 @@ MATERIALS = {
                 "spec": 0.22, "gloss": 0.30, "cool": 0.9},
     # металл: узкий яркий блик и холодная контрастная тень — без этого не металл
     "metal":   {"tones": 3, "texture": 0.04, "scale": 18.0, "hatch": 0.2,
-                "spec": 0.55, "gloss": 0.12, "cool": 1.4},
+                "spec": 0.32, "gloss": 0.12, "cool": 1.4},
     # стекло: сквозь него видно. Оттенок почти не виден (alpha — доля непрозрачности),
     # зато блик остаётся плотным: стекло узнают по бликам, а не по цвету
     "glass":   {"tones": 2, "texture": 0.0, "scale": 10.0, "hatch": 0.0,
@@ -526,7 +526,11 @@ def build(nt, rgb, tones=None, texture=None, scale=None, hatch=None, kind=None, 
         ge[0].position = 0.0
         ge[0].color = (0.0, 0.0, 0.0, 1.0)
         # порог тем выше, чем слабее блик: у дерева он виден только на самом краю
-        ge.new(1.0 - spec * 0.55).color = (spec, spec, spec, 1.0)
+        # Тёмному материалу блик слабее: плоская грань перед ярким окном отражает его целиком,
+        # и пятно в полную силу превращало чёрный корпус днём в белый
+        lum = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+        k = spec * max(0.1, min(1.0, lum / 0.12))
+        ge.new(1.0 - spec * 0.55).color = (k, k, k, 1.0)
         nt.links.new(gl.outputs[0], g2rgb.inputs[0])
         nt.links.new(g2rgb.outputs[0], gramp.inputs[0])
         add = nt.nodes.new("ShaderNodeVectorMath")

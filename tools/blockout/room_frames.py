@@ -21,6 +21,7 @@ import math
 import os
 import sys
 
+import bmesh
 import bpy
 import mathutils
 
@@ -29,11 +30,15 @@ import bl_common as B  # noqa: E402
 import cel_shader as C  # noqa: E402
 import palette as P  # noqa: E402
 import matte_wallpaper as W  # noqa: E402
+import room_exterior as X  # noqa: E402
 
 # Расчётные камеры: положение, цель, фокусное. Комната по x 0–3,3 и y 4,5–7,3, окно в стене y≈7,3
+# fstop — диафрагма для размытия по глубине: фокус стоит на цели кадра, а дома за окном
+# (40 м и дальше) уходят в мягкое пятно и не выдают простоту моделей. Чем меньше число,
+# тем сильнее размытие; None — резкий кадр
 CAMERAS = {
-    "main": {"loc": (1.6, 4.6, 1.45), "target": (1.6, 7.0, 1.0), "lens": 20.0},
-    "pc":   {"loc": (1.3, 5.9, 1.40), "target": (2.2, 6.95, 0.90), "lens": 32.0},
+    "main": {"loc": (1.6, 4.6, 1.45), "target": (1.6, 7.0, 1.0), "lens": 20.0, "fstop": 2.8},
+    "pc":   {"loc": (1.3, 5.9, 1.40), "target": (2.2, 6.95, 0.90), "lens": 32.0, "fstop": 2.0},
 }
 
 # Окно: центр и размер светящегося прямоугольника снаружи стены
@@ -46,18 +51,25 @@ MONITOR = {"centre": (1.87, 6.75, 0.98), "size": (0.5, 0.28)}
 # floor и tint — отклик материалов на свет (cel_shader.light_group): до какой доли тон гаснет
 # без света и насколько цвет света окрашивает поверхность
 PHASES = {
-    "day":     {"sky": ((0.62, 0.72, 0.90), 1.0), "window": ((1.00, 0.97, 0.92), 260.0),
+    # День: свет в комнату идёт из окна. Небо мира светит на всё без учёта стен (EEVEE не
+    # затеняет его комнатой), поэтому оно слабое: при силе 1,0 комната освещалась как под
+    # открытым небом, а floor 1,0 убирал отклик на свет вовсе — ни теней, ни градиентов
+    # sun — солнце: цвет, сила, куда идёт луч (x к востоку, -y в комнату, -z вниз), угол
+    # диска в градусах. Окно слабее: пока оно заливало комнату до верхней ступени cel-света,
+    # солнце ничего не добавляло, и полос от жалюзи не было видно
+    "day":     {"sky": ((0.62, 0.72, 0.90), 0.1), "window": ((1.00, 0.97, 0.92), 300.0),
                 "lamp": 0.0, "lamp_color": (1.0, 0.5, 0.12), "lamp_reach": 1.2,
-                "monitor": 0.0, "fill": 70.0, "floor": 1.0, "tint": 0.0,
-                "shadow": 0.0, "night": (0.5, 0.6, 1.0), "grad": 0.35},
+                "monitor": 0.0, "fill": 10.0, "floor": 0.5, "tint": 0.0,
+                "shadow": 0.2, "night": (0.5, 0.6, 1.0), "grad": 0.55, "vignette": 0.2,
+                "sun": ((1.0, 0.94, 0.82), 9.0, (-0.5, -0.75, -0.45), 0.6)},
     "evening": {"sky": ((0.80, 0.45, 0.35), 0.15), "window": ((1.00, 0.55, 0.30), 380.0),
-                "lamp": 12.0, "lamp_color": (1.0, 0.42, 0.10), "lamp_reach": 1.2,
+                "lamp": 26.0, "lamp_color": (1.0, 0.42, 0.10), "lamp_reach": 1.2, "halo": 0.0, "lamp_side": 1.0,
                 "monitor": 3.0, "fill": 8.0, "floor": 0.55, "tint": 0.6,
-                "shadow": 0.35, "night": (0.55, 0.5, 0.95), "grad": 0.45},
+                "shadow": 0.35, "night": (0.55, 0.5, 0.95), "grad": 0.6, "vignette": 0.28},
     "night":   {"sky": ((0.05, 0.08, 0.20), 0.02), "window": ((0.25, 0.40, 1.00), 5.0),
-                "lamp": 9.0, "lamp_color": (1.0, 0.38, 0.08), "lamp_reach": 1.2,
-                "monitor": 1.5, "fill": 0.0, "floor": 0.12, "tint": 0.85,
-                "shadow": 0.6, "night": (0.22, 0.40, 1.0), "grad": 0.45},
+                "lamp": 26.0, "lamp_color": (1.0, 0.38, 0.08), "lamp_reach": 1.2, "halo": 0.0, "lamp_side": 1.0,
+                "monitor": 1.5, "fill": 0.0, "floor": 0.07, "tint": 0.85,
+                "shadow": 0.6, "night": (0.22, 0.40, 1.0), "grad": 0.65, "vignette": 0.3},
 }
 
 
@@ -67,10 +79,25 @@ def extra(p):
     p.add_argument("--pc", default="both", help="on, off или both: состояние ПК (экран и его свет)")
 
 
+def focus(cam_ob, name):
+    """Размытие по глубине: фокус на цели кадра, диафрагма из CAMERAS.
+
+    Своей камере, у которой размытие не включено, оно выставляется на время рендера
+    (файл скрипт не сохраняет); включённое самим разработчиком не трогается."""
+    spec = CAMERAS[name]
+    cd = cam_ob.data
+    if not spec.get("fstop") or cd.dof.use_dof:
+        return
+    cd.dof.use_dof = True
+    cd.dof.focus_distance = (mathutils.Vector(spec["target"]) - cam_ob.matrix_world.translation).length
+    cd.dof.aperture_fstop = spec["fstop"]
+
+
 def make_camera(name):
     """Своя камера frame_<кадр> из сцены или расчётная."""
     own = bpy.data.objects.get("frame_" + name)
     if own is not None and own.type == "CAMERA":
+        focus(own, name)
         return own
     spec = CAMERAS[name]
     cd = bpy.data.cameras.new("rf_" + name)
@@ -81,6 +108,8 @@ def make_camera(name):
     ob.location = spec["loc"]
     tgt = mathutils.Vector(spec["target"])
     ob.rotation_euler = (tgt - ob.location).to_track_quat("-Z", "Y").to_euler()
+    bpy.context.view_layer.update()
+    focus(ob, name)
     return ob
 
 
@@ -117,10 +146,10 @@ def shade_glow(on):
             mat.use_nodes = True
             # цвет задан прямо, а не из палитры: светлый оранжевый палитры при свечении
             # выгорает в жёлтый, а абажуру нужен тёплый оранжевый
-            C.build(mat.node_tree, (1.0, 0.36, 0.08), kind="glow")
+            C.build(mat.node_tree, (1.0, 0.45, 0.12), kind="glow")
             for n in mat.node_tree.nodes:
                 if n.type == "EMISSION":
-                    n.inputs["Strength"].default_value = 0.9
+                    n.inputs["Strength"].default_value = 0.75
         ob.material_slots[0].material = mat
         # абажур не должен закрывать собственный свет: тень от него гасила бы всю комнату
         ob.visible_shadow = False
@@ -129,6 +158,148 @@ def shade_glow(on):
         orig = bpy.data.materials.get(ob["_shade_off"])
         if orig is not None:
             ob.material_slots[0].material = orig
+
+
+HALO_RADIUS = 0.42           # м: ореол вокруг абажура; не шире расстояния от лампы до боковой стены (0,44 м)
+
+
+def lamp_halo(power):
+    """Ореол вокруг абажура: будто внутри горит лампочка, а не светится сама ткань.
+
+    Плоский диск с мягким радиальным свечением стоит перед абажуром лицом к комнате (обе
+    камеры смотрят вдоль +y). Шар пробивал бы стену и давал на ней резкий край. Виден только
+    камере: на свет, тени и блики сцены он не влияет. power — яркость ореола; 0 — без ореола."""
+    shade = bpy.data.objects.get("FloorLamp_Cover")
+    if shade is None or power <= 0.0:
+        return
+    bpy.context.view_layer.update()
+    # центр абажура — по граням его слота (слот 0), а не по всему торшеру со стойкой
+    pts = [shade.matrix_world @ shade.data.vertices[vi].co
+           for poly in shade.data.polygons if poly.material_index == 0 for vi in poly.vertices]
+    centre = mathutils.Vector((sum(v[i] for v in pts) / len(pts) for i in range(3)))
+    centre.z = (min(v.z for v in pts) + max(v.z for v in pts)) / 2.0
+    r = HALO_RADIUS
+    bm = bmesh.new()
+    bm.faces.new([bm.verts.new(c) for c in ((-r, 0, -r), (r, 0, -r), (r, 0, r), (-r, 0, r))])
+    me = bpy.data.meshes.new("rf_halo")
+    bm.to_mesh(me)
+    bm.free()
+    ob = bpy.data.objects.new("rf_halo", me)
+    ob.location = (centre.x, centre.y - 0.12, centre.z)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.visible_shadow = False
+    ob.visible_glossy = False
+    ob.visible_diffuse = False
+    ob.visible_transmission = False
+    ob.visible_volume_scatter = False
+
+    mat = bpy.data.materials.get("rf_halo") or bpy.data.materials.new("rf_halo")
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    # 1 в центре диска, 0 на краю: расстояние от центра по сгенерированным координатам
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    off = nt.nodes.new("ShaderNodeVectorMath")
+    off.operation = "SUBTRACT"
+    off.inputs[1].default_value = (0.5, 0.5, 0.5)
+    nt.links.new(tc.outputs["Generated"], off.inputs[0])
+    ln = nt.nodes.new("ShaderNodeVectorMath")
+    ln.operation = "LENGTH"
+    nt.links.new(off.outputs[0], ln.inputs[0])
+    fall = nt.nodes.new("ShaderNodeMath")
+    fall.operation = "MULTIPLY_ADD"
+    fall.use_clamp = True
+    fall.inputs[1].default_value = -2.0
+    fall.inputs[2].default_value = 1.0
+    nt.links.new(ln.outputs["Value"], fall.inputs[0])
+    pw = nt.nodes.new("ShaderNodeMath")
+    pw.operation = "POWER"
+    pw.inputs[1].default_value = 2.2
+    nt.links.new(fall.outputs[0], pw.inputs[0])
+    k = nt.nodes.new("ShaderNodeMath")
+    k.operation = "MULTIPLY"
+    k.use_clamp = True
+    k.inputs[1].default_value = 0.55
+    nt.links.new(pw.outputs[0], k.inputs[0])
+    em = nt.nodes.new("ShaderNodeEmission")
+    em.inputs["Color"].default_value = (1.0, 0.52, 0.18, 1.0)
+    em.inputs["Strength"].default_value = power
+    tr = nt.nodes.new("ShaderNodeBsdfTransparent")
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    nt.links.new(k.outputs[0], mix.inputs[0])
+    nt.links.new(tr.outputs[0], mix.inputs[1])
+    nt.links.new(em.outputs[0], mix.inputs[2])
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(mix.outputs[0], out.inputs["Surface"])
+    try:
+        mat.surface_render_method = "BLENDED"
+        mat.use_backface_culling = True
+    except Exception:
+        pass
+    me.materials.append(mat)
+
+
+def lamp_cones(power, color, half_angle=50.0, blend=0.7):
+    """Свет торшера двумя конусами: вверх и вниз из отверстий абажура.
+
+    У настоящего абажура открыты верх и низ: пятно на стене над лампой и под ней, а по бокам
+    свет слабый. Точечная лампа светила бы шаром. half_angle — половина угла конуса,
+    blend — мягкость края (0 — резкий)."""
+    lamp = bpy.data.objects.get("FloorLamp_Light")
+    if lamp is None or power <= 0.0:
+        return
+    bpy.context.view_layer.update()
+    pos = lamp.matrix_world.translation.copy()
+    for name, tilt in (("rf_lamp_up", math.pi), ("rf_lamp_down", 0.0)):
+        la = bpy.data.lights.new(name, "SPOT")
+        la.energy = power
+        la.color = color
+        la.spot_size = math.radians(half_angle * 2.0)
+        la.spot_blend = blend
+        la.shadow_soft_size = 0.15
+        la.specular_factor = 0.0
+        la.use_custom_distance = True
+        la.cutoff_distance = 8.0
+        ob = bpy.data.objects.new(name, la)
+        ob.location = pos
+        ob.rotation_euler = (tilt, 0.0, 0.0)       # прожектор по умолчанию смотрит вниз (-z)
+        bpy.context.scene.collection.objects.link(ob)
+
+
+def post(vignette):
+    """Постобработка кадра в компоновщике: мягкая виньетка (края темнее на долю vignette).
+
+    Группа rf_post создаётся на время рендера и убирается в clear(). Чужой компоновщик
+    сцены не трогается."""
+    sc = bpy.context.scene
+    if vignette <= 0.0 or sc.compositing_node_group is not None:
+        return
+    ng = bpy.data.node_groups.new("rf_post", "CompositorNodeTree")
+    ng.interface.new_socket("Image", in_out="OUTPUT", socket_type="NodeSocketColor")
+    n = ng.nodes
+    rl = n.new("CompositorNodeRLayers")
+    rl.scene = sc
+    rl.layer = bpy.context.view_layer.name
+    out = n.new("NodeGroupOutput")
+    ell = n.new("CompositorNodeEllipseMask")
+    ell.inputs["Position"].default_value = (0.5, 0.5)
+    ell.inputs["Size"].default_value = (1.25, 1.25)
+    blur = n.new("CompositorNodeBlur")
+    blur.inputs["Size"].default_value = (260.0, 260.0)
+    ng.links.new(ell.outputs[0], blur.inputs["Image"])
+    ma = n.new("ShaderNodeMath")
+    ma.operation = "MULTIPLY_ADD"
+    ma.inputs[1].default_value = vignette
+    ma.inputs[2].default_value = 1.0 - vignette
+    ng.links.new(blur.outputs[0], ma.inputs[0])
+    mx = n.new("ShaderNodeMix")
+    mx.data_type = "RGBA"
+    mx.blend_type = "MULTIPLY"
+    mx.inputs[0].default_value = 1.0
+    ng.links.new(rl.outputs["Image"], mx.inputs[6])
+    ng.links.new(ma.outputs[0], mx.inputs[7])
+    ng.links.new(mx.outputs[2], out.inputs[0])
+    sc.compositing_node_group = ng
 
 
 SCREEN = "pal_glow_screen"
@@ -195,7 +366,15 @@ def clear():
             data = ob.data
             bpy.data.objects.remove(ob)
             if data is not None and data.users == 0:
-                (bpy.data.lights if ob_is_light(data) else bpy.data.cameras).remove(data)
+                if isinstance(data, bpy.types.Mesh):
+                    bpy.data.meshes.remove(data)
+                else:
+                    (bpy.data.lights if ob_is_light(data) else bpy.data.cameras).remove(data)
+    ng = bpy.data.node_groups.get("rf_post")
+    if ng is not None:
+        if bpy.context.scene.compositing_node_group is ng:
+            bpy.context.scene.compositing_node_group = None
+        bpy.data.node_groups.remove(ng)
     lamp = bpy.data.objects.get("FloorLamp_Light")
     if lamp is not None:
         lamp.hide_render = False
@@ -225,7 +404,9 @@ def build_light(phase, pc=True):
             o.hide_render = True
     lamp = bpy.data.objects.get("FloorLamp_Light")
     if lamp is not None:
-        lamp.data.energy = ph["lamp"]
+        # Основная часть света уходит конусами вверх и вниз через отверстия абажура
+        # (lamp_cones), через стенки идёт только доля lamp_side
+        lamp.data.energy = ph["lamp"] * ph.get("lamp_side", 1.0)
         lamp.data.color = ph["lamp_color"]
         lamp.data.shadow_soft_size = 0.2
         lamp.data.specular_factor = 0.0
@@ -238,20 +419,40 @@ def build_light(phase, pc=True):
         lamp.data.cutoff_distance = 8.0
         lamp.hide_render = ph["lamp"] <= 0.0
         shade_glow(ph["lamp"] > 0.0)
+        lamp_halo(ph.get("halo", 0.0))
+        lamp_cones(ph["lamp"] * 1.2, ph["lamp_color"])
+
+    X.apply_phase(phase)                   # вид из окна: дома, небо, огни окон
 
     C.unify_light_groups()                 # материалы из браузера ассетов несут свои копии узла
     C.set_light_response(ph["floor"], ph["tint"], ph["shadow"], ph["night"], ph["grad"])
     W.apply()
 
     wcol, wpow = ph["window"]
-    area("rf_window", WINDOW["centre"], WINDOW["size"], wcol, wpow, (0.0, -1.0, 0.0))
+    # блик окна отключён: светящийся прямоугольник за стеклом отражался в нём и заливал вид белым
+    area("rf_window", WINDOW["centre"], WINDOW["size"], wcol, wpow, (0.0, -1.0, 0.0), specular=0.0)
     if ph["monitor"] > 0.0 and pc:
         mon = area("rf_monitor", MONITOR["centre"], MONITOR["size"], (0.80, 0.84, 0.92),
                    ph["monitor"], (0.0, -1.0, -0.15), spread=70.0, specular=0.0)
         mon.data.use_custom_distance = True
         mon.data.cutoff_distance = 0.9
+    # Солнце: узкий источник даёт резкие тени предметов и полосы света сквозь жалюзи.
+    # Окно — большой мягкий прямоугольник, его тени размыты и полос не дают. Блик отключён
+    # по той же причине, что у окна: ступенчатое пятно на мебели читается прожектором
+    sun = ph.get("sun")
+    if sun:
+        scol, spower, sdir, sangle = sun
+        la = bpy.data.lights.new("rf_sun", "SUN")
+        la.color = scol
+        la.energy = spower
+        la.angle = math.radians(sangle)
+        la.specular_factor = 0.0
+        ob = bpy.data.objects.new("rf_sun", la)
+        ob.rotation_euler = mathutils.Vector(sdir).to_track_quat("-Z", "Y").to_euler()
+        bpy.context.scene.collection.objects.link(ob)
     # слабая подсветка сверху: без неё углы уходят в чёрное и теряют форму
     area("rf_fill", (1.7, 5.9, 2.55), (2.4, 2.4), (1.0, 0.95, 0.9), ph["fill"], (0.0, 0.0, -1.0))
+    post(ph.get("vignette", 0.0))
 
 
 def setup(phase, samples=64, pc=True):
