@@ -63,7 +63,7 @@ PHASES = {
 
 def extra(p):
     p.add_argument("--res", default="1280,720", help="размер кадра: ширина,высота")
-    p.add_argument("--samples", type=int, default=64)
+    p.add_argument("--samples", type=int, default=256)
     p.add_argument("--pc", default="both", help="on, off или both: состояние ПК (экран и его свет)")
 
 
@@ -261,6 +261,8 @@ def setup(phase, samples=64, pc=True):
     sc.render.resolution_percentage = 100
     sc.render.image_settings.file_format = "PNG"
     sc.eevee.taa_render_samples = samples
+    # Окно Blender считает сэмплы отдельно (по умолчанию 16): на тёмном пластике это крупное зерно
+    sc.eevee.taa_samples = 128
     B.flat_color(sc)
     # Тени: при малом числе лучей слабо освещённые поверхности зернят (чёрный пластик
     # выглядит дырявым), поэтому лучей и шагов больше, чем по умолчанию
