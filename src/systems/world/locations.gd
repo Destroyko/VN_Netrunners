@@ -13,9 +13,13 @@ const KINDS: PackedStringArray = ["monitor", "system_block", "bed", "container",
 ## Переходы: `door` — дверь в другую комнату, `turn` — повернуться к другому кадру той же
 ## комнаты (стрелка у края экрана). Правило у них одно, разница — только в том, как нарисованы.
 const PASSAGES: PackedStringArray = ["door", "turn"]
-const DEFAULT_HOME: String = "loc_room_bed"
+const DEFAULT_HOME: String = "loc_room"
+const TIME_MORNING: String = "morning"
 const TIME_DAY: String = "day"
+const TIME_EVENING: String = "evening"
 const TIME_NIGHT: String = "night"
+## Границы времени суток по умолчанию (минуты от начала дня), если в данных их нет.
+const DEFAULT_BOUNDS: Dictionary = {"morning": 360, "day": 660, "evening": 1080, "night": 1320}
 const DEFAULT_LOCKED_TEXT: String = "Заперто."
 
 
@@ -28,20 +32,32 @@ static func home() -> String:
 	return str(_balance().get("home", DEFAULT_HOME))
 
 
-## Время суток для фона: день с `day_from` до `night_from` часов (`balance.json`, `locations`).
+## Время суток для фона: ночь, утро, день, вечер, ночь — по тем же границам, что у `Clock`
+## (`balance.json`, `clock.time_of_day_bounds`). Картинок на утро пока нет: `background_alias`
+## в данных подставляет вместо него день.
 static func time_of_day(minute_of_day: int) -> String:
-	var section: Dictionary = _balance()
-	var hour: int = minute_of_day / 60
-	var day_from: int = int(section.get("day_from", 7))
-	var night_from: int = int(section.get("night_from", 21))
-	return TIME_DAY if hour >= day_from and hour < night_from else TIME_NIGHT
+	var clock: Dictionary = DataLoader.balance().get("clock", {}) as Dictionary
+	var bounds: Dictionary = clock.get("time_of_day_bounds", DEFAULT_BOUNDS) as Dictionary
+	var m: int = minute_of_day
+	if m < int(bounds.get("morning", DEFAULT_BOUNDS["morning"])):
+		return TIME_NIGHT
+	if m < int(bounds.get("day", DEFAULT_BOUNDS["day"])):
+		return TIME_MORNING
+	if m < int(bounds.get("evening", DEFAULT_BOUNDS["evening"])):
+		return TIME_DAY
+	if m < int(bounds.get("night", DEFAULT_BOUNDS["night"])):
+		return TIME_EVENING
+	return TIME_NIGHT
 
 
-## Путь к фону: `{time}` в пути из данных — день или ночь (`bg_<кадр>_<время>.png`,
-## art/style-guide.md). Пустая строка — фона нет.
-static func background_image(id: String, minute_of_day: int) -> String:
+## Путь к фону: `{time}` в пути из данных — утро, день, вечер или ночь, `{pc}` — `on` или `off`
+## по состоянию компьютера (`bg_room_main_day_pc_on.png`, art/style-guide.md). Пустая строка —
+## фона нет.
+static func background_image(id: String, minute_of_day: int, pc_on: bool = false) -> String:
 	var background: Dictionary = def_of(id).get("background", {}) as Dictionary
-	return str(background.get("image", "")).replace("{time}", time_of_day(minute_of_day))
+	var time: String = time_of_day(minute_of_day)
+	var aliases: Dictionary = _balance().get("background_alias", {}) as Dictionary
+	return str(background.get("image", "")).replace("{time}", str(aliases.get(time, time))).replace("{pc}", "on" if pc_on else "off")
 
 
 static func _balance() -> Dictionary:

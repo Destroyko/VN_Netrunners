@@ -1,0 +1,13 @@
+{
+  "_note": "Комната героя, общий кадр (камера frame_main). Кровать, окно, шкаф, подход к ПК и дверь в коридор. Второй кадр комнаты — loc_room_desk, ПК вблизи. Прямоугольники прикидочные — уточнить по фону.",
+  "id": "loc_room",
+  "title": "Комната",
+  "background": {"color": "#1d2130", "image": "res://assets/backgrounds/bg_room_main_{time}_pc_{pc}.png"},
+  "objects": [
+    {"id": "bed", "title": "Кровать", "kind": "bed", "rect": [0.0, 0.52, 0.43, 0.48]},
+    {"id": "window", "title": "Окно", "kind": "look", "rect": [0.41, 0.0, 0.33, 0.4], "text": "Двор, чужие окна, мокрый асфальт."},
+    {"id": "to_desk", "title": "К ПК", "kind": "door", "rect": [0.44, 0.42, 0.3, 0.55], "to": "loc_room_desk"},
+    {"id": "wardrobe", "title": "Шкаф", "kind": "container", "container": "room_storage", "rect": [0.74, 0.0, 0.26, 1.0]},
+    {"id": "door_corridor", "title": "В коридор", "kind": "door", "rect": [0.0, 0.1, 0.07, 0.38], "to": "loc_corridor"}
+  ]
+}

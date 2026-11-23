@@ -60,7 +60,9 @@ func _ready() -> void:
 	EventBus.passed_out.connect(_on_passed_out)
 	EventBus.inventory_changed.connect(func(_c: String) -> void: _refresh_panel())
 	EventBus.system_restored.connect(func(_paths: PackedStringArray, _os: bool) -> void: _refresh_panel())
-	EventBus.pc_power_changed.connect(func(_on: bool) -> void: _refresh_panel())
+	EventBus.pc_power_changed.connect(func(_on: bool) -> void:
+		_refresh_panel()
+		_refresh_background())
 	_show_location()
 	_refresh_clock()
 	_show_wake()
@@ -83,7 +85,7 @@ func _show_location() -> void:
 
 ## Фон по времени суток. Картинки нет — остаётся цвет из данных.
 func _refresh_background() -> void:
-	var image: String = Locations.background_image(Locations.current(), GameState.minute)
+	var image: String = Locations.background_image(Locations.current(), GameState.minute, PcPower.is_on())
 	if image == _shown_background:
 		return
 	_shown_background = image

@@ -112,34 +112,34 @@ func test_game_starts_at_the_bed() -> void:
 	GameState.reset()
 	var room: Node = _open(Screens.ROOM)
 	assert_eq(room.call("title_text"), "Комната", "игра начинается в комнате героя")
-	assert_not_null(room.call("object_button", "bed"), "проснулся — кадр с кроватью")
-	assert_eq((room.call("object_button", "turn_left") as Button).text, "‹", "поворот — стрелка у края")
-	assert_eq((room.call("object_button", "turn_right") as Button).text, "›")
+	assert_not_null(room.call("object_button", "bed"), "проснулся — общий кадр с кроватью")
+	assert_not_null(room.call("object_button", "to_desk"), "к ПК — из общего кадра")
+	assert_not_null(room.call("object_button", "door_corridor"), "дверь в коридор — из общего кадра")
 
 
 func test_room_has_its_objects() -> void:
 	var room: Node = _room()
-	for id: String in ["monitor", "system_block", "window", "turn_left", "turn_right"]:
+	for id: String in ["monitor", "system_block", "window", "turn_back"]:
 		assert_not_null(room.call("object_button", id), "на месте: " + id)
 	for node_name: String in ["Clock", "Output", "Menu"]:
 		assert_not_null(room.find_child(node_name, true, false), "на месте: " + node_name)
 
 
 func test_room_object_follows_its_rect() -> void:
-	var room: Node = _room("loc_room_bed")
+	var room: Node = _room("loc_room")
 	var bed: Button = room.call("object_button", "bed") as Button
-	assert_almost_eq(bed.anchor_left, 0.06, 0.001, "доли экрана из данных — якоря")
-	assert_almost_eq(bed.anchor_right, 0.62, 0.001)
+	assert_almost_eq(bed.anchor_left, 0.0, 0.001, "доли экрана из данных — якоря")
+	assert_almost_eq(bed.anchor_right, 0.43, 0.001)
 
 
 func test_background_follows_time_of_day() -> void:
 	GameState.reset()
 	Clock.set_time(1, 12 * 60)
 	var room: Node = _open(Screens.ROOM)
-	assert_string_contains(str(room.call("background_path")), "bg_room_bed_day")
+	assert_string_contains(str(room.call("background_path")), "bg_room_main_day")
 	Clock.set_time(1, 23 * 60)
 	EventBus.time_advanced.emit(GameState.minute, 1)
-	assert_string_contains(str(room.call("background_path")), "bg_room_bed_night")
+	assert_string_contains(str(room.call("background_path")), "bg_room_main_night")
 
 
 func test_room_lists_inventory_items_as_buttons() -> void:
@@ -179,7 +179,7 @@ func test_room_fades_in_once_after_pass_out() -> void:
 	PassOutCurtain.animate = true
 	assert_false(bool(GameState.get_var_or(Needs.VAR_WOKE_AFTER_PASS_OUT, false)), "проявляется один раз")
 	assert_false(Clock.is_paused(), "картинка вернулась — часы снова идут")
-	assert_eq(Locations.current(), "loc_room_bed", "упал на кухне — проснулся у себя на кровати")
+	assert_eq(Locations.current(), "loc_room", "упал на кухне — проснулся у себя в комнате")
 	assert_eq(room.call("title_text"), "Комната")
 	assert_false(str(room.call("output_text")).contains(Clock.format_now()), "время пробуждения герой вслух не называет")
 
@@ -254,10 +254,10 @@ func test_second_click_closes_actions() -> void:
 
 func test_doors_walk_through_the_flat() -> void:
 	var room: Node = _room()
-	(room.call("object_button", "turn_right") as Button).emit_signal("pressed")
+	(room.call("object_button", "turn_back") as Button).emit_signal("pressed")
 	await wait_process_frames(1)
-	assert_eq(Locations.current(), "loc_room_door", "повернулся к двери")
-	assert_null(room.call("object_button", "monitor"), "монитор остался в кадре со столом")
+	assert_eq(Locations.current(), "loc_room", "отошёл от стола")
+	assert_null(room.call("object_button", "monitor"), "монитор остался в кадре с ПК")
 	room.call("click", "door_corridor")
 	assert_eq(room.call("title_text"), "Коридор")
 	room.call("click", "door_neighbor")

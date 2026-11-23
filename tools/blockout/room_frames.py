@@ -33,12 +33,12 @@ import matte_wallpaper as W  # noqa: E402
 import room_exterior as X  # noqa: E402
 
 # Расчётные камеры: положение, цель, фокусное. Комната по x 0–3,3 и y 4,5–7,3, окно в стене y≈7,3
-# fstop — диафрагма для размытия по глубине: фокус стоит на цели кадра, а дома за окном
-# (40 м и дальше) уходят в мягкое пятно и не выдают простоту моделей. Чем меньше число,
-# тем сильнее размытие; None — резкий кадр
+# ext_blur — размытие того, что за окном, в пикселях кадра шириной 1920; ext_depth — глубина кадра
+# (м от камеры), дальше которой всё считается улицей. Размытие считается в компоновщике по
+# глубине, а не диафрагмой камеры: диафрагма мылила бы и стол, и всё остальное в комнате
 CAMERAS = {
-    "main": {"loc": (1.6, 4.6, 1.45), "target": (1.6, 7.0, 1.0), "lens": 20.0, "fstop": 2.8},
-    "pc":   {"loc": (1.3, 5.9, 1.40), "target": (2.2, 6.95, 0.90), "lens": 32.0, "fstop": 2.0},
+    "main": {"loc": (1.6, 4.6, 1.45), "target": (1.6, 7.0, 1.0), "lens": 20.0, "ext_blur": 6.0, "ext_depth": 3.4},
+    "pc":   {"loc": (1.3, 5.9, 1.40), "target": (2.2, 6.95, 0.90), "lens": 32.0, "ext_blur": 14.0, "ext_depth": 3.0},
 }
 
 # Окно: центр и размер светящегося прямоугольника снаружи стены
@@ -74,30 +74,15 @@ PHASES = {
 
 
 def extra(p):
-    p.add_argument("--res", default="1280,720", help="размер кадра: ширина,высота")
+    p.add_argument("--res", default="2560,1440", help="размер кадра: ширина,высота")
     p.add_argument("--samples", type=int, default=256)
     p.add_argument("--pc", default="both", help="on, off или both: состояние ПК (экран и его свет)")
-
-
-def focus(cam_ob, name):
-    """Размытие по глубине: фокус на цели кадра, диафрагма из CAMERAS.
-
-    Своей камере, у которой размытие не включено, оно выставляется на время рендера
-    (файл скрипт не сохраняет); включённое самим разработчиком не трогается."""
-    spec = CAMERAS[name]
-    cd = cam_ob.data
-    if not spec.get("fstop") or cd.dof.use_dof:
-        return
-    cd.dof.use_dof = True
-    cd.dof.focus_distance = (mathutils.Vector(spec["target"]) - cam_ob.matrix_world.translation).length
-    cd.dof.aperture_fstop = spec["fstop"]
 
 
 def make_camera(name):
     """Своя камера frame_<кадр> из сцены или расчётная."""
     own = bpy.data.objects.get("frame_" + name)
     if own is not None and own.type == "CAMERA":
-        focus(own, name)
         return own
     spec = CAMERAS[name]
     cd = bpy.data.cameras.new("rf_" + name)
@@ -108,8 +93,6 @@ def make_camera(name):
     ob.location = spec["loc"]
     tgt = mathutils.Vector(spec["target"])
     ob.rotation_euler = (tgt - ob.location).to_track_quat("-Z", "Y").to_euler()
-    bpy.context.view_layer.update()
-    focus(ob, name)
     return ob
 
 
@@ -266,39 +249,83 @@ def lamp_cones(power, color, half_angle=50.0, blend=0.7):
         bpy.context.scene.collection.objects.link(ob)
 
 
-def post(vignette):
-    """Постобработка кадра в компоновщике: мягкая виньетка (края темнее на долю vignette).
-
-    Группа rf_post создаётся на время рендера и убирается в clear(). Чужой компоновщик
-    сцены не трогается."""
+def clear_post():
     sc = bpy.context.scene
-    if vignette <= 0.0 or sc.compositing_node_group is not None:
+    ng = bpy.data.node_groups.get("rf_post")
+    if ng is not None:
+        if sc.compositing_node_group is ng:
+            sc.compositing_node_group = None
+        bpy.data.node_groups.remove(ng)
+
+
+def post(vignette, frame=None):
+    """Постобработка кадра в компоновщике: размытие улицы за окном и мягкая виньетка.
+
+    Улица — всё, что глубже `ext_depth` кадра: она размывается нормированной сверткой, то есть
+    только по пикселям улицы, и цвет жалюзи и рамы в неё не подмешивается. Комната остаётся
+    резкой. Затем края темнее на долю vignette. Группа rf_post создаётся на время рендера и
+    убирается в clear(); чужой компоновщик сцены не трогается."""
+    sc = bpy.context.scene
+    clear_post()
+    spec = CAMERAS.get(frame or "", {})
+    blur_px = spec.get("ext_blur", 0.0) * sc.render.resolution_x / 1920.0
+    if (vignette <= 0.0 and blur_px <= 0.0) or sc.compositing_node_group is not None:
         return
+    vl = bpy.context.view_layer
+    vl.use_pass_z = True
     ng = bpy.data.node_groups.new("rf_post", "CompositorNodeTree")
     ng.interface.new_socket("Image", in_out="OUTPUT", socket_type="NodeSocketColor")
     n = ng.nodes
     rl = n.new("CompositorNodeRLayers")
     rl.scene = sc
-    rl.layer = bpy.context.view_layer.name
+    rl.layer = vl.name
     out = n.new("NodeGroupOutput")
-    ell = n.new("CompositorNodeEllipseMask")
-    ell.inputs["Position"].default_value = (0.5, 0.5)
-    ell.inputs["Size"].default_value = (1.25, 1.25)
-    blur = n.new("CompositorNodeBlur")
-    blur.inputs["Size"].default_value = (260.0, 260.0)
-    ng.links.new(ell.outputs[0], blur.inputs["Image"])
-    ma = n.new("ShaderNodeMath")
-    ma.operation = "MULTIPLY_ADD"
-    ma.inputs[1].default_value = vignette
-    ma.inputs[2].default_value = 1.0 - vignette
-    ng.links.new(blur.outputs[0], ma.inputs[0])
-    mx = n.new("ShaderNodeMix")
-    mx.data_type = "RGBA"
-    mx.blend_type = "MULTIPLY"
-    mx.inputs[0].default_value = 1.0
-    ng.links.new(rl.outputs["Image"], mx.inputs[6])
-    ng.links.new(ma.outputs[0], mx.inputs[7])
-    ng.links.new(mx.outputs[2], out.inputs[0])
+    colour = rl.outputs["Image"]
+
+    def mix(blend, a, b, fac=1.0):
+        node = n.new("ShaderNodeMix")
+        node.data_type = "RGBA"
+        node.blend_type = blend
+        node.inputs[0].default_value = fac
+        ng.links.new(a, node.inputs[6])
+        ng.links.new(b, node.inputs[7])
+        return node.outputs[2]
+
+    def blur(src, px):
+        node = n.new("CompositorNodeBlur")
+        node.inputs["Size"].default_value = (px, px)
+        ng.links.new(src, node.inputs["Image"])
+        return node.outputs[0]
+
+    if blur_px > 0.0:
+        far = n.new("ShaderNodeMath")
+        far.operation = "GREATER_THAN"
+        far.inputs[1].default_value = spec["ext_depth"]
+        ng.links.new(rl.outputs["Depth"], far.inputs[0])
+        masked = mix("MULTIPLY", colour, far.outputs[0])
+        street = mix("DIVIDE", blur(masked, blur_px), blur(far.outputs[0], blur_px))
+        edge = blur(far.outputs[0], 1.5)
+        node = n.new("ShaderNodeMix")
+        node.data_type = "RGBA"
+        node.blend_type = "MIX"
+        ng.links.new(edge, node.inputs[0])
+        ng.links.new(colour, node.inputs[6])
+        ng.links.new(street, node.inputs[7])
+        colour = node.outputs[2]
+
+    if vignette > 0.0:
+        ell = n.new("CompositorNodeEllipseMask")
+        ell.inputs["Position"].default_value = (0.5, 0.5)
+        ell.inputs["Size"].default_value = (1.25, 1.25)
+        shade = blur(ell.outputs[0], 260.0 * sc.render.resolution_x / 1280.0)
+        ma = n.new("ShaderNodeMath")
+        ma.operation = "MULTIPLY_ADD"
+        ma.inputs[1].default_value = vignette
+        ma.inputs[2].default_value = 1.0 - vignette
+        ng.links.new(shade, ma.inputs[0])
+        colour = mix("MULTIPLY", colour, ma.outputs[0])
+
+    ng.links.new(colour, out.inputs[0])
     sc.compositing_node_group = ng
 
 
@@ -370,11 +397,7 @@ def clear():
                     bpy.data.meshes.remove(data)
                 else:
                     (bpy.data.lights if ob_is_light(data) else bpy.data.cameras).remove(data)
-    ng = bpy.data.node_groups.get("rf_post")
-    if ng is not None:
-        if bpy.context.scene.compositing_node_group is ng:
-            bpy.context.scene.compositing_node_group = None
-        bpy.data.node_groups.remove(ng)
+    clear_post()
     lamp = bpy.data.objects.get("FloorLamp_Light")
     if lamp is not None:
         lamp.hide_render = False
@@ -452,7 +475,6 @@ def build_light(phase, pc=True):
         bpy.context.scene.collection.objects.link(ob)
     # слабая подсветка сверху: без неё углы уходят в чёрное и теряют форму
     area("rf_fill", (1.7, 5.9, 2.55), (2.4, 2.4), (1.0, 0.95, 0.9), ph["fill"], (0.0, 0.0, -1.0))
-    post(ph.get("vignette", 0.0))
 
 
 def setup(phase, samples=64, pc=True):
@@ -496,6 +518,7 @@ def gui(phase="night", view="main", pc="on"):
     setup(phase, samples=32, pc=(pc != "off"))
     if view != "none":
         bpy.context.scene.camera = make_camera(view)
+        post(PHASES["day" if phase == "morning" else phase].get("vignette", 0.0), view)
     for area in bpy.context.screen.areas:
         if area.type == "VIEW_3D":
             for sp in area.spaces:
@@ -522,6 +545,7 @@ def main():
         for name in wanted:
             cam = make_camera(name)
             sc.camera = cam
+            post(PHASES["day" if a.phase == "morning" else a.phase].get("vignette", 0.0), name)
             path = os.path.join(out, "room_%s_%s_pc_%s.png" % (name, a.phase, mode))
             sc.render.filepath = path
             bpy.ops.render.render(write_still=True)

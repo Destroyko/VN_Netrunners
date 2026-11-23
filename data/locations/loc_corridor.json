@@ -4,7 +4,7 @@
   "title": "Коридор",
   "background": {"color": "#24262b", "image": "res://assets/backgrounds/bg_corridor_{time}.png"},
   "objects": [
-    {"id": "door_room", "title": "Твоя комната", "kind": "door", "rect": [0.08, 0.15, 0.1, 0.7], "to": "loc_room_desk"},
+    {"id": "door_room", "title": "Твоя комната", "kind": "door", "rect": [0.08, 0.15, 0.1, 0.7], "to": "loc_room"},
     {"id": "door_bath", "title": "Ванная", "kind": "look", "rect": [0.22, 0.2, 0.07, 0.6], "text": "Ванная. Делать там пока нечего."},
     {"id": "door_neighbor", "title": "Соседняя дверь", "kind": "look", "rect": [0.33, 0.24, 0.06, 0.5], "text": "Заперто."},
     {"id": "door_kitchen", "title": "Кухня", "kind": "door", "rect": [0.62, 0.24, 0.06, 0.5], "to": "loc_kitchen"},
