@@ -46,7 +46,7 @@ Blender 5.3, PowerShell. Все кадры квартиры:
 | `--shade lit` | со светом и тенями: проверить, читается ли помещение |
 | `--phase day` | фаза суток для `lit`: `morning`, `day`, `evening`, `night` |
 | `--sprites` | только `city.py`: каждое здание отдельным кадром |
-| `--iso dimetric` | только `city.py`: `dimetric` — пиксельная 2:1 (по умолчанию), `true` — истинная изометрия |
+| `--iso dimetric` | только `city.py`: `dimetric` — 2:1 (по умолчанию), `true` — истинная изометрия |
 | `--out`, `--save` | свои пути для рендеров и `.blend` |
 
 Результат — в `assets/_source/blockout/renders/` (квартира) и `renders_city/` (район).

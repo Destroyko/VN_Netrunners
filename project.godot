@@ -1,5 +1,5 @@
 ; Файл настроек проекта. Правится в редакторе Godot (Проект → Настройки проекта),
-; но числа и пути важны для пиксельной картинки — менять осознанно.
+; но числа и пути важны для вывода рендеров — менять осознанно.
 
 config_version=5
 
@@ -44,7 +44,7 @@ gdscript/warnings/untyped_declaration=1
 [display]
 
 ; Интерфейс живёт в пикселях экрана: больше разрешение — больше места, а не крупнее кнопки
-; (docs/tech/resolution.md). Пиксельный арт масштабируется отдельно, внутри своих сцен.
+; (docs/tech/resolution.md). Фоны — рендеры из Blender, пиксель-арта в игре нет.
 ; Базовый размер = минимальное комфортное разрешение.
 window/size/viewport_width=1280
 window/size/viewport_height=720
@@ -57,8 +57,9 @@ window/stretch/scale_mode="fractional"
 
 [rendering]
 
-; Nearest — иначе пиксели размываются.
-textures/canvas_textures/default_texture_filter=0
+; Linear: графика — рендеры и картинки, а не пиксель-арт (docs/art/style-guide.md).
+; Nearest дал бы ступеньки на плавных переходах при масштабировании под экран.
+textures/canvas_textures/default_texture_filter=1
 2d/snap/snap_2d_transforms_to_pixel=true
 2d/snap/snap_2d_vertices_to_pixel=true
 renderer/rendering_method="gl_compatibility"
