@@ -249,6 +249,32 @@ def light_group():
     return g
 
 
+def unify_light_groups():
+    """Слить копии узла света VN_Light.001, .002 ... в основной. Возвращает число слитых.
+
+    Материал из браузера ассетов приносит с собой свою копию узла: имя `VN_Light` уже занято
+    сценой. У копии свои числа floor и tint (дневные), и предмет с таким материалом не темнеет
+    ночью. Копии той же версии, что основной узел, перенаправляются на него.
+    """
+    import bpy
+    main = bpy.data.node_groups.get("VN_Light")
+    if main is None:
+        return 0
+    n = 0
+    for mat in bpy.data.materials:
+        if not mat.use_nodes or mat.node_tree is None:
+            continue
+        for node in mat.node_tree.nodes:
+            tree = getattr(node, "node_tree", None)
+            if node.type == "GROUP" and tree is not None and tree is not main                     and tree.name.startswith("VN_Light.") and tree.get("ver") == main.get("ver"):
+                node.node_tree = main
+                n += 1
+    for g in list(bpy.data.node_groups):
+        if g.name.startswith("VN_Light.") and g.users == 0:
+            bpy.data.node_groups.remove(g)
+    return n
+
+
 def set_light_response(floor=None, tint=None, shadow=None, night=None):
     """Выставить числа общего узла VN_Light одним вызовом на всю сцену.
 

@@ -125,6 +125,7 @@ def main():
         print("[refresh] проба: ничего не записано")
         return
     if bpy.data.filepath:
+        print("[refresh] слито копий узла света: %d" % C.unify_light_groups())
         bpy.ops.wm.save_mainfile()
         print("[refresh] сцена сохранена: %s" % bpy.data.filepath)
     else:

@@ -181,6 +181,7 @@ def build_light(phase):
         lamp.hide_render = ph["lamp"] <= 0.0
         shade_glow(ph["lamp"] > 0.0)
 
+    C.unify_light_groups()                 # материалы из браузера ассетов несут свои копии узла
     C.set_light_response(ph["floor"], ph["tint"], ph["shadow"], ph["night"])
     W.apply()
 
