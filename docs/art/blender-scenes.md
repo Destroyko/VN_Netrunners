@@ -397,9 +397,8 @@ Nodes, его цвет в маске может не сработать.
 
 ```powershell
 & "C:\Program Files\Blender Foundation\Blender 5.3\blender.exe" -b `
-    assets\_sourcelockoutpartment_work_palette.blend `
-    --python toolslockout
-oom_frames.py -- --phase evening --render main,pc
+    assets\_source\blockout\apartment_work_palette.blend `
+    --python tools\blockout\room_frames.py -- --phase evening --render main,pc
 ```
 
 Кадры: `main` (кровать, стол, шкаф, полка, календарь) и `pc` (системный блок, куда
