@@ -327,6 +327,73 @@ def set_light_response(floor=None, tint=None, shadow=None, night=None, grad=None
     return True
 
 
+def _grain_coords(nt, geo, k):
+    """Координаты шума, растянутые в штрихи на ЛЮБОЙ грани, а не вдоль одной оси объекта.
+
+    Раньше шум сжимался по локальной оси Y объекта, и штрихи были только на гранях, где эта ось
+    лежит в плоскости: на грани, перпендикулярной ей, получалась «мазня» (спинка кровати, бок
+    шкафа). Теперь направление считается по самой грани: на вертикальных гранях волокно идёт
+    вверх (сжатие по горизонтали в плоскости грани), на горизонтальных вдоль X (сжатие по Y).
+    Координаты мировые, поэтому двигать предмет можно, но узор при этом сдвигается.
+    k — во сколько раз сжимается поперечная ось (чем больше, тем тоньше штрихи).
+    """
+    n = geo.outputs["True Normal"]
+    up = nt.nodes.new("ShaderNodeCombineXYZ")
+    up.inputs["Z"].default_value = 1.0
+    up.location = (-700, -420)
+    cr = nt.nodes.new("ShaderNodeVectorMath")
+    cr.operation = "CROSS_PRODUCT"
+    cr.location = (-520, -420)
+    nt.links.new(n, cr.inputs[0])
+    nt.links.new(up.outputs[0], cr.inputs[1])
+    nz = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nz.location = (-520, -600)
+    nt.links.new(n, nz.inputs[0])
+    az = nt.nodes.new("ShaderNodeMath")
+    az.operation = "ABSOLUTE"
+    az.location = (-340, -600)
+    nt.links.new(nz.outputs["Z"], az.inputs[0])
+    horiz = nt.nodes.new("ShaderNodeMath")
+    horiz.operation = "GREATER_THAN"
+    horiz.inputs[1].default_value = 0.7
+    horiz.location = (-160, -600)
+    nt.links.new(az.outputs[0], horiz.inputs[0])
+    along_y = nt.nodes.new("ShaderNodeCombineXYZ")
+    along_y.inputs["Y"].default_value = 1.0
+    along_y.location = (-340, -420)
+    mixh = nt.nodes.new("ShaderNodeMix")
+    mixh.data_type = "VECTOR"
+    mixh.location = (-160, -420)
+    nt.links.new(horiz.outputs[0], mixh.inputs[0])
+    nt.links.new(cr.outputs[0], mixh.inputs[4])
+    nt.links.new(along_y.outputs[0], mixh.inputs[5])
+    nrm = nt.nodes.new("ShaderNodeVectorMath")
+    nrm.operation = "NORMALIZE"
+    nrm.location = (20, -420)
+    nt.links.new(mixh.outputs[1], nrm.inputs[0])
+    dot = nt.nodes.new("ShaderNodeVectorMath")
+    dot.operation = "DOT_PRODUCT"
+    dot.location = (200, -420)
+    nt.links.new(geo.outputs["Position"], dot.inputs[0])
+    nt.links.new(nrm.outputs[0], dot.inputs[1])
+    amt = nt.nodes.new("ShaderNodeMath")
+    amt.operation = "MULTIPLY"
+    amt.inputs[1].default_value = k - 1.0
+    amt.location = (380, -420)
+    nt.links.new(dot.outputs["Value"], amt.inputs[0])
+    shift = nt.nodes.new("ShaderNodeVectorMath")
+    shift.operation = "SCALE"
+    shift.location = (560, -420)
+    nt.links.new(nrm.outputs[0], shift.inputs[0])
+    nt.links.new(amt.outputs[0], shift.inputs["Scale"])
+    out = nt.nodes.new("ShaderNodeVectorMath")
+    out.operation = "ADD"
+    out.location = (740, -420)
+    nt.links.new(geo.outputs["Position"], out.inputs[0])
+    nt.links.new(shift.outputs[0], out.inputs[1])
+    return out.outputs[0]
+
+
 def build(nt, rgb, tones=None, texture=None, scale=None, hatch=None, kind=None, pattern=None):
     """Собрать шейдер в пустом дереве узлов материала. Возвращает цвет света.
 
@@ -375,16 +442,12 @@ def build(nt, rgb, tones=None, texture=None, scale=None, hatch=None, kind=None, 
 
     src = ramp.outputs[0]
     if texture > 0.0:
-        coord = nt.nodes.new("ShaderNodeTexCoord")
-        coord.location = (-250, -260)
-        vec = coord.outputs["Object"]
+        geo = nt.nodes.new("ShaderNodeNewGeometry")
+        geo.location = (-700, -260)
+        pos = geo.outputs["Position"]
+        vec = pos
         if hatch > 0.0:
-            # Растягиваем координаты по одной оси: тот же шум становится мазками
-            mp = nt.nodes.new("ShaderNodeMapping")
-            mp.location = (-60, -260)
-            mp.inputs["Scale"].default_value = (1.0, 1.0 + hatch * 10.0, 1.0)
-            nt.links.new(vec, mp.inputs["Vector"])
-            vec = mp.outputs["Vector"]
+            vec = _grain_coords(nt, geo, 1.0 + hatch * 10.0)
         noise = nt.nodes.new("ShaderNodeTexNoise")
         noise.location = (120, -260)
         noise.inputs["Scale"].default_value = scale
