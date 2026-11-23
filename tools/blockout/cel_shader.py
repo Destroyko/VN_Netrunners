@@ -83,6 +83,14 @@ def _build_glow(nt, rgb, strength):
     return rgb
 
 
+# Переход света в ступенях: "CONSTANT" — резкие полосы, "LINEAR" — плавный градиент.
+# Разработчик (23.11.2026): полосы на стенах и предметах выглядят слишком мультяшно,
+# переход должен быть плавным. Блик остаётся ступенчатым.
+RAMP_MODE = "LINEAR"
+
+LIGHT_VERSION = 4        # меняется при правке узла: сцены с прежней версией пересоберут его сами
+
+
 def light_group():
     """Общий узел «отклик на свет» VN_Light: один на все материалы.
 
@@ -97,10 +105,11 @@ def light_group():
     import bpy
     g = bpy.data.node_groups.get("VN_Light")
     if g is not None:
-        if "shadow" in g.nodes:
+        if g.get("ver") == LIGHT_VERSION:
             return g
-        bpy.data.node_groups.remove(g)      # прежняя версия без теневого тона
+        g.name = "VN_Light_old"             # прежняя версия: материалы перейдут на новую при обновлении
     g = bpy.data.node_groups.new("VN_Light", "ShaderNodeTree")
+    g["ver"] = LIGHT_VERSION
     g.interface.new_socket("Color", in_out="OUTPUT", socket_type="NodeSocketColor")
     g.interface.new_socket("Tone", in_out="INPUT", socket_type="NodeSocketColor")
     g.interface.new_socket("Light", in_out="INPUT", socket_type="NodeSocketColor")
@@ -117,11 +126,11 @@ def light_group():
     # ступени отклика: чем светлее, тем ближе множитель к единице
     steps = nodes.new("ShaderNodeValToRGB")
     steps.location = (-500, -200)
-    steps.color_ramp.interpolation = "CONSTANT"
+    steps.color_ramp.interpolation = RAMP_MODE
     els = steps.color_ramp.elements
     els[0].position = 0.0
     els[0].color = (0.0, 0.0, 0.0, 1.0)
-    for pos, v in ((0.05, 0.4), (0.25, 0.75), (0.6, 1.0)):
+    for pos, v in ((0.453, 0.75), (0.787, 1.0)):
         els.new(pos).color = (v, v, v, 1.0)
     links.new(lum.outputs[0], steps.inputs[0])
 
@@ -247,8 +256,12 @@ def set_light_response(floor=None, tint=None, shadow=None, night=None):
     return True
 
 
-def build(nt, rgb, tones=None, texture=None, scale=None, hatch=None, kind=None):
+def build(nt, rgb, tones=None, texture=None, scale=None, hatch=None, kind=None, pattern=None):
     """Собрать шейдер в пустом дереве узлов материала. Возвращает цвет света.
+
+    pattern — узор поверх цвета (слот узора): {"image": картинка, "strength": доля яркости,
+    "lo", "hi": границы яркости картинки, "scale": (x, y, z) для UV}. Цвет остаётся палитровым,
+    узор светлит и темнит тот же тон, а свет и тень считает обычный шейдер.
 
     kind — профиль материала из MATERIALS. Он задаёт значения по умолчанию,
     а переданные явно их перекрывают: так можно взять «металл» и всё же
@@ -275,7 +288,7 @@ def build(nt, rgb, tones=None, texture=None, scale=None, hatch=None, kind=None):
     s2rgb.location = (-60, 0)
     ramp = nt.nodes.new("ShaderNodeValToRGB")
     ramp.location = (120, 0)
-    ramp.color_ramp.interpolation = "CONSTANT"
+    ramp.color_ramp.interpolation = RAMP_MODE
 
     tn = shades(rgb, tones, cool)
     els = ramp.color_ramp.elements
@@ -320,6 +333,38 @@ def build(nt, rgb, tones=None, texture=None, scale=None, hatch=None, kind=None):
         nt.links.new(ramp.outputs[0], mul.inputs[0])
         nt.links.new(rng.outputs[0], mul.inputs[1])
         src = mul.outputs[0]
+
+    if pattern:
+        # слот узора: яркость картинки лишь светлит и темнит тон, цвет остаётся палитровым
+        uv = nt.nodes.new("ShaderNodeTexCoord")
+        uv.location = (-250, -520)
+        mp2 = nt.nodes.new("ShaderNodeMapping")
+        mp2.location = (-60, -520)
+        mp2.inputs["Scale"].default_value = tuple(pattern.get("scale", (1.0, 1.0, 1.0)))
+        nt.links.new(uv.outputs["UV"], mp2.inputs["Vector"])
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.location = (120, -520)
+        tex.image = pattern["image"]
+        tex.extension = "REPEAT"
+        nt.links.new(mp2.outputs[0], tex.inputs["Vector"])
+        bw = nt.nodes.new("ShaderNodeRGBToBW")
+        bw.location = (320, -520)
+        nt.links.new(tex.outputs["Color"], bw.inputs[0])
+        pr = nt.nodes.new("ShaderNodeMapRange")
+        pr.location = (480, -520)
+        pr.clamp = True
+        k = pattern.get("strength", 0.18)
+        pr.inputs["From Min"].default_value = pattern["lo"]
+        pr.inputs["From Max"].default_value = pattern["hi"]
+        pr.inputs["To Min"].default_value = 1.0 - k
+        pr.inputs["To Max"].default_value = 1.0 + k
+        nt.links.new(bw.outputs[0], pr.inputs["Value"])
+        pm = nt.nodes.new("ShaderNodeVectorMath")
+        pm.operation = "SCALE"
+        pm.location = (660, -380)
+        nt.links.new(src, pm.inputs[0])
+        nt.links.new(pr.outputs[0], pm.inputs["Scale"])
+        src = pm.outputs[0]
 
     # отклик на свет: ночью без света тон гаснет, цвет света окрашивает поверхность
     lg = nt.nodes.new("ShaderNodeGroup")

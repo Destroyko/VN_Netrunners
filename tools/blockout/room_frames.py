@@ -51,12 +51,12 @@ PHASES = {
                 "monitor": 0.0, "fill": 70.0, "floor": 1.0, "tint": 0.0,
                 "shadow": 0.0, "night": (0.5, 0.6, 1.0)},
     "evening": {"sky": ((0.80, 0.45, 0.35), 0.15), "window": ((1.00, 0.55, 0.30), 380.0),
-                "lamp": 22.0, "lamp_color": (1.0, 0.42, 0.10), "lamp_reach": 1.2,
+                "lamp": 12.0, "lamp_color": (1.0, 0.42, 0.10), "lamp_reach": 1.2,
                 "monitor": 3.0, "fill": 8.0, "floor": 0.55, "tint": 0.6,
                 "shadow": 0.35, "night": (0.55, 0.5, 0.95)},
     "night":   {"sky": ((0.05, 0.08, 0.20), 0.05), "window": ((0.25, 0.40, 1.00), 22.0),
-                "lamp": 32.0, "lamp_color": (1.0, 0.38, 0.08), "lamp_reach": 1.2,
-                "monitor": 1.5, "fill": 0.0, "floor": 0.15, "tint": 0.85,
+                "lamp": 9.0, "lamp_color": (1.0, 0.38, 0.08), "lamp_reach": 1.2,
+                "monitor": 1.5, "fill": 0.0, "floor": 0.26, "tint": 0.85,
                 "shadow": 0.6, "night": (0.22, 0.40, 1.0)},
 }
 
@@ -173,8 +173,7 @@ def build_light(phase):
         lamp.data.specular_factor = 0.0
         # Свет лампы живёт в радиусе метров: в cel-ступенях любой слабый источник
         # даёт резкое пятно через всю комнату, поэтому его обрезаем по расстоянию
-        lamp.data.use_custom_distance = True
-        lamp.data.cutoff_distance = ph["lamp_reach"]
+        lamp.data.use_custom_distance = False       # жёсткий радиус рисует круг: затухание естественное
         lamp.hide_render = ph["lamp"] <= 0.0
         shade_glow(ph["lamp"] > 0.0)
 
