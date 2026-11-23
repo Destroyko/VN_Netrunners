@@ -49,15 +49,15 @@ PHASES = {
     "day":     {"sky": ((0.62, 0.72, 0.90), 1.0), "window": ((1.00, 0.97, 0.92), 260.0),
                 "lamp": 0.0, "lamp_color": (1.0, 0.5, 0.12), "lamp_reach": 1.2,
                 "monitor": 0.0, "fill": 70.0, "floor": 1.0, "tint": 0.0,
-                "shadow": 0.0, "night": (0.5, 0.6, 1.0)},
+                "shadow": 0.0, "night": (0.5, 0.6, 1.0), "grad": 0.35},
     "evening": {"sky": ((0.80, 0.45, 0.35), 0.15), "window": ((1.00, 0.55, 0.30), 380.0),
                 "lamp": 12.0, "lamp_color": (1.0, 0.42, 0.10), "lamp_reach": 1.2,
                 "monitor": 3.0, "fill": 8.0, "floor": 0.55, "tint": 0.6,
-                "shadow": 0.35, "night": (0.55, 0.5, 0.95)},
+                "shadow": 0.35, "night": (0.55, 0.5, 0.95), "grad": 0.45},
     "night":   {"sky": ((0.05, 0.08, 0.20), 0.02), "window": ((0.25, 0.40, 1.00), 5.0),
                 "lamp": 9.0, "lamp_color": (1.0, 0.38, 0.08), "lamp_reach": 1.2,
                 "monitor": 1.5, "fill": 0.0, "floor": 0.12, "tint": 0.85,
-                "shadow": 0.6, "night": (0.22, 0.40, 1.0)},
+                "shadow": 0.6, "night": (0.22, 0.40, 1.0), "grad": 0.45},
 }
 
 
@@ -240,7 +240,7 @@ def build_light(phase, pc=True):
         shade_glow(ph["lamp"] > 0.0)
 
     C.unify_light_groups()                 # материалы из браузера ассетов несут свои копии узла
-    C.set_light_response(ph["floor"], ph["tint"], ph["shadow"], ph["night"])
+    C.set_light_response(ph["floor"], ph["tint"], ph["shadow"], ph["night"], ph["grad"])
     W.apply()
 
     wcol, wpow = ph["window"]

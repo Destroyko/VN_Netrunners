@@ -88,7 +88,7 @@ def _build_glow(nt, rgb, strength):
 # переход должен быть плавным. Блик остаётся ступенчатым.
 RAMP_MODE = "LINEAR"
 
-LIGHT_VERSION = 6        # меняется при правке узла: сцены с прежней версией пересоберут его сами
+LIGHT_VERSION = 7        # меняется при правке узла: сцены с прежней версией пересоберут его сами
 
 
 def light_group():
@@ -245,7 +245,37 @@ def light_group():
     dim.location = (580, 0)
     links.new(mul.outputs[0], dim.inputs[0])
     links.new(resp.outputs[0], dim.inputs["Scale"])
-    links.new(dim.outputs[0], gout.inputs["Color"])
+    # посадка на пол: тёмный градиент у пола (grad), 0 — выключен. Затемнение в контактах
+    # через узел Ambient Occlusion не годится: в EEVEE он внутри Shader to RGB даёт единицу
+    geo = nodes.new("ShaderNodeNewGeometry")
+    geo.location = (360, -820)
+    sep = nodes.new("ShaderNodeSeparateXYZ")
+    sep.location = (560, -820)
+    links.new(geo.outputs["Position"], sep.inputs[0])
+    grad = nodes.new("ShaderNodeValue")
+    grad.name = grad.label = "grad"
+    grad.location = (360, -1000)
+    grad.outputs[0].default_value = 0.0
+    g1 = nodes.new("ShaderNodeMath")
+    g1.operation = "SUBTRACT"
+    g1.inputs[0].default_value = 1.0
+    g1.location = (560, -1000)
+    links.new(grad.outputs[0], g1.inputs[1])
+    gm = nodes.new("ShaderNodeMapRange")
+    gm.location = (760, -840)
+    gm.clamp = True
+    gm.inputs["From Min"].default_value = 0.0
+    gm.inputs["From Max"].default_value = 0.45       # высота градиента от пола, метры
+    gm.inputs["To Max"].default_value = 1.0
+    links.new(sep.outputs["Z"], gm.inputs["Value"])
+    links.new(g1.outputs[0], gm.inputs["To Min"])
+
+    land = nodes.new("ShaderNodeVectorMath")
+    land.operation = "SCALE"
+    land.location = (1300, 0)
+    links.new(dim.outputs[0], land.inputs[0])
+    links.new(gm.outputs[0], land.inputs["Scale"])
+    links.new(land.outputs[0], gout.inputs["Color"])
     return g
 
 
@@ -275,7 +305,7 @@ def unify_light_groups():
     return n
 
 
-def set_light_response(floor=None, tint=None, shadow=None, night=None):
+def set_light_response(floor=None, tint=None, shadow=None, night=None, grad=None):
     """Выставить числа общего узла VN_Light одним вызовом на всю сцену.
 
     shadow — насколько неосвещённое тянется к ночному оттенку (0 — не тянется),
@@ -292,6 +322,8 @@ def set_light_response(floor=None, tint=None, shadow=None, night=None):
         g.nodes["shadow"].outputs[0].default_value = shadow
     if night is not None:
         g.nodes["night"].outputs[0].default_value = (*night, 1.0)
+    if grad is not None:
+        g.nodes["grad"].outputs[0].default_value = grad
     return True
 
 
