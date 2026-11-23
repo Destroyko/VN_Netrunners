@@ -187,7 +187,7 @@ def build_light(phase):
     wcol, wpow = ph["window"]
     area("rf_window", WINDOW["centre"], WINDOW["size"], wcol, wpow, (0.0, -1.0, 0.0))
     if ph["monitor"] > 0.0:
-        mon = area("rf_monitor", MONITOR["centre"], MONITOR["size"], (0.55, 0.72, 1.0),
+        mon = area("rf_monitor", MONITOR["centre"], MONITOR["size"], (0.80, 0.84, 0.92),
                    ph["monitor"], (0.0, -1.0, -0.15), spread=70.0, specular=0.0)
         mon.data.use_custom_distance = True
         mon.data.cutoff_distance = 0.9
