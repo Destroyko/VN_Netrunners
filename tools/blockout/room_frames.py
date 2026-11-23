@@ -28,6 +28,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import bl_common as B  # noqa: E402
 import cel_shader as C  # noqa: E402
 import palette as P  # noqa: E402
+import matte_wallpaper as W  # noqa: E402
 
 # Расчётные камеры: положение, цель, фокусное. Комната по x 0–3,3 и y 4,5–7,3, окно в стене y≈7,3
 CAMERAS = {
@@ -46,13 +47,13 @@ MONITOR = {"centre": (1.87, 6.75, 0.98), "size": (0.5, 0.28)}
 # без света и насколько цвет света окрашивает поверхность
 PHASES = {
     "day":     {"sky": ((0.62, 0.72, 0.90), 1.0), "window": ((1.00, 0.97, 0.92), 260.0),
-                "lamp": 0.0, "lamp_color": (1.0, 0.6, 0.25), "lamp_reach": 2.4,
+                "lamp": 0.0, "lamp_color": (1.0, 0.5, 0.12), "lamp_reach": 1.2,
                 "monitor": 0.0, "fill": 70.0, "floor": 1.0, "tint": 0.0},
     "evening": {"sky": ((0.80, 0.45, 0.35), 0.15), "window": ((1.00, 0.55, 0.30), 380.0),
-                "lamp": 35.0, "lamp_color": (1.0, 0.6, 0.25), "lamp_reach": 2.4,
+                "lamp": 22.0, "lamp_color": (1.0, 0.42, 0.10), "lamp_reach": 1.2,
                 "monitor": 3.0, "fill": 8.0, "floor": 0.55, "tint": 0.6},
     "night":   {"sky": ((0.05, 0.08, 0.20), 0.05), "window": ((0.30, 0.45, 1.00), 70.0),
-                "lamp": 55.0, "lamp_color": (1.0, 0.5, 0.15), "lamp_reach": 2.4,
+                "lamp": 32.0, "lamp_color": (1.0, 0.38, 0.08), "lamp_reach": 1.2,
                 "monitor": 3.0, "fill": 0.0, "floor": 0.22, "tint": 0.85},
 }
 
@@ -105,16 +106,17 @@ def shade_glow(on):
     if "_shade_off" not in ob:
         ob["_shade_off"] = ob.material_slots[0].material.name if ob.material_slots[0].material else ""
     if on:
-        name = "pal_glow_orange_light"
+        name = "rf_shade_glow"
         mat = bpy.data.materials.get(name)
         if mat is None:
             mat = bpy.data.materials.new(name)
             mat.use_nodes = True
-            C.build(mat.node_tree, P.srgb(P.COLORS["orange_light"]), kind="glow")
-            # сила 2,5 бледнит оранжевый до жёлтого: абажуру хватает мягкого свечения
+            # цвет задан прямо, а не из палитры: светлый оранжевый палитры при свечении
+            # выгорает в жёлтый, а абажуру нужен тёплый оранжевый
+            C.build(mat.node_tree, (1.0, 0.36, 0.08), kind="glow")
             for n in mat.node_tree.nodes:
                 if n.type == "EMISSION":
-                    n.inputs["Strength"].default_value = 1.1
+                    n.inputs["Strength"].default_value = 0.9
         ob.material_slots[0].material = mat
         # абажур не должен закрывать собственный свет: тень от него гасила бы всю комнату
         ob.visible_shadow = False
@@ -154,6 +156,7 @@ def build_light(phase):
         shade_glow(ph["lamp"] > 0.0)
 
     C.set_light_response(ph["floor"], ph["tint"])
+    W.apply()
 
     wcol, wpow = ph["window"]
     area("rf_window", WINDOW["centre"], WINDOW["size"], wcol, wpow, (0.0, -1.0, 0.0))
