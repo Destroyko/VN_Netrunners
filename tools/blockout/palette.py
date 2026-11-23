@@ -1,104 +1,220 @@
-"""Палитра игры: один список цветов на все сцены.
+"""Палитра игры: цвета и материалы — две независимые оси.
 
-Зачем одним файлом: единство кадров держится не материалами внутри каждой сцены,
-а общим набором цветов. Ассеты будут из разных источников, и если каждый принесёт
-своё дерево и свой белый, квартира развалится на куски. Поэтому цвет берётся отсюда,
-а не из комплекта ассета.
+Раньше палитра была свалена по назначению: «стены комнаты героя», «акценты», «ткань».
+Это путало: нейтральный серый нужен и пластику, и металлу, и ткани, а ДСП бывает любого
+цвета. Теперь так:
+
+    ЦВЕТ (59 штук, по семействам) × МАТЕРИАЛ (8 типов) = то, что можно взять
+
+Цвет — это только оттенок. Материал (cel_shader.MATERIALS) — то, как поверхность ведёт
+себя со светом: ступени, блик, фактура. Один красный на бумаге и на металле — один цвет,
+два вида. Комнаты в палитру не входят: ROOMS ниже — подсказка, не набор материалов.
+
+Имя материала: pal_<материал>_<цвет>, например pal_plastic_red_vivid. Материал идёт
+первым, чтобы поиск `pal_plastic` в Blender сразу показал весь пластик.
 
 Цвета в sRGB (#rrggbb) — так их видно глазом и так их правит человек. Blender работает
 в линейном пространстве, перевод делает srgb().
 
-Три правила, по которым подобраны значения (docs/art/blender-scenes.md):
-- насыщенность низкая, светлота высокая: пастель, а не чистые цвета;
-- тень не чёрная, а холодный оттенок собственного цвета — её считает shades();
-- на материал приходится 2-3 тона, промежуточных нет.
+Правила подбора (docs/art/blender-scenes.md):
+- насыщенность низкая, светлота высокая — пастель; чистые яркие (`vivid`) только для
+  мелочи размером с ладонь: карандаши, кнопки, провода;
+- тень считает шейдер, а не палитра: холоднее цвета, а не просто темнее.
 """
 
-# --- Поверхности: нейтрали ------------------------------------------------
-# Общие для всей игры. Потолки, сантехника, бумага, техника
-NEUTRAL = {
-    "white_warm":  "#F2EDE4",   # потолок, бумага, постельное
-    "white_cool":  "#E6EAEF",   # сантехника, пластик
-    "grey_light":  "#C7CBD2",   # стены подсобных мест, корпуса
-    "grey_mid":    "#8D929B",   # бетон, асфальт в интерьере
-    "grey_dark":   "#4B4F58",   # тёмный пол, тени на нейтралях
-    "black_tech":  "#1C1E23",   # системный блок, выключенный экран
+import re
+
+# --- Цвета по семействам --------------------------------------------------
+# Тона внутри семейства: light — светлый, mid — основной, dark — тёмный,
+# deep — самый тёмный, vivid — чистый яркий (только для мелочи).
+# Нейтрали идут без префикса семейства: black, graphite, grey, silver, snow, cream.
+FAMILIES = {
+    "neutral": {   # от почти чёрного к светлому — общие для всех материалов
+        "black":    "#1C1E23",   # системный блок, выключенный экран
+        "graphite": "#4B4F58",
+        "grey":     "#8D929B",
+        "silver":   "#C7CBD2",
+        "snow":     "#E6EAEF",   # сантехника, холодный белый
+        "cream":    "#F2EDE4",   # потолок, бумага, тёплый белый
+    },
+    "steel":   {"light": "#BEC5CC", "mid": "#6E7B88", "dark": "#4B5560"},
+    "brown":   {"light": "#D8B98E", "mid": "#B2875A", "dark": "#8A6248", "deep": "#6B4A32"},
+    "sand":    {"light": "#EDE3D2", "mid": "#D6C3A5", "dark": "#C9A98A"},
+    "red":     {"light": "#E3A8A0", "mid": "#C25B52", "dark": "#8C4A4A", "vivid": "#D8453C"},
+    "orange":  {"light": "#EBC09A", "mid": "#D4824A", "dark": "#A8674F", "vivid": "#E87B2E"},
+    "yellow":  {"light": "#F0DC9F", "mid": "#E0B255", "dark": "#B8913F", "vivid": "#F0C330"},
+    "lime":    {"light": "#C5D69A", "mid": "#9BB356", "dark": "#6B8A3A", "vivid": "#86C040"},
+    "green":   {"light": "#9DB0A6", "mid": "#6E9E6A", "dark": "#466A4A", "vivid": "#3E9E5C"},
+    "olive":   {"light": "#B7BA9A", "mid": "#8A8F6B", "dark": "#5F6347"},
+    "teal":    {"light": "#BDD8D3", "mid": "#4FA3A3", "dark": "#2F6F73", "vivid": "#3FB3C4"},
+    "blue":    {"light": "#A9BDD9", "mid": "#5E7C9E", "dark": "#46587A", "deep": "#2E3A55",
+                "vivid": "#3A72C4"},
+    "violet":  {"light": "#BDB2D6", "mid": "#8A7BB0", "dark": "#5E4F86", "vivid": "#7C5BC0"},
+    "pink":    {"light": "#DDB4C0", "mid": "#D98FA6", "dark": "#8A6B80", "vivid": "#E86E92"},
+    "magenta": {"light": "#E6B0D0", "dark": "#8C3A70", "vivid": "#C8479B"},
 }
 
-# --- Поверхности: дерево и металл ----------------------------------------
-# Мебель приходит из разных наборов — приводится к этим трём сортам дерева
-WOOD = {
-    "wood_light":  "#D8B98E",   # сосна: полы, полки, светлая мебель
-    "wood_mid":    "#B2875A",   # основная мебель
-    "wood_dark":   "#6B4A32",   # тёмно-коричневое: двери, шкафы, рамы
+# Подписи для каталогов в Blender (Asset Browser) и для листов
+FAMILY_TITLE = {
+    "neutral": "Нейтрали", "steel": "Сталь", "brown": "Коричневый", "sand": "Песочный",
+    "red": "Красный", "orange": "Оранжевый", "yellow": "Жёлтый", "lime": "Салатовый",
+    "green": "Зелёный", "olive": "Оливковый", "teal": "Бирюзовый", "blue": "Синий",
+    "violet": "Фиолетовый", "pink": "Розовый", "magenta": "Малиновый",
+}
+TONE_TITLE = {"light": "светлый", "mid": "средний", "dark": "тёмный", "deep": "глубокий",
+              "vivid": "яркий"}
+
+# --- Материалы ------------------------------------------------------------
+# Профили (ступени, блик, фактура) живут в cel_shader.MATERIALS. Здесь — порядок
+# и подписи; какие цвета на каких материалах бывают — ниже
+KIND_ORDER = ("wall", "paper", "fabric", "wood", "plastic", "metal", "glass", "plant")
+KIND_TITLE = {
+    "wall": "Стена (матовая краска)", "paper": "Бумага", "fabric": "Ткань",
+    "wood": "Дерево и ДСП", "plastic": "Пластик", "metal": "Металл",
+    "glass": "Стекло", "plant": "Растения",
 }
 
-METAL = {
-    "metal_light": "#BEC5CC",   # алюминий: кухня, бытовая техника
-    "metal_dark":  "#6A6F77",   # сталь: ножки, фурнитура, трубы
+# Любой цвет годится на любой из этих материалов: ДСП бывает любого цвета,
+# крашеный металл и цветной пластик тоже
+FREE_KINDS = ("wall", "paper", "fabric", "wood", "plastic", "metal")
+
+# Стекло и растения ограничены: красное оконное стекло и бирюзовые листья — не то,
+# что понадобится в квартире. Стекло — нейтрали и лёгкие холодные оттенки, растения —
+# зелёные, салатовые, оливковые и коричневый для ствола и горшка
+GLASS_COLORS = {"black", "graphite", "grey", "silver", "snow", "cream", "teal_light",
+                "teal_mid", "blue_light", "green_light", "brown_mid", "violet_light"}
+PLANT_FAMILIES = ("green", "lime", "olive")
+PLANT_EXTRA = {"brown_mid", "brown_dark"}
+
+
+def _build():
+    colors, family_of = {}, {}
+    for fam, tones in FAMILIES.items():
+        for tone, hexcol in tones.items():
+            cid = tone if fam == "neutral" else "%s_%s" % (fam, tone)
+            colors[cid] = hexcol
+            family_of[cid] = fam
+    return colors, family_of
+
+
+COLORS, FAMILY_OF = _build()
+
+
+def tone_of(color):
+    """Тон цвета: 'mid' у red_mid; у нейтралей — их собственное имя."""
+    fam = FAMILY_OF[color]
+    return color if fam == "neutral" else color[len(fam) + 1:]
+
+
+def kinds_for(color):
+    """На каких материалах бывает этот цвет."""
+    kinds = list(FREE_KINDS)
+    if color in GLASS_COLORS:
+        kinds.append("glass")
+    if FAMILY_OF[color] in PLANT_FAMILIES or color in PLANT_EXTRA:
+        kinds.append("plant")
+    return tuple(k for k in KIND_ORDER if k in kinds)
+
+
+def mat_name(kind, color):
+    """Имя материала: материал первым — поиск `pal_plastic` показывает весь пластик."""
+    return "pal_%s_%s" % (kind, color)
+
+
+def all_colors():
+    """Все цвета: id -> #hex."""
+    return dict(COLORS)
+
+
+def all_materials():
+    """Все материалы, которые собирает библиотека: список словарей."""
+    out = []
+    for kind in KIND_ORDER:
+        for color, hexcol in COLORS.items():
+            if kind in kinds_for(color):
+                out.append({"name": mat_name(kind, color), "kind": kind, "color": color,
+                            "hex": hexcol, "family": FAMILY_OF[color]})
+    return out
+
+
+# --- Комнаты: подсказка, а не палитра ------------------------------------
+# Какие цвета разумно взять на комнату. Это рекомендация для расстановки: материалы
+# стен и пола берутся из общей палитры так же, как всё остальное
+ROOMS = {
+    "hero":     {"wall": "blue_dark", "floor": "graphite", "accent": "teal_mid"},
+    "mate":     {"wall": "pink_light", "floor": "sand_dark", "accent": "red_mid"},
+    "living":   {"wall": "green_light", "floor": "brown_mid", "accent": "yellow_mid"},
+    "kitchen":  {"wall": "sand_light", "floor": "silver", "accent": "lime_light"},
+    "bath":     {"wall": "teal_light", "floor": "snow", "accent": "lime_light"},
+    "wc":       {"wall": "green_light", "floor": "snow", "accent": "grey"},
+    "corridor": {"wall": "sand_mid", "floor": "brown_mid", "accent": "brown_deep"},
+    "hall":     {"wall": "sand_mid", "floor": "grey", "accent": "brown_deep"},
 }
 
-# --- Стены по комнатам ----------------------------------------------------
-# Главный ответ на «игра не может быть вся синяя»: цвет стен — это характер
-# комнаты, и он у каждой свой. Тёмно-синяя только комната героя
-ROOM = {
-    "hero":     {"wall": "#46587A", "floor": "#3C3F46", "accent": "#4FA3A3"},
-    "mate":     {"wall": "#DDB4C0", "floor": "#C9A98A", "accent": "#C25B6E"},
-    "living":   {"wall": "#9DB0A6", "floor": "#B2875A", "accent": "#E0B255"},
-    "kitchen":  {"wall": "#E4DAC6", "floor": "#C7CBD2", "accent": "#C7D9A8"},
-    "bath":     {"wall": "#BDD8D3", "floor": "#E6EAEF", "accent": "#C7D9A8"},
-    "wc":       {"wall": "#CFD9CB", "floor": "#E6EAEF", "accent": "#8D929B"},
-    "corridor": {"wall": "#D4C7B2", "floor": "#B2875A", "accent": "#6B4A32"},
-    "hall":     {"wall": "#D4C7B2", "floor": "#8D929B", "accent": "#6B4A32"},
+# --- Прежние имена --------------------------------------------------------
+# Старая палитра называлась pal_<группа>_<цвет>_<материал>. Сцены разработчика уже
+# содержат такие материалы на реальных объектах, поэтому они не должны отвалиться:
+# refresh_palette.py находит старое имя здесь и переименовывает в новое.
+# Ключ — то, что стояло между «pal_» и «_<материал>».
+LEGACY = {
+    # нейтрали
+    "neutral_black_tech": "black", "neutral_grey_dark": "graphite", "neutral_grey_mid": "grey",
+    "neutral_grey_light": "silver", "neutral_white_cool": "snow", "neutral_white_warm": "cream",
+    # дерево и металл
+    "wood_wood_light": "brown_light", "wood_wood_mid": "brown_mid", "wood_wood_dark": "brown_deep",
+    "metal_metal_light": "steel_light", "metal_metal_dark": "steel_mid",
+    # акценты
+    "accent_red": "red_mid", "accent_yellow": "yellow_mid", "accent_green": "green_mid",
+    "accent_teal": "teal_mid", "accent_violet": "violet_mid", "accent_pink": "pink_mid",
+    "accent_orange": "orange_mid", "accent_blue": "blue_mid", "accent_lime": "lime_mid",
+    "accent_brown": "brown_dark",
+    # яркие
+    "bright_red": "red_vivid", "bright_orange": "orange_vivid", "bright_yellow": "yellow_vivid",
+    "bright_lime": "lime_vivid", "bright_green": "green_vivid", "bright_cyan": "teal_vivid",
+    "bright_blue": "blue_vivid", "bright_violet": "violet_vivid", "bright_magenta": "magenta_vivid",
+    "bright_pink": "pink_vivid",
+    # ткань
+    "fabric_cream": "sand_light", "fabric_blue": "blue_mid", "fabric_olive": "olive_mid",
+    "fabric_rust": "orange_dark", "fabric_sand": "sand_mid", "fabric_sage": "green_light",
+    "fabric_plum": "pink_dark", "fabric_mustard": "yellow_dark", "fabric_slate": "steel_mid",
+    "fabric_wine": "red_dark",
+    # стены и полы комнат
+    "room.hero_wall": "blue_dark", "room.hero_floor": "graphite", "room.hero_accent": "teal_mid",
+    "room.mate_wall": "pink_light", "room.mate_floor": "sand_dark", "room.mate_accent": "red_mid",
+    "room.living_wall": "green_light", "room.living_floor": "brown_mid",
+    "room.living_accent": "yellow_mid",
+    "room.kitchen_wall": "sand_light", "room.kitchen_floor": "silver",
+    "room.kitchen_accent": "lime_light",
+    "room.bath_wall": "teal_light", "room.bath_floor": "snow", "room.bath_accent": "lime_light",
+    "room.wc_wall": "green_light", "room.wc_floor": "snow", "room.wc_accent": "grey",
+    "room.corridor_wall": "sand_mid", "room.corridor_floor": "brown_mid",
+    "room.corridor_accent": "brown_deep",
+    "room.hall_wall": "sand_mid", "room.hall_floor": "grey", "room.hall_accent": "brown_deep",
 }
 
-# --- Акценты --------------------------------------------------------------
-# Мелочь, которая оживляет кадр: ковры, книги, постеры, кружки, полотенца.
-# Их мало и они насыщеннее остального — поэтому работают как пятна
-ACCENT = {
-    # Приглушённые — для предметов покрупнее: кружка, корешок книги, коробка
-    "red":    "#C25B52",
-    "yellow": "#E0B255",
-    "green":  "#6E9E6A",
-    "teal":   "#4FA3A3",
-    "violet": "#8A7BB0",
-    "pink":   "#D98FA6",
-    "orange": "#D4824A",
-    "blue":   "#5B82B8",
-    "lime":   "#9BB356",
-    "brown":  "#8A6248",
-}
 
-# Чистые и яркие — только для мелочи: карандаши, кнопки, провода, корешки,
-# наклейки. На больших площадях такие цвета ломают пастельный строй, поэтому
-# у них своя группа: видно, что брать на предмет размером с ладонь
-BRIGHT = {
-    "red":    "#D8453C",
-    "orange": "#E87B2E",
-    "yellow": "#F0C330",
-    "lime":   "#86C040",
-    "green":  "#3E9E5C",
-    "cyan":   "#3FB3C4",
-    "blue":   "#3A72C4",
-    "violet": "#7C5BC0",
-    "magenta": "#C8479B",
-    "pink":   "#E86E92",
-}
+def parse_name(name):
+    """Разобрать имя материала: (материал, цвет, старое_ли_имя) или None.
 
-# Ткань отдельно: она занимает большие площади, поэтому глуше акцентов
-FABRIC = {
-    # Большие площади: ковры, шторы, покрывала, полотенца. Глуше акцентов
-    "cream":   "#EDE3D2",   # постельное
-    "blue":    "#5E7C9E",   # одеяло, шторы
-    "olive":   "#8A8F6B",   # ковёр
-    "rust":    "#A8674F",   # плед, подушки
-    "sand":    "#D6C3A5",   # циновка, светлый ковёр
-    "sage":    "#9CAE9A",   # полотенце, занавеска
-    "plum":    "#8A6B80",   # покрывало
-    "mustard": "#C9A554",   # подушка, плед
-    "slate":   "#6E7B88",   # тёмный ковёр
-    "wine":    "#8C4A4A",   # ковёр с рисунком, штора
-}
+    Понимает и новый вид pal_plastic_red_vivid, и прежний pal_neutral_black_tech_plastic.
+    Суффикс дубля .001 отбрасывается.
+    """
+    base = re.sub(r"\.\d{3}$", "", name)
+    if not base.startswith("pal_"):
+        return None
+    rest = base[4:]
+    for kind in KIND_ORDER:
+        if rest.startswith(kind + "_"):
+            color = rest[len(kind) + 1:]
+            if color in COLORS:
+                return kind, color, False
+    for kind in KIND_ORDER:
+        if rest.endswith("_" + kind):
+            key = rest[:-len(kind) - 1]
+            if key in LEGACY:
+                return kind, LEGACY[key], True
+    return None
+
 
 # --- Свет -----------------------------------------------------------------
 # Время суток задаётся не цветом стен, а светом: цвет источника, цвет общей
@@ -122,26 +238,6 @@ LAMP = {
 }
 
 
-# Какие материалы уместны каждой группе цветов. Все сочетания не нужны: дерево
-# не бывает бирюзовым, а стена — металлической. Акценты, наоборот, живут на чём
-# угодно — красный встречается и на бумаге, и на пластике, и на металле
-KINDS = {
-    "neutral": ("wall", "paper", "plastic", "metal"),
-    "wood":    ("wood",),
-    "metal":   ("metal", "plastic"),
-    "accent":  ("paper", "plastic", "fabric", "metal"),
-    "bright":  ("plastic", "paper", "metal"),
-    "fabric":  ("fabric",),
-    "room":    ("wall", "wood"),
-}
-
-
-def kinds_for(key):
-    """Типы материала для ключа палитры вида 'accent/red' или 'room.hero/wall'."""
-    group = key.split("/")[0].split(".")[0]
-    return KINDS.get(group, ("wall",))
-
-
 def srgb(hexcol):
     """#rrggbb -> линейный RGB. Blender считает свет в линейном пространстве,
     а палитру человек правит в sRGB — иначе цвета выходят темнее задуманного."""
@@ -151,38 +247,3 @@ def srgb(hexcol):
         c = int(h[i:i + 2], 16) / 255.0
         out.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
     return tuple(out)
-
-
-def shades(hexcol, tones=3):
-    """Ступени одного цвета для cel-шейдинга: тень, полутон, свет.
-
-    Тень не просто темнее — она холоднее: синевы в ней больше, красного меньше.
-    Это и отличает мягкий стиль от контрастного.
-    """
-    base = srgb(hexcol)
-    if tones == 2:
-        ks = (0.55, 1.0)
-    else:
-        ks = (0.45, 0.74, 1.0)
-    out = []
-    for k in ks:
-        r, g, b = (min(1.0, c * k) for c in base)
-        if k < 1.0:
-            cool = (1.0 - k) * 0.5
-            r *= 1.0 - cool * 0.35
-            b = min(1.0, b * (1.0 + cool * 0.45))
-        out.append((r, g, b))
-    return out
-
-
-def all_colors():
-    """Всё одним словарём — для листа образцов и проверок."""
-    out = {}
-    for group, d in (("neutral", NEUTRAL), ("wood", WOOD), ("metal", METAL),
-                     ("accent", ACCENT), ("bright", BRIGHT), ("fabric", FABRIC)):
-        for k, v in d.items():
-            out["%s/%s" % (group, k)] = v
-    for room, d in ROOM.items():
-        for k, v in d.items():
-            out["room.%s/%s" % (room, k)] = v
-    return out

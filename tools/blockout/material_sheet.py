@@ -85,7 +85,8 @@ def main():
     cam_data.lens = 50.0
     cam = bpy.data.objects.new("ms_cam", cam_data)
     sc.collection.objects.link(cam)
-    cam.location = (0.0, -26.0, 4.6)
+    # Дистанция растёт с числом материалов: на восьми крайние шарики иначе обрезаются
+    cam.location = (0.0, -(10.0 + 2.7 * len(kinds)), 4.6)
     cam.rotation_euler = (1.40, 0.0, 0.0)
     sc.camera = cam
 

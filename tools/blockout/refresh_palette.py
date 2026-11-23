@@ -1,14 +1,21 @@
 """Обновить материалы палитры прямо в сцене.
 
-`Append` делает копию: материал, подключённый к сцене, живёт своей жизнью и после
-пересборки библиотеки не меняется. Этот скрипт проходит по материалам сцены с именем
-`pal_*`, находит их цвет в палитре и пересобирает шейдер заново — цвет, ступени,
-фактуру. Сцена сохраняется.
+`Append` и перетаскивание из браузера ассетов делают **копию**: материал, попавший
+в сцену, живёт своей жизнью и после пересборки библиотеки не меняется. Этот скрипт
+проходит по материалам сцены с именем `pal_*`, находит их цвет в палитре и пересобирает
+шейдер заново — цвет, ступени, блик, фактуру. Сцена сохраняется.
 
     & "...blender.exe" -b assets\\_source\\blockout\\apartment_work.blend ^
         --python tools\\blockout\\refresh_palette.py
 
-Можно задать фактуру: `-- --texture 0.12 --hatch 0.5 --tex-scale 8`.
+**Прежние имена переименовываются сами.** До 23.11.2026 материалы звались
+`pal_neutral_black_tech_plastic`, теперь — `pal_plastic_black`. Скрипт узнаёт старое имя
+по таблице palette.LEGACY, переименовывает и пересобирает; цвет при этом остаётся тем же
+побайтно, объекты не теряют материал. Что именно переименовано, печатается списком.
+
+Ключи: `--dry` — только показать, ничего не менять; `--texture 0.12 --hatch 0.5
+--tex-scale 8` — переопределить фактуру у всех сразу. Без них фактуру задаёт профиль
+материала (у металла почти нет, у ткани сильная).
 
 По умолчанию трогаются только материалы палитры (`pal_*`). Но в сцене, собранной
 скриптами детализации, материалы называются иначе — `wood_flat`, `metal_flat`.
@@ -17,7 +24,6 @@
 """
 
 import os
-import re
 import sys
 
 import bpy
@@ -43,27 +49,19 @@ def own_color(mat):
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     opts = dict(zip(argv[::2], argv[1::2]))
-    texture = float(opts.get("--texture", C.DEFAULTS["texture"]))
-    scale = float(opts.get("--tex-scale", C.DEFAULTS["scale"]))
-    hatch = float(opts.get("--hatch", C.DEFAULTS["hatch"]))
+    # None — значит «как в профиле материала». Явный ключ перекрывает профиль у всех
+    texture = float(opts["--texture"]) if "--texture" in opts else None
+    scale = float(opts["--tex-scale"]) if "--tex-scale" in opts else None
+    hatch = float(opts["--hatch"]) if "--hatch" in opts else None
     dry = "--dry" in argv
     every = "--all" in argv
 
-    # Имя материала: pal_<ключ палитры>_<тип>, где в ключе "/" заменён на "_".
-    # Разбираем обратно, чтобы знать и цвет, и каким профилем его собирать
-    table = {}
-    for k, v in P.all_colors().items():
-        base = "pal_" + k.replace("/", "_")
-        for kind in P.kinds_for(k):
-            table["%s_%s" % (base, kind)] = (v, kind)
-        # имена без типа остались от прежней библиотеки — понимаем и их
-        table.setdefault(base, (v, None))
-
-    done, skipped = [], []
-    for mat in bpy.data.materials:
-        if not every and not mat.name.startswith("pal_"):
+    done, renamed, skipped = [], [], []
+    for mat in list(bpy.data.materials):
+        is_pal = mat.name.startswith("pal_")
+        if not is_pal and not every:
             continue
-        if every and not mat.name.startswith("pal_"):
+        if not is_pal:
             # Материал не из палитры: цвет берём тот, что у него уже есть
             if not dry:
                 rgb = own_color(mat)
@@ -72,22 +70,30 @@ def main():
                 mat.diffuse_color = (*light, 1.0)
             done.append(mat.name)
             continue
-        # у копий Blender добавляет .001 — отрезаем только этот суффикс:
-        # в именах комнат точка своя (pal_room.hero_wall), её трогать нельзя
-        base = re.sub(r"\.\d{3}$", "", mat.name)
-        found = table.get(base)
-        if found is None:
+
+        parsed = P.parse_name(mat.name)
+        if parsed is None:
             skipped.append(mat.name)
             continue
-        hexcol, kind = found
+        kind, color, legacy = parsed
         if not dry:
             mat.use_nodes = True
-            light = C.build(mat.node_tree, P.srgb(hexcol), None,
+            light = C.build(mat.node_tree, P.srgb(P.COLORS[color]), None,
                             texture, scale, hatch, kind)
             mat.diffuse_color = (*light, 1.0)
+        if legacy:
+            new = P.mat_name(kind, color)
+            renamed.append((mat.name, new))
+            if not dry:
+                # Если новое имя занято (дубль .001), Blender сам добавит суффикс
+                mat.name = new
         done.append(mat.name)
 
-    print("[refresh] обновлено: %d (фактура %.2f, штрих %.2f)" % (len(done), texture, hatch))
+    print("[refresh] обновлено: %d" % len(done))
+    if renamed:
+        print("[refresh] переименовано по-новому (цвет прежний):")
+        for old, new in renamed:
+            print("   %-38s -> %s" % (old, new))
     if skipped:
         print("[refresh] нет в палитре, пропущены: " + ", ".join(sorted(skipped)))
     if dry:
