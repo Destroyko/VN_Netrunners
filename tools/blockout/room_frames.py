@@ -54,9 +54,9 @@ PHASES = {
                 "lamp": 12.0, "lamp_color": (1.0, 0.42, 0.10), "lamp_reach": 1.2,
                 "monitor": 3.0, "fill": 8.0, "floor": 0.55, "tint": 0.6,
                 "shadow": 0.35, "night": (0.55, 0.5, 0.95)},
-    "night":   {"sky": ((0.05, 0.08, 0.20), 0.05), "window": ((0.25, 0.40, 1.00), 22.0),
+    "night":   {"sky": ((0.05, 0.08, 0.20), 0.02), "window": ((0.25, 0.40, 1.00), 5.0),
                 "lamp": 9.0, "lamp_color": (1.0, 0.38, 0.08), "lamp_reach": 1.2,
-                "monitor": 1.5, "fill": 0.0, "floor": 0.26, "tint": 0.85,
+                "monitor": 1.5, "fill": 0.0, "floor": 0.12, "tint": 0.85,
                 "shadow": 0.6, "night": (0.22, 0.40, 1.0)},
 }
 
@@ -173,7 +173,11 @@ def build_light(phase):
         lamp.data.specular_factor = 0.0
         # Свет лампы живёт в радиусе метров: в cel-ступенях любой слабый источник
         # даёт резкое пятно через всю комнату, поэтому его обрезаем по расстоянию
-        lamp.data.use_custom_distance = False       # жёсткий радиус рисует круг: затухание естественное
+        # Радиус влияния EEVEE считает сам по силе света, и у слабой лампы он мал: граница
+        # даёт на стене резкий круг (цвет света внутри и снаружи разный). Радиус задан
+        # больше комнаты, затухание остаётся естественным
+        lamp.data.use_custom_distance = True
+        lamp.data.cutoff_distance = 8.0
         lamp.hide_render = ph["lamp"] <= 0.0
         shade_glow(ph["lamp"] > 0.0)
 
@@ -204,6 +208,9 @@ def setup(phase, samples=64):
     sc.eevee.shadow_ray_count = 8
     sc.eevee.shadow_step_count = 24
     sc.eevee.shadow_resolution_scale = 2.0
+    # EEVEE обрезает свет там, где его сила падает ниже порога: при плавных переходах
+    # граница видна как круг на стене. Порог ниже, и круг уходит за пределы кадра
+    sc.eevee.light_threshold = 0.00001
     build_light("day" if phase == "morning" else phase)
 
 

@@ -88,7 +88,7 @@ def _build_glow(nt, rgb, strength):
 # переход должен быть плавным. Блик остаётся ступенчатым.
 RAMP_MODE = "LINEAR"
 
-LIGHT_VERSION = 4        # меняется при правке узла: сцены с прежней версией пересоберут его сами
+LIGHT_VERSION = 6        # меняется при правке узла: сцены с прежней версией пересоберут его сами
 
 
 def light_group():
@@ -176,7 +176,20 @@ def light_group():
     mixc.clamp_result = True
     mixc.location = (120, 140)
     mixc.inputs[6].default_value = (1.0, 1.0, 1.0, 1.0)
-    links.new(tint.outputs[0], mixc.inputs[0])
+    # окраска светом растёт с яркостью: у далёкого слабого света оттенок нормируется в полный,
+    # и лампа красила бы оранжевым всю стену, до которой почти не доходит
+    tw = nodes.new("ShaderNodeMath")
+    tw.operation = "MULTIPLY"
+    tw.use_clamp = True
+    tw.inputs[1].default_value = 8.0
+    tw.location = (-300, 320)
+    links.new(lum.outputs[0], tw.inputs[0])
+    tf = nodes.new("ShaderNodeMath")
+    tf.operation = "MULTIPLY"
+    tf.location = (-100, 420)
+    links.new(tint.outputs[0], tf.inputs[0])
+    links.new(tw.outputs[0], tf.inputs[1])
+    links.new(tf.outputs[0], mixc.inputs[0])
     links.new(hue.outputs[0], mixc.inputs[7])
 
     # теневой тон: чем меньше света, тем сильнее цвет тянется к ночному оттенку, сохраняя
@@ -197,7 +210,7 @@ def light_group():
     nbright = nodes.new("ShaderNodeVectorMath")
     nbright.operation = "SCALE"
     nbright.location = (-100, -700)
-    nbright.inputs["Scale"].default_value = 1.7      # синий светлее по яркости, чем по цвету
+    nbright.inputs["Scale"].default_value = 1.1      # синий светлее по яркости, чем по цвету
     links.new(nlum.outputs[0], nbright.inputs[0])
     shadow = nodes.new("ShaderNodeValue")
     shadow.name = shadow.label = "shadow"

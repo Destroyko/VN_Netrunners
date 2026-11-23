@@ -92,12 +92,35 @@ def make_material(src, color, strength):
         name = "%s%d" % (base, n)
     if mat is None:
         mat = bpy.data.materials.new(name)
-        mat.use_nodes = True
+    mat.use_nodes = True
+    # материал пересобирается всегда: после правки шейдера повторный запуск обновляет и его
+    pat = {"image": img, "strength": strength, "lo": lo, "hi": hi}
+    light = C.build(mat.node_tree, P.srgb(P.COLORS[color]), texture=0.0, kind="wall", pattern=pat)
+    C.surface(mat, "wall")
+    mat.diffuse_color = (*light, 1.0)
+    return mat, color, img.name
+
+
+def rebuild_existing(strength):
+    """Пересобрать готовые материалы с узором: после правки шейдера их картинка и цвет уже
+    известны из самого материала, исходные обои для этого не нужны."""
+    n = 0
+    for mat in bpy.data.materials:
+        if not mat.name.startswith("pal_wall_") or "_ornament" not in mat.name or not mat.use_nodes:
+            continue
+        img = next((x.image for x in mat.node_tree.nodes if x.type == "TEX_IMAGE" and x.image), None)
+        if img is None:
+            continue
+        color = mat.name[len("pal_wall_"):mat.name.index("_ornament")]
+        if color not in P.COLORS:
+            continue
+        _, lo, hi = stats(img)
         pat = {"image": img, "strength": strength, "lo": lo, "hi": hi}
         light = C.build(mat.node_tree, P.srgb(P.COLORS[color]), texture=0.0, kind="wall", pattern=pat)
         C.surface(mat, "wall")
         mat.diffuse_color = (*light, 1.0)
-    return mat, color, img.name
+        n += 1
+    return n
 
 
 def main():
@@ -109,6 +132,8 @@ def main():
     strength = float(opts.get("--strength", 0.18))
     only = opts.get("--only", "wallpaper").lower()
 
+    if not dry:
+        print("[pattern] пересобрано готовых: %d" % rebuild_existing(strength))
     done = 0
     for src in list(bpy.data.materials):
         if only not in src.name.lower() or not src.use_nodes or src.name.endswith("_ornament"):
