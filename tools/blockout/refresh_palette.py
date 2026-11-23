@@ -13,7 +13,14 @@
 по таблице palette.LEGACY, переименовывает и пересобирает; цвет при этом остаётся тем же
 побайтно, объекты не теряют материал. Что именно переименовано, печатается списком.
 
-Ключи: `--dry` — только показать, ничего не менять; `--texture 0.12 --hatch 0.5
+**Подключённые ссылкой материалы.** Если материал перетащили из браузера ассетов при
+способе импорта Link, он в сцене только для чтения: имя серое, править его нельзя.
+Скрипт такие не трогает и говорит, сколько их. Они обновляются сами при пересборке
+библиотеки. Чтобы превратить их в обычные, которые можно переименовывать и править,
+есть `--localize`.
+
+Ключи: `--dry` — только показать, ничего не менять; `--localize` — сделать ссылочные
+материалы палитры локальными (копия остаётся в сцене, связь с библиотекой рвётся); `--texture 0.12 --hatch 0.5
 --tex-scale 8` — переопределить фактуру у всех сразу. Без них фактуру задаёт профиль
 материала (у металла почти нет, у ткани сильная).
 
@@ -55,12 +62,26 @@ def main():
     hatch = float(opts["--hatch"]) if "--hatch" in opts else None
     dry = "--dry" in argv
     every = "--all" in argv
+    localize = "--localize" in argv
 
-    done, renamed, skipped = [], [], []
+    done, renamed, skipped, linked = [], [], [], []
     for mat in list(bpy.data.materials):
         is_pal = mat.name.startswith("pal_")
         if not is_pal and not every:
             continue
+        if mat.library is not None:
+            # Ссылка на библиотеку: править нельзя, и сам Blender это запретит
+            if localize and is_pal and not dry:
+                local = mat.make_local()
+                # В локальной копии не должно остаться пометки «ассет»: сцена
+                # не библиотека и не должна показываться в чужом браузере
+                if local.asset_data is not None:
+                    local.asset_clear()
+                mat = local
+            else:
+                if is_pal:
+                    linked.append(mat.name)
+                continue
         if not is_pal:
             # Материал не из палитры: цвет берём тот, что у него уже есть
             if not dry:
@@ -90,6 +111,9 @@ def main():
         done.append(mat.name)
 
     print("[refresh] обновлено: %d" % len(done))
+    if linked:
+        print("[refresh] подключены ссылкой, не тронуты: %d (обновятся сами при пересборке "
+              "библиотеки; --localize сделает их обычными)" % len(linked))
     if renamed:
         print("[refresh] переименовано по-новому (цвет прежний):")
         for old, new in renamed:
