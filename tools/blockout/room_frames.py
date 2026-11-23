@@ -130,8 +130,28 @@ def shade_glow(on):
             ob.material_slots[0].material = orig
 
 
+def clear():
+    """Убрать всё, что скрипт добавил в сцену: источники и расчётные камеры, абажур вернуть."""
+    for ob in list(bpy.data.objects):
+        if ob.name.startswith("rf_"):
+            data = ob.data
+            bpy.data.objects.remove(ob)
+            if data is not None and data.users == 0:
+                (bpy.data.lights if ob_is_light(data) else bpy.data.cameras).remove(data)
+    lamp = bpy.data.objects.get("FloorLamp_Light")
+    if lamp is not None:
+        lamp.hide_render = False
+    shade_glow(False)
+    C.set_light_response(1.0, 0.0, 0.0)
+
+
+def ob_is_light(data):
+    return isinstance(data, bpy.types.Light)
+
+
 def build_light(phase):
     sc = bpy.context.scene
+    clear()
     ph = PHASES[phase]
     w = sc.world or bpy.data.worlds.new("World")
     sc.world = w
@@ -172,26 +192,59 @@ def build_light(phase):
     area("rf_fill", (1.7, 5.9, 2.55), (2.4, 2.4), (1.0, 0.95, 0.9), ph["fill"], (0.0, 0.0, -1.0))
 
 
-def main():
-    a = B.args(extra)
+def setup(phase, samples=64):
+    """Настройки рендера и свет фазы. Одинаково для командной строки и окна Blender."""
     sc = bpy.context.scene
     sc.render.engine = "BLENDER_EEVEE"
-    sc.render.resolution_x, sc.render.resolution_y = (int(v) for v in a.res.split(","))
     sc.render.resolution_percentage = 100
     sc.render.image_settings.file_format = "PNG"
-    sc.eevee.taa_render_samples = a.samples
+    sc.eevee.taa_render_samples = samples
     B.flat_color(sc)
     # Тени: при малом числе лучей слабо освещённые поверхности зернят (чёрный пластик
     # выглядит дырявым), поэтому лучей и шагов больше, чем по умолчанию
     sc.eevee.shadow_ray_count = 8
     sc.eevee.shadow_step_count = 24
     sc.eevee.shadow_resolution_scale = 2.0
-    build_light("day" if a.phase == "morning" else a.phase)
+    build_light("day" if phase == "morning" else phase)
+
+
+def gui(phase="night", view="main"):
+    """Показать свет в окне Blender (скрипт для вкладки Scripting: room_light_gui.py).
+
+    phase: day, evening, night или off (убрать всё, что добавил скрипт).
+    view: main или pc — смотреть через расчётную камеру; none — вид не трогать.
+    Окна 3D переключаются в режим Rendered. Сцену с включённым светом лучше не сохранять:
+    источники rf_* останутся в файле (убираются запуском с phase=off).
+    """
+    if phase == "off":
+        clear()
+        for area in bpy.context.screen.areas:
+            if area.type == "VIEW_3D":
+                for sp in area.spaces:
+                    if sp.type == "VIEW_3D":
+                        sp.shading.type = "MATERIAL"
+        return
+    setup(phase, samples=32)
+    if view != "none":
+        bpy.context.scene.camera = make_camera(view)
+    for area in bpy.context.screen.areas:
+        if area.type == "VIEW_3D":
+            for sp in area.spaces:
+                if sp.type == "VIEW_3D":
+                    sp.shading.type = "RENDERED"
+                    if view != "none":
+                        sp.region_3d.view_perspective = "CAMERA"
+
+
+def main():
+    a = B.args(extra)
+    sc = bpy.context.scene
+    sc.render.resolution_x, sc.render.resolution_y = (int(v) for v in a.res.split(","))
+    setup(a.phase, a.samples)
 
     wanted = [s.strip() for s in (a.render or "main,pc").split(",") if s.strip()]
     root = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
-    out = a.out if os.path.isabs(a.out) else os.path.join(root, a.out) if a.out else \
-        os.path.join(root, "assets", "_source", "blockout", "renders", "room_frames")
+    out = a.out if os.path.isabs(a.out) else os.path.join(root, a.out) if a.out else         os.path.join(root, "assets", "_source", "blockout", "renders", "room_frames")
     os.makedirs(out, exist_ok=True)
     for name in wanted:
         sc.camera = make_camera(name)
@@ -201,4 +254,5 @@ def main():
         print("[room] %s" % path)
 
 
-main()
+if __name__ == "__main__":
+    main()
