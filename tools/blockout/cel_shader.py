@@ -97,7 +97,9 @@ def light_group():
     import bpy
     g = bpy.data.node_groups.get("VN_Light")
     if g is not None:
-        return g
+        if "shadow" in g.nodes:
+            return g
+        bpy.data.node_groups.remove(g)      # прежняя версия без теневого тона
     g = bpy.data.node_groups.new("VN_Light", "ShaderNodeTree")
     g.interface.new_socket("Color", in_out="OUTPUT", socket_type="NodeSocketColor")
     g.interface.new_socket("Tone", in_out="INPUT", socket_type="NodeSocketColor")
@@ -168,10 +170,53 @@ def light_group():
     links.new(tint.outputs[0], mixc.inputs[0])
     links.new(hue.outputs[0], mixc.inputs[7])
 
+    # теневой тон: чем меньше света, тем сильнее цвет тянется к ночному оттенку, сохраняя
+    # яркость. Без этого в тени вещи остаются своего цвета (коричневый стул, жёлтый шкаф),
+    # а ночная комната должна быть единой синевой, где лампа создаёт контраст
+    tl = nodes.new("ShaderNodeRGBToBW")
+    tl.location = (-500, -620)
+    links.new(gin.outputs["Tone"], tl.inputs[0])
+    night = nodes.new("ShaderNodeRGB")
+    night.name = night.label = "night"
+    night.location = (-500, -780)
+    night.outputs[0].default_value = (0.30, 0.45, 1.0, 1.0)
+    nlum = nodes.new("ShaderNodeVectorMath")
+    nlum.operation = "SCALE"
+    nlum.location = (-300, -700)
+    links.new(night.outputs[0], nlum.inputs[0])
+    links.new(tl.outputs[0], nlum.inputs["Scale"])
+    nbright = nodes.new("ShaderNodeVectorMath")
+    nbright.operation = "SCALE"
+    nbright.location = (-100, -700)
+    nbright.inputs["Scale"].default_value = 1.7      # синий светлее по яркости, чем по цвету
+    links.new(nlum.outputs[0], nbright.inputs[0])
+    shadow = nodes.new("ShaderNodeValue")
+    shadow.name = shadow.label = "shadow"
+    shadow.location = (-300, -900)
+    shadow.outputs[0].default_value = 0.0
+    dark = nodes.new("ShaderNodeMath")
+    dark.operation = "SUBTRACT"
+    dark.inputs[0].default_value = 1.0
+    dark.location = (-300, -560)
+    links.new(steps.outputs[0], dark.inputs[1])
+    wgt = nodes.new("ShaderNodeMath")
+    wgt.operation = "MULTIPLY"
+    wgt.use_clamp = True
+    wgt.location = (-100, -560)
+    links.new(dark.outputs[0], wgt.inputs[0])
+    links.new(shadow.outputs[0], wgt.inputs[1])
+    shade = nodes.new("ShaderNodeMix")
+    shade.data_type = "RGBA"
+    shade.clamp_result = True
+    shade.location = (120, -560)
+    links.new(wgt.outputs[0], shade.inputs[0])
+    links.new(gin.outputs["Tone"], shade.inputs[6])
+    links.new(nbright.outputs[0], shade.inputs[7])
+
     mul = nodes.new("ShaderNodeVectorMath")
     mul.operation = "MULTIPLY"
     mul.location = (360, 0)
-    links.new(gin.outputs["Tone"], mul.inputs[0])
+    links.new(shade.outputs[2], mul.inputs[0])
     links.new(mixc.outputs[2], mul.inputs[1])
     dim = nodes.new("ShaderNodeVectorMath")
     dim.operation = "SCALE"
@@ -182,8 +227,11 @@ def light_group():
     return g
 
 
-def set_light_response(floor=None, tint=None):
-    """Выставить floor и tint общего узла VN_Light: одним вызовом на всю сцену."""
+def set_light_response(floor=None, tint=None, shadow=None, night=None):
+    """Выставить числа общего узла VN_Light одним вызовом на всю сцену.
+
+    shadow — насколько неосвещённое тянется к ночному оттенку (0 — не тянется),
+    night — этот оттенок (r, g, b)."""
     import bpy
     g = bpy.data.node_groups.get("VN_Light")
     if g is None:
@@ -192,6 +240,10 @@ def set_light_response(floor=None, tint=None):
         g.nodes["floor"].outputs[0].default_value = floor
     if tint is not None:
         g.nodes["tint"].outputs[0].default_value = tint
+    if shadow is not None:
+        g.nodes["shadow"].outputs[0].default_value = shadow
+    if night is not None:
+        g.nodes["night"].outputs[0].default_value = (*night, 1.0)
     return True
 
 
