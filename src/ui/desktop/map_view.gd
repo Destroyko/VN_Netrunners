@@ -7,6 +7,8 @@ extends ScrollContainer
 const NODE_SIZE: Vector2 = Vector2(120, 44)
 
 var terminal: Terminal
+## Тема ПК героя: узлы, связи и подписи рисуются ролями её цветов.
+var theme_id: String = GameTheme.pc_theme_id()
 
 var _canvas: Control
 var _positions: Dictionary = {}
@@ -54,18 +56,20 @@ func _draw_map() -> void:
 	for edge: Array in MapLayout.edges(ids, links):
 		var a: Vector2 = (_positions[edge[0]] as Vector2) + NODE_SIZE / 2.0
 		var b: Vector2 = (_positions[edge[1]] as Vector2) + NODE_SIZE / 2.0
-		_canvas.draw_line(a, b, Color(0.4, 0.45, 0.55), 2.0)
+		_canvas.draw_line(a, b, GameTheme.color("border", theme_id), 2.0)
 
 	var here: String = terminal.node_id()
-	var font: Font = ThemeDB.fallback_font
+	var font: Font = get_theme_default_font()
+	var text: Color = GameTheme.color("text", theme_id)
+	var dim: Color = GameTheme.color("text_dim", theme_id)
+	var panel: Color = GameTheme.color("panel_raised", theme_id)
 	for id: String in ids:
 		var rect := Rect2(_positions[id] as Vector2, NODE_SIZE)
 		var entry: Dictionary = net.book_entry(id)
-		var fill := Color(0.16, 0.2, 0.28)
-		if bool(entry["hacked"]):
-			fill = Color(0.2, 0.34, 0.26)
+		# Взломанный узел — подложка с оттенком `ok`, текущий — рамка акцента.
+		var fill: Color = panel.lerp(GameTheme.color("ok", theme_id), 0.35) if bool(entry["hacked"]) else panel
 		_canvas.draw_rect(rect, fill)
-		_canvas.draw_rect(rect, Color(0.95, 0.8, 0.3) if id == here else Color(0.45, 0.5, 0.6), false, 3.0 if id == here else 1.0)
+		_canvas.draw_rect(rect, GameTheme.color("accent", theme_id) if id == here else GameTheme.color("border", theme_id), false, 3.0 if id == here else 1.0)
 		var title: String = str(entry["title"])
-		_canvas.draw_string(font, rect.position + Vector2(6, 18), str(entry["address"]), HORIZONTAL_ALIGNMENT_LEFT, NODE_SIZE.x - 12, 14)
-		_canvas.draw_string(font, rect.position + Vector2(6, 36), title if not title.is_empty() else str(entry["device"]), HORIZONTAL_ALIGNMENT_LEFT, NODE_SIZE.x - 12, 12, Color(0.7, 0.75, 0.85))
+		_canvas.draw_string(font, rect.position + Vector2(6, 18), str(entry["address"]), HORIZONTAL_ALIGNMENT_LEFT, NODE_SIZE.x - 12, 14, text)
+		_canvas.draw_string(font, rect.position + Vector2(6, 36), title if not title.is_empty() else str(entry["device"]), HORIZONTAL_ALIGNMENT_LEFT, NODE_SIZE.x - 12, 12, dim)

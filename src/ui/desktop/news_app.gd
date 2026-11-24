@@ -22,10 +22,10 @@ func _init() -> void:
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(right)
 	_date = Label.new()
-	_date.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
+	_date.theme_type_variation = "DimLabel"
 	right.add_child(_date)
 	_headline = Label.new()
-	_headline.add_theme_color_override("font_color", Color(0.9, 0.92, 0.6))
+	_headline.theme_type_variation = "HeaderLabel"
 	_headline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	right.add_child(_headline)
 	_body = Label.new()

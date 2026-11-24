@@ -5,7 +5,7 @@ extends RefCounted
 
 ## Сколько заголовка окна должно остаться на экране, чтобы окно было можно ухватить обратно.
 const GRAB_MARGIN: float = 60.0
-const TITLE_HEIGHT: float = 28.0
+const TITLE_HEIGHT: float = 36.0
 
 
 ## Окно не уходит за границы целиком: за заголовок всегда можно взяться.

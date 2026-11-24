@@ -11,6 +11,8 @@ extends Control
 const TASKBAR_HEIGHT: float = 26.0
 const ICON_SIZE: Vector2 = Vector2(84, 60)
 const APP_TITLES: Dictionary = {"files": "Проводник", "viewer": "Блокнот"}
+## У цели обычная ОС: окна и панель трансляции — в стандартной теме (docs/art/themes.md).
+const TARGET_THEME: String = "standard"
 
 var terminal: Terminal
 var node_id: String = ""
@@ -110,8 +112,13 @@ func unlock() -> void:
 	bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	bar.offset_top = -TASKBAR_HEIGHT
 	var bar_style := StyleBoxFlat.new()
-	bar_style.bg_color = Color(0.08, 0.09, 0.12, 0.92)
+	bar_style.bg_color = GameTheme.color("panel", TARGET_THEME)
+	bar_style.border_color = GameTheme.color("border", TARGET_THEME)
+	bar_style.border_width_top = 1
+	bar_style.content_margin_left = 4
+	bar_style.content_margin_right = 4
 	bar.add_theme_stylebox_override("panel", bar_style)
+	bar.theme = GameTheme.build(TARGET_THEME)
 	_desktop.add_child(bar)
 	var row := HBoxContainer.new()
 	bar.add_child(row)
@@ -133,6 +140,8 @@ func open_app(app: String) -> DesktopWindow:
 	var window := DesktopWindow.new()
 	window.app_id = app
 	window.title = str(APP_TITLES.get(app, app))
+	window.theme_id = TARGET_THEME
+	window.icon_id = "files" if app == "files" else ""
 	window.set_minimum(Vector2(220, 160))
 	window.focus_requested.connect(func(w: DesktopWindow) -> void: w.move_to_front())
 	_windows.add_child(window)
@@ -157,6 +166,7 @@ func open_file(file_path: String) -> DesktopWindow:
 	if window == null:
 		window = DesktopWindow.new()
 		window.app_id = "viewer"
+		window.theme_id = TARGET_THEME
 		window.set_minimum(Vector2(220, 140))
 		window.focus_requested.connect(func(w: DesktopWindow) -> void: w.move_to_front())
 		_windows.add_child(window)

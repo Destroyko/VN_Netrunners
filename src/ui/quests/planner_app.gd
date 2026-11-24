@@ -64,7 +64,7 @@ func _week() -> void:
 		var line: Label = _text(text)
 		line.name = "Day_%d" % day
 		if day < GameState.day:
-			line.add_theme_color_override("font_color", Color("#7d8590"))
+			line.theme_type_variation = "DimLabel"
 
 
 func _task(id: String) -> void:
@@ -89,7 +89,7 @@ func _task(id: String) -> void:
 	if not part.is_empty():
 		var sub := Label.new()
 		sub.text = part
-		sub.add_theme_color_override("font_color", Color("#aab0bb"))
+		sub.theme_type_variation = "DimLabel"
 		box.add_child(sub)
 	for step: Dictionary in Planner.current_steps(id):
 		var line := Label.new()
@@ -97,14 +97,14 @@ func _task(id: String) -> void:
 		line.text = "%s %s%s" % ["✓" if bool(step["done"]) else "•", str(step["text"]),
 			" (необязательно)" if bool(step["optional"]) else ""]
 		if bool(step["done"]):
-			line.add_theme_color_override("font_color", Color("#7d8590"))
+			line.theme_type_variation = "DimLabel"
 		box.add_child(line)
 
 
 func _header(text: String) -> void:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_color_override("font_color", Color("#ffcf5a"))
+	label.theme_type_variation = "SectionLabel"
 	_rows.add_child(label)
 
 

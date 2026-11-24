@@ -21,7 +21,9 @@ var _compose: MailCompose
 func _init() -> void:
 	name = "MailApp"
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
+	add_theme_constant_override("separation", 12)
 	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 8)
 	add_child(left)
 	var write := Button.new()
 	write.name = "Write"
@@ -45,9 +47,10 @@ func _init() -> void:
 		_reader.visible = true)
 	add_child(_compose)
 	_from = Label.new()
+	_from.theme_type_variation = "DimLabel"
 	right.add_child(_from)
 	_subject = Label.new()
-	_subject.add_theme_color_override("font_color", Color(0.9, 0.92, 0.6))
+	_subject.theme_type_variation = "HeaderLabel"
 	right.add_child(_subject)
 	_body = Label.new()
 	_body.name = "Body"

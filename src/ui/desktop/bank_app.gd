@@ -76,5 +76,5 @@ func _bill_row(b: Dictionary) -> HBoxContainer:
 func _caption(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_color_override("font_color", Color(0.65, 0.7, 0.8))
+	label.theme_type_variation = "DimLabel"
 	return label

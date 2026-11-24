@@ -13,6 +13,7 @@
     "work":      {"title": "Работа",       "tile": "steel_mid"},
     "group":     {"title": "Сайт группы",  "tile": "magenta_dark"},
     "alarm":     {"title": "Будильник",    "tile": "orange_dark"},
-    "citymap":   {"title": "Карта города", "tile": "teal_mid"}
+    "citymap":   {"title": "Карта города", "tile": "teal_mid"},
+    "leave":     {"title": "Отойти от ПК", "tile": "graphite"}
   }
 }

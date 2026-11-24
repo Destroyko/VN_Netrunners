@@ -85,7 +85,7 @@ func show(request: Dictionary, view: TerminalView) -> void:
 		if is_instance_valid(done_window):
 			done_window.close())
 	# Окно не меньше содержимого: широкая сетка дампа не должна обрезаться.
-	var needed: Vector2 = _dialog.get_combined_minimum_size() + Vector2(16, WindowRules.TITLE_HEIGHT + 16)
+	var needed: Vector2 = _dialog.get_combined_minimum_size() + Vector2(2 * DesktopWindow.PAD + 2, WindowRules.TITLE_HEIGHT + DesktopWindow.PAD + DesktopWindow.GAP + 2)
 	_window = window
 	_desktop.attach_window(window, Vector2(440, 480).max(needed))
 

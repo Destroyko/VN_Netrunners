@@ -15,7 +15,7 @@ func _init() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_label = Label.new()
-	_label.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9))
+	_label.theme_type_variation = "DimLabel"
 	add_child(_label)
 	_timer = Timer.new()
 	_timer.one_shot = true

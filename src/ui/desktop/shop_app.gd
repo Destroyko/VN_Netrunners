@@ -88,5 +88,5 @@ func _text(text: String) -> Label:
 
 func _caption(text: String) -> Label:
 	var label := _text(text)
-	label.add_theme_color_override("font_color", Color(0.65, 0.7, 0.8))
+	label.theme_type_variation = "DimLabel"
 	return label

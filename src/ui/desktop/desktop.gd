@@ -132,6 +132,8 @@ func _build() -> void:
 	# Самочувствие и деньги — в строке свёрнутого телефона (PhoneOverlay), трекер задачи — в
 	# правом верхнем углу стола, мысли героя — внизу по центру.
 	var tracker := QuestTracker.new()
+	# Трекер — подсказка игры поверх стола, а не окно ОС: оформление общей темы, как в комнате.
+	tracker.theme = GameTheme.build(GameTheme.DEFAULT_ID)
 	tracker.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 12)
 	tracker.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_area.add_child(tracker)
@@ -266,6 +268,7 @@ func open_app(app_id: String) -> DesktopWindow:
 	var window := DesktopWindow.new()
 	window.app_id = app_id
 	window.title = str(app["title"])
+	window.icon_id = str(APP_ICONS.get(app_id, ""))
 	window.set_minimum(app["min"] as Vector2)
 	window.body.add_child(_make_content(app_id))
 	attach_window(window, app["size"] as Vector2)
@@ -356,7 +359,8 @@ func _on_window_closed(window: DesktopWindow) -> void:
 
 func _sync_taskbar() -> void:
 	for window: DesktopWindow in open_windows():
-		_taskbar.set_window(window.app_id, window.title, window.is_focused, window.is_minimized)
+		_taskbar.set_window(window.app_id, window.title, window.is_focused, window.is_minimized,
+				GameTheme.icon(window.icon_id, theme_id) if not window.icon_id.is_empty() else null)
 
 
 func _on_taskbar_button(app_id: String) -> void:

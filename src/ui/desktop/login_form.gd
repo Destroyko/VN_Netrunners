@@ -33,7 +33,7 @@ func _build(address: String) -> void:
 	_field.text_submitted.connect(func(_text: String) -> void: try_login())
 	add_child(_field)
 	_note = Label.new()
-	_note.add_theme_color_override("font_color", Color(1.0, 0.45, 0.45))
+	_note.theme_type_variation = "DangerLabel"
 	add_child(_note)
 	var button := Button.new()
 	button.name = "Enter"

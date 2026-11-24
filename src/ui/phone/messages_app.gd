@@ -107,7 +107,7 @@ func _fill_thread() -> void:
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if mine else HORIZONTAL_ALIGNMENT_LEFT
 		line.text = "%s\n%02d:%02d" % [Messenger.text_of(entry), int(entry.get("minute", 0)) / 60, int(entry.get("minute", 0)) % 60]
 		if mine:
-			line.add_theme_color_override("font_color", Color("#9fd4ff"))
+			line.theme_type_variation = "MineLabel"
 		_thread_lines.add_child(line)
 	_clear(_replies)
 	var uid: String = Messenger.awaiting_reply(_contact)

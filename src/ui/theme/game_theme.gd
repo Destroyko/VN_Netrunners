@@ -64,6 +64,21 @@ static func build(theme_id: String = "") -> Theme:
 	var border: Color = color("border", id)
 
 	theme.set_color("font_color", "Label", text)
+	# Вариации подписи для приложений: второстепенный текст, заголовок письма или новости, предупреждение.
+	theme.set_type_variation("DimLabel", "Label")
+	theme.set_color("font_color", "DimLabel", dim)
+	theme.set_type_variation("HeaderLabel", "Label")
+	theme.set_color("font_color", "HeaderLabel", text)
+	theme.set_font_size("font_size", "HeaderLabel", 18)
+	theme.set_type_variation("WarnLabel", "Label")
+	theme.set_color("font_color", "WarnLabel", color("warn", id))
+	theme.set_type_variation("DangerLabel", "Label")
+	theme.set_color("font_color", "DangerLabel", color("danger", id))
+	# Заголовок раздела списка (задачи) и своя реплика в переписке.
+	theme.set_type_variation("SectionLabel", "Label")
+	theme.set_color("font_color", "SectionLabel", accent)
+	theme.set_type_variation("MineLabel", "Label")
+	theme.set_color("font_color", "MineLabel", color("accent_alt", id))
 	for kind: String in ["Button", "CheckBox", "OptionButton", "MenuButton"]:
 		theme.set_color("font_color", kind, text)
 		theme.set_color("font_hover_color", kind, text.lightened(0.2) if text.get_luminance() > 0.5 else text.darkened(0.2))
@@ -87,9 +102,37 @@ static func build(theme_id: String = "") -> Theme:
 	theme.set_stylebox("normal", "LineEdit", _box(background, border, id))
 	theme.set_stylebox("focus", "LineEdit", _box(background, accent, id))
 
+	# Списки и текстовые поля внутри окон (почта, файлы, блокнот): тон вдавленной области, без серого по умолчанию.
+	var inset: StyleBoxFlat = _box(background, border, id)
+	inset.set_content_margin_all(6)
+	theme.set_stylebox("panel", "ItemList", inset)
+	theme.set_stylebox("focus", "ItemList", _outline(accent, id))
+	theme.set_stylebox("selected", "ItemList", _box(raised, accent, id, 0))
+	theme.set_stylebox("selected_focus", "ItemList", _box(raised, accent, id, 0))
+	theme.set_stylebox("hovered", "ItemList", _box(panel, panel, id, 0))
+	theme.set_color("font_color", "ItemList", text)
+	theme.set_color("font_selected_color", "ItemList", text)
+	theme.set_color("font_hovered_color", "ItemList", text)
+	theme.set_constant("v_separation", "ItemList", 6)
+	theme.set_stylebox("normal", "TextEdit", inset)
+	theme.set_stylebox("read_only", "TextEdit", inset)
+	theme.set_stylebox("focus", "TextEdit", _box(background, accent, id))
+	theme.set_color("font_color", "TextEdit", text)
+	theme.set_color("font_readonly_color", "TextEdit", text)
+	theme.set_color("caret_color", "TextEdit", accent)
+	theme.set_color("selection_color", "TextEdit", raised)
+
 	theme.set_stylebox("background", "ProgressBar", _box(background, border, id))
 	theme.set_stylebox("fill", "ProgressBar", _box(accent, accent, id, 0))
 	theme.set_color("font_color", "ProgressBar", text)
+
+	# «Пуск» и контекстные меню — в тоне панели, пункт под мышью — тон плашки.
+	theme.set_stylebox("panel", "PopupMenu", _box(panel, border, id))
+	theme.set_stylebox("hover", "PopupMenu", _box(raised, raised, id, 0))
+	theme.set_color("font_color", "PopupMenu", text)
+	theme.set_color("font_hover_color", "PopupMenu", text)
+	theme.set_color("font_disabled_color", "PopupMenu", dim)
+	theme.set_constant("v_separation", "PopupMenu", 8)
 
 	theme.set_stylebox("panel", "TooltipPanel", _box(background, accent, id))
 	theme.set_color("font_color", "TooltipLabel", text)

@@ -55,7 +55,7 @@ func setup(shared_terminal: Terminal, node: String) -> void:
 	_list.drag_source = drag_data
 	add_child(_list)
 	_status = Label.new()
-	_status.add_theme_color_override("font_color", Color(0.85, 0.75, 0.45))
+	_status.theme_type_variation = "WarnLabel"
 	_status.clip_text = true
 	add_child(_status)
 
