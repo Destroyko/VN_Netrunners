@@ -88,5 +88,5 @@ func _text(text: String) -> Label:
 
 func _caption(text: String) -> Label:
 	var label := _text(text)
-	label.theme_type_variation = "DimLabel"
+	label.theme_type_variation = "SectionLabel"
 	return label

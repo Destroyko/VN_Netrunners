@@ -63,6 +63,7 @@ func _init() -> void:
 	var send := Button.new()
 	send.name = "Send"
 	send.text = "Отправить"
+	send.theme_type_variation = "AccentButton"
 	send.pressed.connect(_on_send)
 	buttons.add_child(send)
 	var cancel := Button.new()

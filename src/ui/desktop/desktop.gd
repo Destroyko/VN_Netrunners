@@ -19,7 +19,7 @@ const APPS: Array[Dictionary] = [
 	{"id": "terminal", "title": "Терминал", "color": Color(0.2, 0.55, 0.35), "size": Vector2(860, 520), "min": Vector2(520, 320)},
 	{"id": "map", "title": "Карта сети", "color": Color(0.25, 0.4, 0.55), "size": Vector2(560, 380), "min": Vector2(320, 220)},
 	{"id": "files", "title": "Файлы", "color": Color(0.3, 0.45, 0.7), "size": Vector2(520, 380), "min": Vector2(320, 220)},
-	{"id": "mail", "title": "Почта", "color": Color(0.6, 0.45, 0.25), "size": Vector2(520, 380), "min": Vector2(320, 220)},
+	{"id": "mail", "title": "Почта", "color": Color(0.6, 0.45, 0.25), "size": Vector2(640, 420), "min": Vector2(320, 220)},
 	{"id": "bank", "title": "Банк", "color": Color(0.5, 0.5, 0.25), "size": Vector2(520, 380), "min": Vector2(320, 220)},
 	# `gate` — значок скрыт, пока ворота закрыты (docs/tech/gates.md); `requires` — значок виден, но серый.
 	{"id": "news", "title": "Новости", "color": Color(0.55, 0.3, 0.3), "size": Vector2(520, 380), "min": Vector2(320, 220),
@@ -49,7 +49,7 @@ static var _kept: Desktop = null
 var terminal: Terminal
 
 var _area: Control
-var _icons: GridContainer
+var _icons: VFlowContainer
 var _windows: Control
 var _taskbar: Taskbar
 var _open: Dictionary = {}
@@ -119,10 +119,16 @@ func _build() -> void:
 	wallpaper.menu_requested.connect(func(at: Vector2) -> void: _remote.show_paste_menu(at))
 	_area.add_child(wallpaper)
 
-	_icons = GridContainer.new()
-	_icons.columns = 1
-	_icons.position = Vector2(12, 12)
-	_icons.add_theme_constant_override("v_separation", 8)
+	# Значки идут столбцом сверху вниз и переносятся в следующий столбец, когда не помещаются по высоте.
+	_icons = VFlowContainer.new()
+	_icons.name = "Icons"
+	_icons.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	_icons.offset_left = 12
+	_icons.offset_top = 12
+	_icons.offset_bottom = -12
+	_icons.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_icons.add_theme_constant_override("v_separation", 4)
+	_icons.add_theme_constant_override("h_separation", 4)
 	_area.add_child(_icons)
 	_fill_icons()
 	EventBus.flag_changed.connect(func(flag: String, _value: bool) -> void:
@@ -168,7 +174,8 @@ func _make_icon(app: Dictionary) -> Button:
 	button.name = "Icon_" + str(app["id"])
 	button.custom_minimum_size = ICON_SIZE
 	button.text = str(app["title"])
-	button.flat = true
+	# Значок стола без подложки: фон проступает только под мышью, как в настоящей ОС.
+	button.theme_type_variation = "FlatButton"
 	button.focus_mode = Control.FOCUS_NONE
 	# Значок темы над подписью; серое приложение показывается блёклым.
 	var icon: Texture2D = GameTheme.icon(str(APP_ICONS.get(str(app["id"]), "")), theme_id)
@@ -271,6 +278,8 @@ func open_app(app_id: String) -> DesktopWindow:
 	window.icon_id = str(APP_ICONS.get(app_id, ""))
 	window.set_minimum(app["min"] as Vector2)
 	window.body.add_child(_make_content(app_id))
+	# Консоль — свой экран во всё окно, как у настоящего эмулятора терминала.
+	window.set_flush(app_id == "terminal")
 	attach_window(window, app["size"] as Vector2)
 	# Приложение помнит, где его закрыли: открываем там же (в пределах сессии).
 	var remembered: Rect2 = _remembered.get(app_id, Rect2()) as Rect2

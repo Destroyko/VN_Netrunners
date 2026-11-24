@@ -11,9 +11,18 @@ var _history: ItemList
 func _init() -> void:
 	name = "BankApp"
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# Баланс — карточка вверху: подпись мелко, сумма крупно, как в банковских приложениях.
+	var card := PanelContainer.new()
+	card.theme_type_variation = "CardPanel"
+	add_child(card)
+	var card_rows := VBoxContainer.new()
+	card_rows.add_theme_constant_override("separation", 0)
+	card.add_child(card_rows)
+	card_rows.add_child(_caption("Баланс", "SmallLabel"))
 	_balance = Label.new()
 	_balance.name = "Balance"
-	add_child(_balance)
+	_balance.add_theme_font_size_override("font_size", 26)
+	card_rows.add_child(_balance)
 	add_child(_caption("Счета"))
 	_bills = VBoxContainer.new()
 	_bills.name = "Bills"
@@ -34,7 +43,7 @@ func _ready() -> void:
 
 
 func refresh() -> void:
-	_balance.text = "Баланс: %d ₽" % GameState.money
+	_balance.text = "%d ₽" % GameState.money
 	for child: Node in _bills.get_children():
 		_bills.remove_child(child)
 		child.queue_free()
@@ -42,6 +51,7 @@ func refresh() -> void:
 	if open.is_empty():
 		var none := Label.new()
 		none.text = "Неоплаченных счетов нет"
+		none.theme_type_variation = "DimLabel"
 		_bills.add_child(none)
 	for b: Dictionary in open:
 		_bills.add_child(_bill_row(b))
@@ -67,14 +77,16 @@ func _bill_row(b: Dictionary) -> HBoxContainer:
 	var pay := Button.new()
 	pay.name = "Pay"
 	pay.text = "Оплатить"
+	pay.theme_type_variation = "AccentButton"
 	pay.disabled = not GameState.can_afford(Economy.total_of(b))
 	pay.pressed.connect(func() -> void: Economy.pay(str(b["id"])))
 	row.add_child(pay)
 	return row
 
 
-func _caption(text: String) -> Label:
+## Подпись раздела («Счета», «История»): цвет акцента, как заголовки разделов в «Задачах».
+func _caption(text: String, variation: String = "SectionLabel") -> Label:
 	var label := Label.new()
 	label.text = text
-	label.theme_type_variation = "DimLabel"
+	label.theme_type_variation = variation
 	return label

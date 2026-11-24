@@ -43,7 +43,12 @@ var _title_panel: PanelContainer
 var _title_style: StyleBoxFlat
 var _icon_rect: TextureRect
 var _margin: MarginContainer
-var _buttons: Array[Button] = []
+var _buttons: Array[WindowButton] = []
+var _maximize_button: WindowButton
+var _handle: Control
+var _grip_color: Color = Color.WHITE
+## Содержимое во всё окно, без полей (терминал: у консоли свой край).
+var _flush: bool = false
 var _saved_rect: Rect2 = Rect2()
 var _dragging: bool = false
 var _resizing: bool = false
@@ -110,48 +115,67 @@ func _build() -> void:
 	_title_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_title_bar.add_child(_title_label)
-	_buttons.append(_add_title_button("─", "Свернуть", minimize, false))
-	_buttons.append(_add_title_button("□", "Развернуть", toggle_maximize, false))
-	_buttons.append(_add_title_button("✕", "Закрыть", close, true))
+	_buttons.append(_add_title_button(WindowButton.Kind.MINIMIZE, "Свернуть", minimize))
+	_maximize_button = _add_title_button(WindowButton.Kind.MAXIMIZE, "Развернуть", toggle_maximize)
+	_buttons.append(_maximize_button)
+	_buttons.append(_add_title_button(WindowButton.Kind.CLOSE, "Закрыть", close))
 
 	# Содержимое не липнет к рамке: поле вокруг тела окна.
 	_margin = MarginContainer.new()
 	_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_margin.add_theme_constant_override("margin_left", PAD)
-	_margin.add_theme_constant_override("margin_right", PAD)
-	_margin.add_theme_constant_override("margin_top", GAP)
-	_margin.add_theme_constant_override("margin_bottom", PAD)
 	rows.add_child(_margin)
+	_apply_margins()
 	body = VBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override("separation", GAP)
 	body.clip_contents = true
 	_margin.add_child(body)
 
-	var handle := Control.new()
-	handle.name = "ResizeHandle"
-	handle.custom_minimum_size = Vector2(16, 16)
-	handle.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	handle.offset_left = -16
-	handle.offset_top = -16
-	handle.mouse_default_cursor_shape = Control.CURSOR_FDIAGSIZE
-	handle.gui_input.connect(_on_handle_input)
-	add_child(handle)
+	# Уголок для растягивания: три косые черты, как у настоящих окон; у развёрнутого окна его нет.
+	_handle = Control.new()
+	_handle.name = "ResizeHandle"
+	_handle.custom_minimum_size = Vector2(16, 16)
+	_handle.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_handle.offset_left = -16
+	_handle.offset_top = -16
+	_handle.mouse_default_cursor_shape = Control.CURSOR_FDIAGSIZE
+	_handle.gui_input.connect(_on_handle_input)
+	_handle.draw.connect(_draw_grip)
+	add_child(_handle)
 	_apply_theme()
 
 
+func _draw_grip() -> void:
+	if is_maximized:
+		return
+	for step: int in 3:
+		var d: float = 4.0 + float(step) * 4.0
+		_handle.draw_line(Vector2(14.0 - d, 13.0), Vector2(14.0, 13.0 - d), _grip_color, 1.0, true)
+
+
 ## Кнопка шапки: одного размера, без фона; при наведении тон плашки, у «закрыть» — `danger`.
-func _add_title_button(text: String, tip: String, action: Callable, is_close: bool) -> Button:
-	var button := Button.new()
-	button.text = text
+func _add_title_button(kind: WindowButton.Kind, tip: String, action: Callable) -> WindowButton:
+	var button := WindowButton.new()
+	button.kind = kind
 	button.tooltip_text = tip
-	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(BUTTON_SIZE.x, BUTTON_SIZE.y)
+	button.custom_minimum_size = BUTTON_SIZE
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	button.set_meta("is_close", is_close)
 	button.pressed.connect(action)
 	_title_bar.add_child(button)
 	return button
+
+
+## Поля вокруг содержимого: обычное окно — по сетке, «во всё окно» — без полей.
+func _apply_margins() -> void:
+	var sides: Dictionary = {"margin_left": PAD, "margin_right": PAD, "margin_top": GAP + 4, "margin_bottom": PAD}
+	for side: String in sides.keys():
+		_margin.add_theme_constant_override(side, 0 if _flush else int(sides[side]))
+
+
+## Содержимое во всё окно без полей: у терминала свой край и свой фон.
+func set_flush(flush: bool) -> void:
+	_flush = flush
+	_apply_margins()
 
 
 ## Тон шапки и рамки по теме и по фокусу: активное окно заметнее неактивного.
@@ -167,14 +191,16 @@ func _apply_theme() -> void:
 	var dark: bool = panel.get_luminance() < 0.4
 
 	theme = GameTheme.build(theme_id)
+	# Развёрнутое окно прилегает к краям: без скруглений и тени.
+	var corner: int = 0 if is_maximized else radius + 1
 	_frame.bg_color = panel
 	_frame.border_color = accent if is_focused else border
 	_frame.set_border_width_all(1)
-	_frame.set_corner_radius_all(radius + 1)
+	_frame.set_corner_radius_all(corner)
 	# На светлой теме тень мягче: тёмный ореол на светлом фоне читается грязным пятном.
 	var shadow: float = (0.35 if is_focused else 0.2) * (1.0 if dark else 0.5)
 	_frame.shadow_color = Color(0, 0, 0, shadow)
-	_frame.shadow_size = 10 if is_focused else 5
+	_frame.shadow_size = 0 if is_maximized else (12 if is_focused else 6)
 	_frame.shadow_offset = Vector2(0, 3)
 	_panel.add_theme_stylebox_override("panel", _frame)
 
@@ -184,8 +210,8 @@ func _apply_theme() -> void:
 	else:
 		bar = raised if is_focused else panel.darkened(0.06)
 	_title_style.bg_color = bar
-	_title_style.corner_radius_top_left = radius
-	_title_style.corner_radius_top_right = radius
+	_title_style.corner_radius_top_left = maxi(corner - 1, 0)
+	_title_style.corner_radius_top_right = maxi(corner - 1, 0)
 	_title_style.border_color = border
 	_title_style.border_width_bottom = 1
 	_title_style.content_margin_left = PAD
@@ -196,22 +222,24 @@ func _apply_theme() -> void:
 	_title_label.add_theme_color_override("font_color", text if is_focused else dim)
 	_icon_rect.modulate = Color(1, 1, 1, 1.0 if is_focused else 0.6)
 
-	for button: Button in _buttons:
-		var is_close: bool = bool(button.get_meta("is_close", false))
+	for button: WindowButton in _buttons:
+		var is_close: bool = button.kind == WindowButton.Kind.CLOSE
 		var hover := StyleBoxFlat.new()
-		hover.bg_color = GameTheme.color("danger", theme_id) if is_close else bar.lerp(text, 0.14)
+		hover.bg_color = GameTheme.color("danger", theme_id) if is_close else bar.lerp(text, 0.12)
 		hover.set_corner_radius_all(radius)
-		var empty := StyleBoxFlat.new()
-		empty.bg_color = Color(0, 0, 0, 0)
-		empty.set_corner_radius_all(radius)
-		for state: String in ["normal", "focus"]:
+		var pressed := hover.duplicate() as StyleBoxFlat
+		pressed.bg_color = hover.bg_color.darkened(0.12) if is_close else bar.lerp(text, 0.2)
+		var empty := StyleBoxEmpty.new()
+		for state: String in ["normal", "focus", "disabled"]:
 			button.add_theme_stylebox_override(state, empty)
-		for state: String in ["hover", "pressed"]:
-			button.add_theme_stylebox_override(state, hover)
-		button.add_theme_color_override("font_color", text if is_focused else dim)
-		var hover_text: Color = Color.WHITE if is_close else text
-		button.add_theme_color_override("font_hover_color", hover_text)
-		button.add_theme_color_override("font_pressed_color", hover_text)
+		button.add_theme_stylebox_override("hover", hover)
+		button.add_theme_stylebox_override("pressed", pressed)
+		button.add_theme_stylebox_override("hover_pressed", pressed)
+		button.glyph_color = text if is_focused else dim
+		button.glyph_hover_color = Color.WHITE if is_close else text
+		button.queue_redraw()
+	_grip_color = dim
+	_handle.queue_redraw()
 	_refresh_icon()
 
 
@@ -258,6 +286,9 @@ func toggle_maximize() -> void:
 		position = Vector2.ZERO
 		size = area
 	is_maximized = not is_maximized
+	_maximize_button.kind = WindowButton.Kind.RESTORE if is_maximized else WindowButton.Kind.MAXIMIZE
+	_maximize_button.tooltip_text = "Восстановить" if is_maximized else "Развернуть"
+	_apply_theme()
 	state_changed.emit(self)
 
 

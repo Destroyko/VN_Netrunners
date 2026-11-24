@@ -14,6 +14,10 @@ signal leave_requested
 const MENU_ITEMS: Dictionary = {
 	"terminal": "Терминал", "reboot": "Перезагрузить", "shut_down": "Выключить",
 }
+## Значки пунктов «Пуска» и где проходит черта: действия питания — отдельной группой внизу.
+const MENU_ICONS: Dictionary = {"terminal": "terminal", "reboot": "reboot", "shut_down": "power"}
+const MENU_POWER: PackedStringArray = ["reboot", "shut_down"]
+const MENU_WIDTH: float = 240.0
 
 ## Высота панели и отступы — по шагу 4 px.
 const HEIGHT: float = 48.0
@@ -32,6 +36,8 @@ var _satiety: ProgressBar
 var _heat: HeatBar
 var _windows: HBoxContainer
 var _buttons: Dictionary = {}
+var _start: Button
+var _menu: PopupPanel
 
 
 func _init() -> void:
@@ -46,25 +52,36 @@ func _init() -> void:
 	left.add_theme_constant_override("separation", PAD)
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(left)
-	var menu := MenuButton.new()
-	menu.name = "Start"
-	menu.text = "Пуск"
-	menu.flat = false
-	menu.focus_mode = Control.FOCUS_NONE
-	menu.custom_minimum_size = Vector2(0, 32)
-	menu.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_style_button(menu, true)
-	var popup: PopupMenu = menu.get_popup()
-	for action: String in MENU_ITEMS.keys():
-		popup.add_item(str(MENU_ITEMS[action]))
-		popup.set_item_metadata(popup.item_count - 1, action)
-	popup.index_pressed.connect(func(index: int) -> void: menu_requested.emit(str(popup.get_item_metadata(index))))
-	left.add_child(menu)
+	_start = Button.new()
+	_start.name = "Start"
+	_start.text = "Пуск"
+	_start.icon = GameTheme.icon("start", theme_id)
+	_start.add_theme_constant_override("icon_max_width", 18)
+	_start.toggle_mode = true
+	_start.focus_mode = Control.FOCUS_NONE
+	_start.custom_minimum_size = Vector2(0, 32)
+	_start.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_style_button(_start, true)
+	_start.toggled.connect(func(on: bool) -> void:
+		if on:
+			open_start_menu()
+		else:
+			_menu.hide())
+	left.add_child(_start)
+	_build_menu()
+
+	# Риск раскрытия: значок глаза и полоска делений, вместе — один элемент с подсказкой.
+	var heat_box := HBoxContainer.new()
+	heat_box.add_theme_constant_override("separation", 6)
+	heat_box.tooltip_text = "Риск раскрытия"
+	heat_box.mouse_filter = Control.MOUSE_FILTER_PASS
+	left.add_child(heat_box)
+	heat_box.add_child(_glyph("heat", 18))
 	_heat = HeatBar.new()
 	_heat.theme_id = theme_id
 	_heat.custom_minimum_size = Vector2(110, 10)
 	_heat.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	left.add_child(_heat)
+	heat_box.add_child(_heat)
 
 	_windows = HBoxContainer.new()
 	_windows.add_theme_constant_override("separation", 4)
@@ -85,10 +102,10 @@ func _init() -> void:
 	needs.alignment = BoxContainer.ALIGNMENT_CENTER
 	right.add_child(needs)
 	_energy = _need_bar("Energy", "Энергия", GameTheme.color("ok", theme_id))
-	needs.add_child(_energy)
+	needs.add_child(_need_row("energy", _energy))
 	# Сытость показывается, только пока открыты ворота голода (docs/tech/gates.md).
 	_satiety = _need_bar("Satiety", "Сытость", GameTheme.color("warn", theme_id))
-	needs.add_child(_satiety)
+	needs.add_child(_need_row("food", _satiety))
 
 	_money = Label.new()
 	_money.name = "Money"
@@ -129,6 +146,69 @@ func _init() -> void:
 	right.add_child(leave)
 
 
+## «Пуск»: панель над кнопкой, пункты со значками, питание отдельной группой внизу.
+func _build_menu() -> void:
+	_menu = PopupPanel.new()
+	_menu.name = "StartMenu"
+	_menu.theme = GameTheme.build(theme_id)
+	_menu.popup_hide.connect(func() -> void: _start.set_pressed_no_signal(false))
+	add_child(_menu)
+	var rows := VBoxContainer.new()
+	rows.custom_minimum_size = Vector2(MENU_WIDTH, 0)
+	rows.add_theme_constant_override("separation", 2)
+	_menu.add_child(rows)
+	var power_started: bool = false
+	for action: String in MENU_ITEMS.keys():
+		if MENU_POWER.has(action) and not power_started:
+			power_started = true
+			rows.add_child(HSeparator.new())
+		var item := Button.new()
+		item.name = "Menu_" + action
+		item.text = str(MENU_ITEMS[action])
+		item.icon = GameTheme.icon(str(MENU_ICONS.get(action, "")), theme_id)
+		item.theme_type_variation = "FlatButton"
+		item.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		item.focus_mode = Control.FOCUS_NONE
+		item.custom_minimum_size = Vector2(0, 36)
+		item.add_theme_constant_override("icon_max_width", 20)
+		item.add_theme_constant_override("h_separation", PAD)
+		item.pressed.connect(func() -> void:
+			_menu.hide()
+			menu_requested.emit(action))
+		rows.add_child(item)
+
+
+## Открыть меню «Пуск» над кнопкой (щелчок по «Пуску», снимки, клавиша Win в будущем).
+func open_start_menu() -> void:
+	_start.set_pressed_no_signal(true)
+	_menu.reset_size()
+	var at: Vector2 = _start.get_screen_position() + Vector2(0, -_menu.size.y - 6)
+	_menu.popup(Rect2i(Vector2i(at), _menu.size))
+
+
+## Значок темы фиксированного размера (подписи шкал на панели).
+func _glyph(icon_id: String, side: int) -> TextureRect:
+	var rect := TextureRect.new()
+	rect.texture = GameTheme.icon(icon_id, theme_id)
+	rect.custom_minimum_size = Vector2(side, side)
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return rect
+
+
+## Строка самочувствия: значок и тонкая шкала.
+func _need_row(icon_id: String, bar: ProgressBar) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.tooltip_text = bar.tooltip_text
+	row.add_child(_glyph(icon_id, 14))
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(bar)
+	return row
+
+
 func _ready() -> void:
 	EventBus.time_advanced.connect(func(_minute: int, _passed: int) -> void: refresh())
 	EventBus.money_changed.connect(func(_money_now: int, _delta: int) -> void: refresh())
@@ -147,6 +227,8 @@ func refresh() -> void:
 	_energy.value = Needs.energy()
 	_energy.tooltip_text = "Энергия: %d / %d" % [int(Needs.energy()), int(Needs.energy_max())]
 	_satiety.visible = Gates.is_open(Gates.HUNGER)
+	# Прячется вся строка со значком, иначе значок висел бы без шкалы.
+	(_satiety.get_parent() as Control).visible = _satiety.visible
 	_satiety.max_value = Needs.satiety_max()
 	_satiety.value = Needs.satiety()
 	_satiety.tooltip_text = "Сытость: %d / %d" % [int(Needs.satiety()), int(Needs.satiety_max())]

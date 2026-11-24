@@ -14,6 +14,12 @@
     "group":     {"title": "Сайт группы",  "tile": "magenta_dark"},
     "alarm":     {"title": "Будильник",    "tile": "orange_dark"},
     "citymap":   {"title": "Карта города", "tile": "teal_mid"},
-    "leave":     {"title": "Отойти от ПК", "tile": "graphite"}
+    "leave":     {"title": "Отойти от ПК", "tile": "graphite"},
+    "start":     {"title": "Пуск",         "tile": "graphite"},
+    "power":     {"title": "Выключить",    "tile": "graphite"},
+    "reboot":    {"title": "Перезагрузить", "tile": "graphite"},
+    "heat":      {"title": "Риск раскрытия", "tile": "graphite"},
+    "energy":    {"title": "Энергия",      "tile": "graphite"},
+    "food":      {"title": "Сытость",      "tile": "graphite"}
   }
 }

@@ -56,7 +56,10 @@ func _build() -> void:
 	screen.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var style := StyleBoxFlat.new()
 	style.bg_color = BACKGROUND
-	style.set_content_margin_all(8)
+	style.set_content_margin_all(12)
+	# Окно терминала без полей: нижние углы экрана повторяют скругление рамки окна.
+	style.corner_radius_bottom_left = 3
+	style.corner_radius_bottom_right = 3
 	screen.add_theme_stylebox_override("panel", style)
 	screen.gui_input.connect(_on_screen_input)
 	add_child(screen)

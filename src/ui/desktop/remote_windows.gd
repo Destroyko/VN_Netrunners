@@ -43,6 +43,8 @@ func open(request: Dictionary, view: TerminalView) -> void:
 		if _terminal.session.target_id() == node and is_instance_valid(view):
 			view.submit("dc"))
 	var session := RemoteSession.new()
+	# Трансляция — чужой экран во всё окно, без полей вокруг.
+	window.set_flush(true)
 	window.body.add_child(session)
 	_view = view
 	session.setup(_terminal, node, address, desktop_of(_terminal.net, node), func(text: String) -> String:

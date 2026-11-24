@@ -15,6 +15,9 @@ var _status: Label
 var _uids: PackedStringArray = []
 var _open_uid: String = ""
 var _reader: VBoxContainer
+## Пока письмо не открыто: подсказка по центру читалки вместо пустого места.
+var _placeholder: Label
+var _letter: Array[Control] = []
 var _compose: MailCompose
 
 
@@ -28,11 +31,14 @@ func _init() -> void:
 	var write := Button.new()
 	write.name = "Write"
 	write.text = "Написать"
+	write.theme_type_variation = "AccentButton"
 	write.pressed.connect(show_compose)
 	left.add_child(write)
 	_list = ItemList.new()
 	_list.name = "Inbox"
-	_list.custom_minimum_size = Vector2(180, 0)
+	_list.custom_minimum_size = Vector2(220, 0)
+	# Длинная тема — с многоточием; отправитель — в подсказке строки.
+	_list.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_list.item_selected.connect(func(index: int) -> void: open(_uids[index]))
 	left.add_child(_list)
@@ -46,17 +52,29 @@ func _init() -> void:
 		_compose.visible = false
 		_reader.visible = true)
 	add_child(_compose)
+	_placeholder = Label.new()
+	_placeholder.name = "Placeholder"
+	_placeholder.theme_type_variation = "DimLabel"
+	_placeholder.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_placeholder.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_placeholder.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right.add_child(_placeholder)
+	_subject = Label.new()
+	_subject.theme_type_variation = "HeaderLabel"
+	_subject.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	right.add_child(_subject)
 	_from = Label.new()
 	_from.theme_type_variation = "DimLabel"
 	right.add_child(_from)
-	_subject = Label.new()
-	_subject.theme_type_variation = "HeaderLabel"
-	right.add_child(_subject)
+	var rule := HSeparator.new()
+	right.add_child(rule)
+	_letter.append_array([_subject, _from, rule])
 	_body = Label.new()
 	_body.name = "Body"
 	_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	right.add_child(_body)
+	_letter.append(_body)
 	_attachments = VBoxContainer.new()
 	_attachments.name = "Attachments"
 	right.add_child(_attachments)
@@ -87,9 +105,17 @@ func refresh() -> void:
 		var def: Dictionary = Mailbox.definition(str(e["id"]))
 		var mark: String = "" if bool(e["read"]) else "● "
 		_list.add_item("%s%s" % [mark, str(def.get("subject", ""))])
+		_list.set_item_tooltip(_list.item_count - 1, "%s\n%s" % [str(def.get("subject", "")), str(def.get("from", ""))])
 		_uids.append(str(e["uid"]))
-	if _open_uid.is_empty() and _uids.is_empty():
-		_body.text = "Писем нет"
+	_placeholder.text = "Писем нет" if _uids.is_empty() else "Выберите письмо слева"
+	_show_letter(not _open_uid.is_empty())
+
+
+## Читалка: письмо или подсказка по центру.
+func _show_letter(shown: bool) -> void:
+	_placeholder.visible = not shown
+	for part: Control in _letter:
+		part.visible = shown
 
 
 ## Ответить на письмо: форма с адресом отправителя и темой («Готово» или «Re: …»).
@@ -118,7 +144,7 @@ func open(uid: String) -> void:
 	Mailbox.mark_read(uid)
 	var e: Dictionary = Mailbox.entry(uid)
 	var def: Dictionary = Mailbox.definition(str(e["id"]))
-	_from.text = "От: %s   %s" % [str(def.get("from", "")), Clock.format_date(int(e["day"]))]
+	_from.text = "%s  ·  %s" % [str(def.get("from", "")), Clock.format_date(int(e["day"]))]
 	_subject.text = str(def.get("subject", ""))
 	_body.text = str(def.get("body", ""))
 	_answer.visible = not Mailbox.reply_draft(uid).is_empty()
