@@ -12,10 +12,10 @@
 | **Исходники значков** (правится руками) | `assets/_source/icons/glyphs/<имя>.svg` |
 | Список иконок и цвет плашки каждой | `assets/_source/icons/icons.json` |
 | Сборка | `python tools/icons/build_icons.py` |
-| Готовые для игры | `assets/ui/icons/glyph/<имя>.svg` (ПК), `assets/ui/icons/tile/<имя>.svg` (телефон) |
+| Готовые для игры | `assets/ui/icons/<тема>/glyph/<имя>.svg` (ПК), `assets/ui/icons/<тема>/tile/<имя>.svg` (телефон, на плашке) |
 | Лист для просмотра | `godot --path . res://tools/shot_icons.tscn` → `tools/out/icons.png` |
 
-Цвета значка берутся из `data/ui_theme.json` (роли `text` и `accent`), цвет плашки — из палитры комнат по
+Цвета значка берутся из темы (`data/themes/<id>/theme.json`, раздел `icons`), цвет плашки — из палитры комнат по
 имени. Сменили роль или палитру — запустили сборку, весь набор перекрасился.
 
 ## Правила стиля (чтобы новые значки не выбивались)

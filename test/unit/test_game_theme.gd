@@ -24,3 +24,25 @@ func test_boot_lists_backgrounds_and_masks_but_not_menu_art() -> void:
 		assert_false(path.get_file().begins_with("bg_menu"), "картинки меню не грузим заранее: " + path)
 	assert_true(paths.has("res://assets/backgrounds/bg_room_main_day_pc_on.png"))
 	assert_true(paths.has("res://assets/masks/loc_room_bed.png"))
+
+
+func test_pc_theme_follows_os_and_player_swap() -> void:
+	GameState.reset()
+	GameState.set_var("pc.os", "normal")
+	assert_eq(GameTheme.pc_theme_id(), "standard", "обычная ОС — стандартная тема")
+	GameState.set_var("pc.os", "hacker")
+	assert_eq(GameTheme.pc_theme_id(), "hacker")
+	GameState.set_var(GameTheme.VAR_PC_THEME, "standard")
+	assert_eq(GameTheme.pc_theme_id(), "standard", "игрок подменил тему файлом: побеждает подмена")
+	GameState.set_var(GameTheme.VAR_PC_THEME, "no_such_theme")
+	assert_eq(GameTheme.pc_theme_id(), "hacker", "несуществующую тему не берём")
+
+
+func test_themes_differ_and_have_icons() -> void:
+	assert_ne(GameTheme.color("background", "standard"), GameTheme.color("background", "hacker"))
+	assert_gt(GameTheme.color("background", "standard").get_luminance(), 0.5, "стандартная — светлая основа")
+	assert_lt(GameTheme.color("background", "hacker").get_luminance(), 0.2, "хакерская — тёмная")
+	for theme_id: String in ["standard", "hacker"]:
+		assert_not_null(GameTheme.icon("terminal", theme_id), "значок терминала в теме " + theme_id)
+	assert_not_null(GameTheme.icon("mail", "phone"), "у телефона значки на плашках")
+

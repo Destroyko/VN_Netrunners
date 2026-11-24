@@ -1,0 +1,19 @@
+{
+  "_note": "Тема хакерской ОС: тёмная, но не чёрная основа и мягкий зелёный акцент, не кислотный (docs/art/themes.md). Цвета — из общей палитры.",
+  "title": "Хакерская",
+  "colors": {
+    "background":   "#1C1E23",
+    "panel":        "#4B4F58",
+    "panel_raised": "#4B5560",
+    "border":       "#6E7B88",
+    "text":         "#C7CBD2",
+    "text_dim":     "#8D929B",
+    "accent":       "#6E9E6A",
+    "accent_alt":   "#4FA3A3",
+    "ok":           "#9BB356",
+    "warn":         "#E0B255",
+    "danger":       "#C25B52"
+  },
+  "shape": {"radius": 3, "border_width": 1, "padding": 8},
+  "icons": {"fg": "#C7CBD2", "accent": "#6E9E6A", "tiles": false}
+}

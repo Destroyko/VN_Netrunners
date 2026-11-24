@@ -9,8 +9,6 @@ signal closed(window: DesktopWindow)
 signal focus_requested(window: DesktopWindow)
 signal state_changed(window: DesktopWindow)
 
-const FOCUSED_COLOR: Color = Color(0.35, 0.75, 1.0)
-const IDLE_COLOR: Color = Color(0.35, 0.38, 0.45)
 
 var app_id: String = ""
 var title: String = "":
@@ -24,7 +22,7 @@ var is_maximized: bool = false
 var is_focused: bool = false:
 	set(value):
 		is_focused = value
-		_frame.border_color = FOCUSED_COLOR if value else IDLE_COLOR
+		_frame.border_color = GameTheme.color("accent", theme_id) if value else GameTheme.color("border", theme_id)
 		_panel.add_theme_stylebox_override("panel", _frame)
 
 ## Куда складывать содержимое.
@@ -38,6 +36,9 @@ var _saved_rect: Rect2 = Rect2()
 var _dragging: bool = false
 var _resizing: bool = false
 var _drag_offset: Vector2 = Vector2.ZERO
+## Тема оформления окна: у окна своего ПК — тема ПК героя, у окна чужого узла — тема этого узла
+## (docs/art/themes.md). Задаётся до `_build`, поэтому окно удалённого сеанса создаёт `theme_id` заранее.
+var theme_id: String = GameTheme.pc_theme_id()
 
 
 func _init() -> void:
@@ -48,8 +49,8 @@ func _init() -> void:
 
 func _build() -> void:
 	_frame = StyleBoxFlat.new()
-	_frame.bg_color = Color(0.09, 0.1, 0.13)
-	_frame.border_color = IDLE_COLOR
+	_frame.bg_color = GameTheme.color("panel", theme_id)
+	_frame.border_color = GameTheme.color("border", theme_id)
 	_frame.set_border_width_all(2)
 	_panel = Panel.new()
 	_panel.set_anchors_preset(Control.PRESET_FULL_RECT)

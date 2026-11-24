@@ -10,7 +10,7 @@ const DEBUG_CONSOLE: String = "res://src/debug/debug_console.tscn"
 ## Окна без иконки: головоломка и удалённый сеанс (их жизнь — в DesktopPuzzles и RemoteWindows).
 const PUZZLE_APP: String = DesktopPuzzles.APP_ID
 const REMOTE_APP: String = RemoteWindows.APP_ID
-const ICON_SIZE: Vector2 = Vector2(96, 72)
+const ICON_SIZE: Vector2 = Vector2(96, 84)
 
 ## Приложения: порядок = порядок иконок. `requires` — условие доступности на общем языке;
 ## пока оно не выполнено, иконка серая (игрок видит, что мир больше, чем открыто).
@@ -58,6 +58,13 @@ var _remote: RemoteWindows
 var _rows: VBoxContainer
 var _emergency: Control
 var _opened_count: int = 0
+## Id темы этого стола (`GameTheme`): окна, значки и фон берут цвета из неё.
+var theme_id: String = GameTheme.DEFAULT_ID
+## Какой значок рисует приложение (`assets/ui/icons/<тема>/glyph/`).
+const APP_ICONS: Dictionary = {
+	"terminal": "terminal", "map": "netmap", "files": "files", "mail": "mail", "bank": "bank", "news": "news",
+	"shop": "shop", "tasks": "tasks", "messenger": "messenger", "work": "work", "group": "group",
+}
 
 
 func _ready() -> void:
@@ -88,6 +95,9 @@ func _ready() -> void:
 
 func _build() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Оформление стола: тема ПК героя (по `pc.os` или подмене игрока), перезагрузка пересобирает стол.
+	theme_id = GameTheme.pc_theme_id()
+	theme = GameTheme.build(theme_id)
 	var rows := VBoxContainer.new()
 	_rows = rows
 	rows.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -102,7 +112,7 @@ func _build() -> void:
 	# Фон стола принимает файлы, брошенные из трансляции чужого ПК: они скачиваются к себе.
 	var wallpaper := DesktopDropZone.new()
 	wallpaper.name = "Wallpaper"
-	wallpaper.color = Color(0.06, 0.07, 0.1)
+	wallpaper.color = GameTheme.color("background", theme_id)
 	wallpaper.set_anchors_preset(Control.PRESET_FULL_RECT)
 	wallpaper.mouse_filter = Control.MOUSE_FILTER_PASS
 	wallpaper.remote_file_dropped.connect(func(data: Dictionary) -> void: _remote.drop_file(data))
@@ -158,12 +168,22 @@ func _make_icon(app: Dictionary) -> Button:
 	button.text = str(app["title"])
 	button.flat = true
 	button.focus_mode = Control.FOCUS_NONE
-	button.add_theme_color_override("font_color", Color(0.9, 0.92, 0.95))
-	var swatch := StyleBoxFlat.new()
-	swatch.bg_color = (app["color"] as Color) if is_available(app) else Color(0.25, 0.25, 0.28)
-	button.add_theme_stylebox_override("normal", swatch)
-	button.add_theme_stylebox_override("hover", swatch)
-	button.add_theme_stylebox_override("pressed", swatch)
+	# Значок темы над подписью; серое приложение показывается блёклым.
+	var icon: Texture2D = GameTheme.icon(str(APP_ICONS.get(str(app["id"]), "")), theme_id)
+	if icon != null:
+		button.icon = icon
+		button.expand_icon = true
+		button.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		button.add_theme_constant_override("icon_max_width", 44)
+		button.add_theme_constant_override("h_separation", 0)
+	else:
+		var swatch := StyleBoxFlat.new()
+		swatch.bg_color = app["color"] as Color
+		button.add_theme_stylebox_override("normal", swatch)
+		button.flat = false
+	if not is_available(app):
+		button.modulate = Color(1, 1, 1, 0.45)
 	button.disabled = not is_available(app)
 	button.tooltip_text = "" if is_available(app) else "Пока недоступно"
 	button.pressed.connect(open_app.bind(str(app["id"])))

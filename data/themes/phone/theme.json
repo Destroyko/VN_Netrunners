@@ -1,0 +1,19 @@
+{
+  "_note": "Тема телефона и общих экранов (меню, комната): тёмная основа, оранжевый акцент (docs/art/themes.md). Цвета — из общей палитры игры (tools/blockout/palette.py).",
+  "title": "Телефон",
+  "colors": {
+    "background":   "#1C1E23",
+    "panel":        "#2E3A55",
+    "panel_raised": "#46587A",
+    "border":       "#6E7B88",
+    "text":         "#E6EAEF",
+    "text_dim":     "#8D929B",
+    "accent":       "#E87B2E",
+    "accent_alt":   "#3FB3C4",
+    "ok":           "#3E9E5C",
+    "warn":         "#F0C330",
+    "danger":       "#D8453C"
+  },
+  "shape": {"radius": 4, "border_width": 1, "padding": 8},
+  "icons": {"fg": "#E6EAEF", "accent": "#E87B2E", "tiles": true}
+}
