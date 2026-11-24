@@ -1,0 +1,18 @@
+{
+  "_note": "Набор иконок интерфейса (docs/art/icons.md). glyph — файл в glyphs/; tile — цвет плашки на телефоне, имя цвета из палитры комнат (tools/blockout/palette.py). Новая иконка: нарисовать glyphs/<имя>.svg по правилам и дописать строку сюда, затем python tools/icons/build_icons.py.",
+  "icons": {
+    "terminal":  {"title": "Терминал",     "tile": "graphite"},
+    "netmap":    {"title": "Карта сети",   "tile": "blue_dark"},
+    "files":     {"title": "Файлы",        "tile": "blue_mid"},
+    "mail":      {"title": "Почта",        "tile": "brown_mid"},
+    "bank":      {"title": "Банк",         "tile": "olive_dark"},
+    "news":      {"title": "Новости",      "tile": "red_dark"},
+    "shop":      {"title": "Магазин",      "tile": "violet_dark"},
+    "tasks":     {"title": "Задачи",       "tile": "green_dark"},
+    "messenger": {"title": "Сообщения",    "tile": "teal_dark"},
+    "work":      {"title": "Работа",       "tile": "steel_mid"},
+    "group":     {"title": "Сайт группы",  "tile": "magenta_dark"},
+    "alarm":     {"title": "Будильник",    "tile": "orange_dark"},
+    "citymap":   {"title": "Карта города", "tile": "teal_mid"}
+  }
+}
