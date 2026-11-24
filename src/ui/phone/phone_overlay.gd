@@ -115,6 +115,14 @@ func close() -> void:
 	_apply()
 
 
+## «Назад»: из приложения на домашний экран, с домашнего экрана — свернуть телефон.
+func go_back() -> void:
+	if _open and _app != APP_HOME:
+		show_app(APP_HOME)
+	else:
+		close()
+
+
 func toggle() -> void:
 	if _open:
 		close()
@@ -339,17 +347,22 @@ func _build() -> void:
 	_nav = HBoxContainer.new()
 	_nav.name = "Nav"
 	_nav.alignment = BoxContainer.ALIGNMENT_CENTER
+	_nav.add_theme_constant_override("separation", 4)
 	column.add_child(_nav)
-	var home := Button.new()
+	# Нижняя панель, как у старых смартфонов: назад, домой, свернуть (вместо обзора программ).
+	var back_button := PhoneNavButton.new(PhoneNavButton.Kind.BACK)
+	back_button.name = "Back"
+	back_button.tooltip_text = "Назад"
+	back_button.pressed.connect(go_back)
+	_nav.add_child(back_button)
+	var home := PhoneNavButton.new(PhoneNavButton.Kind.HOME)
 	home.name = "Home"
-	home.text = "Домой"
-	home.flat = true
+	home.tooltip_text = "Домой"
 	home.pressed.connect(show_app.bind(APP_HOME))
 	_nav.add_child(home)
-	var hide_button := Button.new()
+	var hide_button := PhoneNavButton.new(PhoneNavButton.Kind.HIDE)
 	hide_button.name = "Hide"
-	hide_button.text = "Убрать (Q)"
-	hide_button.flat = true
+	hide_button.tooltip_text = "Свернуть (Q)"
 	hide_button.pressed.connect(close)
 	_nav.add_child(hide_button)
 	_screen.add_child(_home())

@@ -138,3 +138,20 @@ func test_phone_screen_is_rounded_and_padded() -> void:
 	assert_gt(pad.get_theme_constant("margin_left"), 8, "внутренние отступы: иконки не лезут за скруглённый край")
 	assert_not_null(PhoneOverlay.frame.find_child("Bezel", true, false), "рамка корпуса поверх интерфейса")
 
+
+func test_nav_bar_back_home_hide() -> void:
+	PhoneOverlay.open("mail")
+	var nav: Node = PhoneOverlay.frame.find_child("Nav", true, false)
+	for id: String in ["Back", "Home", "Hide"]:
+		assert_not_null(nav.get_node_or_null(id), "кнопка " + id)
+	PhoneOverlay.go_back()
+	assert_eq(PhoneOverlay.current_app(), PhoneOverlay.APP_HOME, "назад из приложения — домой")
+	assert_true(PhoneOverlay.is_open())
+	PhoneOverlay.go_back()
+	assert_false(PhoneOverlay.is_open(), "назад с домашнего экрана — свернуть")
+	PhoneOverlay.open("tasks")
+	(nav.get_node("Home") as Button).emit_signal("pressed")
+	assert_eq(PhoneOverlay.current_app(), PhoneOverlay.APP_HOME)
+	(nav.get_node("Hide") as Button).emit_signal("pressed")
+	assert_false(PhoneOverlay.is_open(), "крестик сворачивает")
+
