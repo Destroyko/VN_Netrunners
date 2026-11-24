@@ -21,6 +21,10 @@ func _ready() -> void:
 	GameState.set_var("pc.os", os_name)
 	if hours > 0:
 		Clock.advance(hours * 60)
+	# Окно почты с открытым письмом: SHOT_MAIL=<id письма> — доставить и открыть (проверка вёрстки).
+	var letter: String = OS.get_environment("SHOT_MAIL")
+	if not letter.is_empty():
+		Mailbox.deliver(letter)
 	var desktop: Control = (load(Screens.DESKTOP) as PackedScene).instantiate() as Control
 	add_child(desktop)
 	await get_tree().process_frame
@@ -45,7 +49,11 @@ func _open(desktop: Control, app: String) -> Control:
 		var taskbar: Node = desktop.find_children("*", "Taskbar", true, false)[0]
 		taskbar.call("open_start_menu")
 		return null
-	return desktop.call("open_app", app) as Control
+	var window: Control = desktop.call("open_app", app) as Control
+	if app == "mail" and not OS.get_environment("SHOT_MAIL").is_empty() and window != null:
+		var mail: MailApp = window.find_child("MailApp", true, false) as MailApp
+		mail.open(str(Mailbox.inbox()[0]["uid"]))
+	return window
 
 
 func _close_popups() -> void:

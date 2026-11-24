@@ -56,6 +56,13 @@ static func icon(icon_id: String, theme_id: String = "") -> Texture2D:
 	return load(path) as Texture2D if ResourceLoader.exists(path) else null
 
 
+## Значок без плашки в любой теме (мелкие значки в списках и кнопках, где плашка лишняя). Нет — null.
+static func glyph(icon_id: String, theme_id: String = "") -> Texture2D:
+	var id: String = theme_id if not theme_id.is_empty() else current_id
+	var path: String = ICONS_DIR.path_join(id).path_join("glyph").path_join(icon_id + ".svg")
+	return load(path) as Texture2D if ResourceLoader.exists(path) else null
+
+
 static func build(theme_id: String = "") -> Theme:
 	var id: String = theme_id if not theme_id.is_empty() else current_id
 	if _built.has(id):

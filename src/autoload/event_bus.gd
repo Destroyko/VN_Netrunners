@@ -19,6 +19,8 @@ signal order_placed(item_id: String)
 signal mail_received(uid: String, mail_id: String)
 signal mail_read(uid: String, mail_id: String)
 signal mail_replied(uid: String, mail_id: String, reply_id: String)
+## Письмо удалено игроком (у отправленного `mail_id` пустой).
+signal mail_deleted(uid: String, mail_id: String)
 ## Мессенджер (Messenger): пришло сообщение, чат прочитан, герой ответил.
 signal message_received(uid: String, message_id: String)
 signal messages_read(contact: String)

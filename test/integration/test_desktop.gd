@@ -247,6 +247,44 @@ func test_mail_app_reads_saves_and_replies() -> void:
 	assert_null(mail.find_child("Reply_decline", true, false), "после ответа кнопок нет")
 
 
+func test_long_letter_wraps_and_scrolls() -> void:
+	Mailbox.deliver("mail_test_long")
+	var window: DesktopWindow = desktop.open_app("mail")
+	var mail: MailApp = window.find_child("MailApp", true, false) as MailApp
+	var before: float = window.size.x
+	mail.open(str(Mailbox.inbox()[0]["uid"]))
+	await wait_process_frames(2)
+	assert_lte(window.get_combined_minimum_size().x, before, "длинное письмо не раздувает окно")
+	assert_lte(mail.size.x, window.size.x, "почта помещается в окно")
+	var body: Label = mail.find_child("Body", true, false) as Label
+	assert_true(body.get_parent().get_parent() is ScrollContainer, "тело письма прокручивается")
+
+
+func test_letter_of_active_task_has_disabled_delete() -> void:
+	GameState.set_quest_stage("side_job_1", "s1")
+	Mailbox.deliver("mail_job_1")
+	Mailbox.deliver("mail_test_long")
+	var window: DesktopWindow = desktop.open_app("mail")
+	var mail: MailApp = window.find_child("MailApp", true, false) as MailApp
+	var delete: Button = mail.find_child("Delete", true, false) as Button
+	mail.open(str(Mailbox.inbox()[1]["uid"]))
+	assert_true(delete.disabled, "письмо идущей задачи удалить нельзя")
+	assert_string_contains(delete.tooltip_text, "Нельзя удалить")
+	mail.open(str(Mailbox.inbox()[0]["uid"]))
+	assert_false(delete.disabled)
+	assert_true(mail.delete_open())
+	assert_eq(Mailbox.inbox().size(), 1)
+
+
+func test_sent_folder_lists_sent_letters() -> void:
+	Mailbox.learn_contact("boss@corp.local")
+	Mailbox.send("boss@corp.local", "Отчёт", "Готово")
+	var window: DesktopWindow = desktop.open_app("mail")
+	var mail: MailApp = window.find_child("MailApp", true, false) as MailApp
+	mail.show_folder(MailApp.FOLDER_SENT)
+	assert_eq(mail.find_child("Letters", true, false).get_child_count(), 1)
+
+
 func test_mail_compose_sends_to_known_address() -> void:
 	Mailbox.deliver("mail_test_order")
 	var path: String = Mailbox.save_attachment(str(Mailbox.inbox()[0]["uid"]), 0)

@@ -20,6 +20,12 @@
     "reboot":    {"title": "Перезагрузить", "tile": "graphite"},
     "heat":      {"title": "Риск раскрытия", "tile": "graphite"},
     "energy":    {"title": "Энергия",      "tile": "graphite"},
-    "food":      {"title": "Сытость",      "tile": "graphite"}
+    "food":      {"title": "Сытость",      "tile": "graphite"},
+    "mail_unread": {"title": "Письмо: не прочитано", "tile": "brown_mid"},
+    "mail_read":   {"title": "Письмо: прочитано",    "tile": "brown_mid"},
+    "mail_sent":   {"title": "Письмо: отправлено",   "tile": "brown_mid"},
+    "inbox":       {"title": "Входящие",             "tile": "brown_mid"},
+    "trash":       {"title": "Удалить",              "tile": "graphite"},
+    "attach":      {"title": "Вложение",             "tile": "graphite"}
   }
 }

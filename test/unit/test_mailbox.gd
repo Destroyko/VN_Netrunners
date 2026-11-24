@@ -156,3 +156,42 @@ func test_forget_contact_effect() -> void:
 	Effects.apply({"forget_contact": "boss@firma.local"})
 	assert_false(Mailbox.contacts().has("boss@firma.local"))
 
+
+
+# --- Удаление (docs/gameplay/mail.md, «Удаление») --------------------------------------
+
+func test_letter_of_an_active_quest_cannot_be_deleted() -> void:
+	assert_true(Mailbox.linked_quests("mail_job_1").has("side_job_1"), "квест отправляет это письмо")
+	GameState.set_quest_stage("side_job_1", "s1")
+	Mailbox.deliver("mail_job_1")
+	assert_false(Mailbox.can_delete(_uid()))
+	assert_string_contains(Mailbox.delete_block(_uid()), "задачи")
+	assert_false(Mailbox.delete(_uid()))
+	assert_eq(Mailbox.inbox().size(), 1, "письмо на месте")
+
+
+func test_letter_of_a_finished_quest_can_be_deleted() -> void:
+	GameState.set_quest_stage("side_job_1", "s1")
+	GameState.set_quest_completed("side_job_1")
+	Mailbox.deliver("mail_job_1")
+	var deleted: Dictionary = {"n": 0}
+	var spy := func(_uid: String, _id: String) -> void: deleted["n"] += 1
+	EventBus.mail_deleted.connect(spy)
+	assert_true(Mailbox.delete(_uid()))
+	EventBus.mail_deleted.disconnect(spy)
+	assert_eq(Mailbox.inbox().size(), 0)
+	assert_eq(int(deleted["n"]), 1)
+
+
+func test_letter_waiting_for_a_reply_cannot_be_deleted() -> void:
+	Mailbox.deliver(TEST_MAIL)
+	assert_false(Mailbox.can_delete(_uid()), "ответ — выбор, его нельзя потерять")
+	Mailbox.reply(_uid(), "accept")
+	assert_true(Mailbox.can_delete(_uid()), "ответил — можно удалить")
+
+
+func test_sent_letter_can_be_deleted() -> void:
+	Mailbox.learn_contact("boss@corp.local")
+	assert_true(Mailbox.send("boss@corp.local", "Отчёт", "Готово"))
+	assert_true(Mailbox.delete_sent(0))
+	assert_eq(Mailbox.sent().size(), 0)
