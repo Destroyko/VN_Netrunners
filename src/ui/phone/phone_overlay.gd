@@ -35,6 +35,8 @@ var _open: bool = false
 ## Чья сцена сейчас держит телефон (null — телефона нет на экране).
 var _owner: Node = null
 var _bottom: float = 0.0
+## Телефон показывается на экране у этой сцены (false — только держится для игры, см. attach).
+var _phone_shown: bool = true
 
 
 func _ready() -> void:
@@ -46,10 +48,13 @@ func _ready() -> void:
 
 # --- Кто держит телефон ----------------------------------------------------------------
 
-## Сцена игры показывает телефон. `bottom` — сколько места внизу занято (панель задач ПК).
-func attach(owner: Node, bottom: float = 0.0) -> void:
+## Сцена игры держит телефон. `bottom` — сколько места внизу занято (панель задач ПК).
+## `phone_shown` — false: игра идёт, но телефона на экране нет (за ПК: всё нужное продублировано
+## приложениями стола, 24.11.2026); Q и J тогда ничего не делают.
+func attach(owner: Node, bottom: float = 0.0, phone_shown: bool = true) -> void:
 	_owner = owner
 	_bottom = bottom
+	_phone_shown = phone_shown
 	close()
 
 
@@ -60,7 +65,14 @@ func detach(owner: Node) -> void:
 	close()
 
 
+## Телефон можно достать и он виден на экране.
 func is_available() -> bool:
+	return _phone_shown and in_game()
+
+
+## Идёт игра (сцена держит телефон, меню не открыто), с телефоном на экране или без него.
+## От этого зависят и другие слои игры, например инвентарь.
+func in_game() -> bool:
 	return is_instance_valid(_owner) and not Clock.is_paused_by(PauseMenu.PAUSE_REASON)
 
 

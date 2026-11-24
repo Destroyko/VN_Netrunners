@@ -16,6 +16,8 @@ const MENU_ITEMS: Dictionary = {
 
 var _time: Label
 var _money: Label
+var _energy: ProgressBar
+var _satiety: ProgressBar
 var _heat: HeatBar
 var _windows: HBoxContainer
 var _buttons: Dictionary = {}
@@ -41,6 +43,11 @@ func _init() -> void:
 	row.add_child(_time)
 	_money = Label.new()
 	row.add_child(_money)
+	_energy = _need_bar("Energy", "Энергия", GameTheme.color("ok"))
+	row.add_child(_energy)
+	# Сытость показывается, только пока открыты ворота голода (docs/tech/gates.md).
+	_satiety = _need_bar("Satiety", "Сытость", GameTheme.color("warn"))
+	row.add_child(_satiety)
 	_heat = HeatBar.new()
 	_heat.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_heat)
@@ -60,12 +67,37 @@ func _init() -> void:
 func _ready() -> void:
 	EventBus.time_advanced.connect(func(_minute: int, _passed: int) -> void: refresh())
 	EventBus.money_changed.connect(func(_money_now: int, _delta: int) -> void: refresh())
+	EventBus.needs_changed.connect(refresh)
+	EventBus.flag_changed.connect(func(flag: String, _value: bool) -> void:
+		if flag == Gates.HUNGER:
+			refresh())
 	refresh()
 
 
 func refresh() -> void:
 	_time.text = Clock.format_now()
 	_money.text = "%d ₽" % GameState.money
+	_energy.max_value = Needs.energy_max()
+	_energy.value = Needs.energy()
+	_energy.tooltip_text = "Энергия: %d / %d" % [int(Needs.energy()), int(Needs.energy_max())]
+	_satiety.visible = Gates.is_open(Gates.HUNGER)
+	_satiety.max_value = Needs.satiety_max()
+	_satiety.value = Needs.satiety()
+	_satiety.tooltip_text = "Сытость: %d / %d" % [int(Needs.satiety()), int(Needs.satiety_max())]
+
+
+## Тонкая шкала самочувствия в панели задач (за ПК телефон не показывается).
+func _need_bar(bar_name: String, title: String, fill: Color) -> ProgressBar:
+	var bar := ProgressBar.new()
+	bar.name = bar_name
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(70, 8)
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar.tooltip_text = title
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill
+	bar.add_theme_stylebox_override("fill", style)
+	return bar
 
 
 ## Кнопка окна на панели: заголовок и признак «окно сейчас в фокусе».

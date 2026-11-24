@@ -129,16 +129,15 @@ func test_heat_bar_colors_follow_stages() -> void:
 
 # --- Самочувствие и мысли героя (gameplay/needs.md) -------------------------------------
 
-func test_phone_shows_needs_at_the_pc() -> void:
-	assert_true(PhoneOverlay.frame.visible, "за ПК телефон лежит в углу")
-	assert_false(PhoneOverlay.is_open())
-	var status: PhoneStatus = PhoneOverlay.status()
-	assert_eq(status.energy_bar().value, 80.0)
-	Needs.eat(10.0)
-	assert_eq(status.satiety_bar().value, 80.0, "поел — строка состояния перечитала")
-	assert_almost_eq(PhoneOverlay.frame.offset_bottom, -34.0, 0.5, "телефон над панелью задач")
+func test_phone_is_hidden_at_the_pc_and_needs_live_on_the_taskbar() -> void:
+	assert_false(PhoneOverlay.frame.visible, "за ПК телефона на экране нет")
+	assert_false(PhoneOverlay.is_available(), "достать нельзя: Q и J ничего не делают")
+	assert_true(PhoneOverlay.in_game(), "игра при этом идёт: инвентарь и сцена держатся")
+	var bar: ProgressBar = desktop.find_child("Energy", true, false) as ProgressBar
+	assert_not_null(bar, "энергия — шкалой в панели задач")
+	assert_eq(bar.value, 80.0)
 	desktop.hide_pc()
-	assert_false(PhoneOverlay.frame.visible, "отошёл от ПК — стол телефон отдал")
+	assert_false(PhoneOverlay.in_game(), "отошёл от ПК — стол игру отдал")
 
 
 func test_tracker_and_tasks_on_the_pc() -> void:

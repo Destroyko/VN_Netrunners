@@ -390,9 +390,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		leave_pc()
 
 
-## Телефон лежит над панелью задач: она внизу, кнопка «Отойти от ПК» не перекрыта.
+## За ПК телефона на экране нет: всё нужное продублировано приложениями стола, а состояние
+## (энергия, деньги) — в панели задач. Игра при этом идёт, инвентарь и сцена держатся на `in_game`.
 func _attach_phone() -> void:
-	PhoneOverlay.attach(self, _taskbar.custom_minimum_size.y)
+	PhoneOverlay.attach(self, _taskbar.custom_minimum_size.y, false)
 
 
 func _exit_tree() -> void:

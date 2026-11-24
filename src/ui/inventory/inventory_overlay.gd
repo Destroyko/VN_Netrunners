@@ -31,7 +31,7 @@ func _ready() -> void:
 
 
 func open(other: String = "") -> void:
-	if not PhoneOverlay.is_available():
+	if not PhoneOverlay.in_game():
 		return
 	_other = other
 	_selected = ""
@@ -223,7 +223,7 @@ func _action(parent: Control, action_name: String, text: String, on_press: Calla
 
 func _process(_delta: float) -> void:
 	# Меню игры открылось или сцена ушла — окно закрывается.
-	if panel.visible and not PhoneOverlay.is_available():
+	if panel.visible and not PhoneOverlay.in_game():
 		close()
 
 
@@ -238,7 +238,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if key == null or not key.pressed or key.echo or key.keycode != KEY_I:
 		return
 	var focus: Control = get_viewport().gui_get_focus_owner()
-	if focus is LineEdit or focus is TextEdit or DialogueManager.is_active() or not PhoneOverlay.is_available():
+	if focus is LineEdit or focus is TextEdit or DialogueManager.is_active() or not PhoneOverlay.in_game():
 		return
 	get_viewport().set_input_as_handled()
 	toggle()
