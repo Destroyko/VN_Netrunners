@@ -26,6 +26,11 @@
     "mail_sent":   {"title": "Письмо: отправлено",   "tile": "brown_mid"},
     "inbox":       {"title": "Входящие",             "tile": "brown_mid"},
     "trash":       {"title": "Удалить",              "tile": "graphite"},
-    "attach":      {"title": "Вложение",             "tile": "graphite"}
+    "attach":      {"title": "Вложение",             "tile": "graphite"},
+    "node_pc":      {"title": "Узел: ПК",            "tile": "blue_dark"},
+    "node_router":  {"title": "Узел: роутер",        "tile": "blue_dark"},
+    "node_server":  {"title": "Узел: сервер",        "tile": "blue_dark"},
+    "node_phone":   {"title": "Узел: телефон",       "tile": "blue_dark"},
+    "node_unknown": {"title": "Узел: неизвестно",    "tile": "graphite"}
   }
 }

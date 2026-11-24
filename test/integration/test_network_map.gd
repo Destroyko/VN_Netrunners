@@ -59,6 +59,25 @@ func test_map_shows_only_known_nodes() -> void:
 	assert_false(map.known_nodes().has("node_office_server"), "чужое, неизвестное не показывается")
 
 
+func test_map_hides_what_the_device_is_until_probed() -> void:
+	var map: MapView = desktop.open_app("map").body.get_child(0) as MapView
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	view.submit("scan")
+	map.refresh()
+	assert_eq(map.device_of(Network.HOME_ID), "pc", "свой ПК известен")
+	for id: String in map.known_nodes():
+		if id != Network.HOME_ID and not Network.for_game().is_probed(id):
+			assert_eq(map.device_of(id), "unknown", "не прощупан — «?»")
+			assert_string_contains(map.card_text(id), "Неизвестное устройство")
+			assert_string_contains(map.card_text(id), "доступа нет")
+
+
+func test_card_shows_where_the_player_is() -> void:
+	var map: MapView = desktop.open_app("map").body.get_child(0) as MapView
+	assert_eq(map.state_of(Network.HOME_ID), "вы здесь")
+	assert_string_contains(map.card_text(Network.HOME_ID), "ПК")
+
+
 # --- Аварийная консоль ----------------------------------------------------------
 
 func test_healthy_pc_shows_the_desktop() -> void:

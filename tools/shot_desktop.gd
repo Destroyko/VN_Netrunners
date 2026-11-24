@@ -21,6 +21,11 @@ func _ready() -> void:
 	GameState.set_var("pc.os", os_name)
 	if hours > 0:
 		Clock.advance(hours * 60)
+	# SHOT_REVEAL="node_a,node_b" — открыть узлы как выданные заказом (с названием), SHOT_HACKED — взломанные.
+	for node_id: String in OS.get_environment("SHOT_REVEAL").split(",", false):
+		Network.for_game().reveal(node_id, [], GameState.minute)
+	for node_id: String in OS.get_environment("SHOT_HACKED").split(",", false):
+		Network.for_game().mark_hacked(node_id)
 	# Окно почты с открытым письмом: SHOT_MAIL=<id письма> — доставить и открыть (проверка вёрстки).
 	var letter: String = OS.get_environment("SHOT_MAIL")
 	if not letter.is_empty():
@@ -57,6 +62,10 @@ func _open(desktop: Control, app: String) -> Control:
 			view.submit(line)
 		view.entry().text = OS.get_environment("SHOT_TYPE")
 		view.entry().caret_column = view.entry().text.length()
+	# SHOT_HOVER=<id узла> — карточка узла на карте, как при наведении мыши.
+	if app == "map" and window != null and not OS.get_environment("SHOT_HOVER").is_empty():
+		var map: MapView = (window as DesktopWindow).body.get_child(0) as MapView
+		map.call_deferred("_hover", OS.get_environment("SHOT_HOVER"))
 	if app == "mail" and not OS.get_environment("SHOT_MAIL").is_empty() and window != null:
 		var mail: MailApp = window.find_child("MailApp", true, false) as MailApp
 		mail.open(str(Mailbox.inbox()[0]["uid"]))

@@ -279,7 +279,7 @@ func open_app(app_id: String) -> DesktopWindow:
 	window.set_minimum(app["min"] as Vector2)
 	window.body.add_child(_make_content(app_id))
 	# Консоль — свой экран во всё окно, как у настоящего эмулятора терминала.
-	window.set_flush(app_id == "terminal")
+	window.set_flush(app_id == "terminal" or app_id == "map")
 	attach_window(window, app["size"] as Vector2)
 	# Приложение помнит, где его закрыли: открываем там же (в пределах сессии).
 	var remembered: Rect2 = _remembered.get(app_id, Rect2()) as Rect2
