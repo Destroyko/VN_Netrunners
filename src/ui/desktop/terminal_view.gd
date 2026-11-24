@@ -12,17 +12,28 @@ signal remote_requested(request: Dictionary)
 ## Команда выполнена: карта сети и режим стола перечитывают состояние.
 signal result_shown
 
-const BACKGROUND: Color = Color(0.03, 0.04, 0.05)
-const TEXT_COLOR: Color = Color(0.82, 0.86, 0.84)
+## Размер шрифта консоли и полупериод мигания курсора.
+const FONT_SIZE: int = 15
+const BLINK_SECONDS: float = 0.53
 
 var terminal: Terminal
 
 var _scroll: ScrollContainer
 var _output: RichTextLabel
+## Строка ввода — такой же RichTextLabel, как вывод: тот же шрифт и та же высота строки, поэтому
+## приглашение стоит ровно под выводом. Клавиши принимает невидимый `_entry`.
+var _line: RichTextLabel
 var _entry: LineEdit
-var _prompt: Label
+## Текущее приглашение (простым текстом — для эха команды и журнала).
+var _prompt_text: String = ""
 var _trace: ProgressBar
 var _history_pos: int = -1
+var _paint: TerminalHighlight
+var _has_lines: bool = false
+var _cursor_on: bool = true
+var _blink_left: float = BLINK_SECONDS
+var _last_caret: int = -1
+static var _font: Font
 
 
 func setup(shared_terminal: Terminal) -> void:
@@ -36,26 +47,38 @@ func setup(shared_terminal: Terminal) -> void:
 func _build() -> void:
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_theme_constant_override("separation", 0)
+	_paint = TerminalHighlight.new(_host_theme())
 
 	var trace_row := HBoxContainer.new()
 	trace_row.name = "TraceRow"
 	trace_row.visible = false
 	add_child(trace_row)
+	# Трейс — строка тревоги над экраном: подпись и полоса цвета предупреждения.
+	var trace_back := StyleBoxFlat.new()
+	trace_back.bg_color = _paint.colors["background"] as Color
+	trace_row.add_theme_constant_override("separation", 8)
 	var trace_label := Label.new()
-	trace_label.text = "трейс"
+	trace_label.text = " ТРЕЙС "
+	trace_label.add_theme_font_override("font", _mono_font())
+	trace_label.add_theme_color_override("font_color", _paint.colors["warn"] as Color)
 	trace_row.add_child(trace_label)
 	_trace = ProgressBar.new()
 	_trace.show_percentage = false
 	_trace.max_value = 1.0
 	_trace.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_trace.custom_minimum_size = Vector2(0, 14)
+	_trace.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_trace.custom_minimum_size = Vector2(0, 6)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = _paint.colors["warn"] as Color
+	_trace.add_theme_stylebox_override("fill", fill)
+	_trace.add_theme_stylebox_override("background", trace_back)
 	trace_row.add_child(_trace)
 
 	# Экран консоли: тёмный фон, вывод и строка ввода в одном прокручиваемом столбце.
 	var screen := PanelContainer.new()
 	screen.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var style := StyleBoxFlat.new()
-	style.bg_color = BACKGROUND
+	style.bg_color = _paint.colors["background"] as Color
 	style.set_content_margin_all(12)
 	# Окно терминала без полей: нижние углы экрана повторяют скругление рамки окна.
 	style.corner_radius_bottom_left = 3
@@ -72,26 +95,21 @@ func _build() -> void:
 	column.add_theme_constant_override("separation", 0)
 	_scroll.add_child(column)
 
-	_output = RichTextLabel.new()
-	_output.fit_content = true
-	_output.scroll_active = false
+	_output = _console_label("Output")
 	_output.selection_enabled = true
-	_output.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_output.add_theme_font_override("normal_font", _mono_font())
-	_output.add_theme_color_override("default_color", TEXT_COLOR)
 	column.add_child(_output)
+	_line = _console_label("Line")
+	_line.mouse_filter = Control.MOUSE_FILTER_PASS
+	column.add_child(_line)
 
-	var input_row := HBoxContainer.new()
-	input_row.add_theme_constant_override("separation", 0)
-	column.add_child(input_row)
-	_prompt = Label.new()
-	_prompt.add_theme_font_override("font", _mono_font())
-	_prompt.add_theme_color_override("font_color", TEXT_COLOR)
-	input_row.add_child(_prompt)
+	# Клавиши принимает обычное поле ввода, но его не видно: на экране — строка `_line` со своим
+	# курсором. Поле живёт внутри строки размером в точку, чтобы не сдвигать раскладку.
 	_entry = LineEdit.new()
-	_entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_entry.name = "Entry"
+	_entry.modulate.a = 0.0
+	_entry.size = Vector2(1, 1)
+	_entry.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_entry.add_theme_font_override("font", _mono_font())
-	_entry.add_theme_color_override("font_color", TEXT_COLOR)
 	# Строка ввода — часть экрана, а не поле формы: без рамки, меню по правой кнопке и эмодзи.
 	_entry.flat = true
 	_entry.context_menu_enabled = false
@@ -105,13 +123,98 @@ func _build() -> void:
 		_entry.set("keep_editing_on_text_submit", true)
 	_entry.text_submitted.connect(_on_submitted)
 	_entry.gui_input.connect(_on_entry_input)
-	input_row.add_child(_entry)
+	_entry.text_changed.connect(func(_text: String) -> void: _wake_cursor())
+	_entry.focus_entered.connect(_wake_cursor)
+	_entry.focus_exited.connect(_redraw_line)
+	_line.add_child(_entry)
+
+
+## Текст консоли: моноширинный шрифт, без полей и межстрочного зазора, высота по содержимому.
+func _console_label(label_name: String) -> RichTextLabel:
+	var label := RichTextLabel.new()
+	label.name = label_name
+	label.bbcode_enabled = true
+	label.fit_content = true
+	label.scroll_active = false
+	label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.add_theme_font_override("normal_font", _mono_font())
+	label.add_theme_font_size_override("normal_font_size", FONT_SIZE)
+	label.add_theme_color_override("default_color", _paint.colors["text"] as Color)
+	label.add_theme_constant_override("line_separation", 0)
+	label.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	label.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	label.add_theme_color_override("selection_color", Color(_paint.colors["path"] as Color, 0.35))
+	return label
 
 
 static func _mono_font() -> Font:
-	var font := SystemFont.new()
-	font.font_names = PackedStringArray(["Consolas", "Courier New", "monospace"])
-	return font
+	if _font == null:
+		var font := SystemFont.new()
+		font.font_names = PackedStringArray(["Consolas", "DejaVu Sans Mono", "Courier New", "monospace"])
+		_font = font
+	return _font
+
+
+## Тема окна, в котором терминал (своё окно — тема ПК героя).
+func _host_theme() -> String:
+	var node: Node = get_parent()
+	while node != null:
+		if node is DesktopWindow:
+			return (node as DesktopWindow).theme_id
+		node = node.get_parent()
+	return GameTheme.pc_theme_id()
+
+
+# --- Курсор ---------------------------------------------------------------------
+
+## Курсор мигает, пока строка в фокусе; набрал или сдвинул — снова горит (как в настоящей консоли).
+func _process(delta: float) -> void:
+	if _entry == null:
+		return
+	if _entry.caret_column != _last_caret:
+		_last_caret = _entry.caret_column
+		_wake_cursor()
+		return
+	if not _entry.has_focus():
+		return
+	_blink_left -= delta
+	if _blink_left <= 0.0:
+		_blink_left = BLINK_SECONDS
+		_cursor_on = not _cursor_on
+		_redraw_line()
+
+
+func _wake_cursor() -> void:
+	_cursor_on = true
+	_blink_left = BLINK_SECONDS
+	_redraw_line()
+
+
+## Строка ввода: приглашение, набранное с подсветкой и блочный курсор на месте каретки. Пароль не
+## печатается вовсе — видно только курсор. Без фокуса курсор — пустая рамка.
+func _redraw_line() -> void:
+	if _line == null:
+		return
+	var typed: String = "" if _entry.secret else _entry.text
+	var caret: int = clampi(_entry.caret_column, 0, typed.length())
+	var before: String = typed.substr(0, caret)
+	var under: String = typed.substr(caret, 1)
+	var after: String = typed.substr(caret + 1)
+	var cursor: String = ""
+	var bg: String = (_paint.colors["background"] as Color).to_html(false)
+	var fg: String = (_paint.colors["cursor"] as Color).to_html(false)
+	var glyph: String = TerminalHighlight.escape(under if not under.is_empty() else " ")
+	if _entry.has_focus() and _cursor_on:
+		cursor = "[bgcolor=#%s][color=#%s]%s[/color][/bgcolor]" % [fg, bg, glyph]
+	elif _entry.has_focus():
+		cursor = _paint.command(under) if not under.is_empty() else " "
+	else:
+		cursor = "[u]%s[/u]" % glyph
+	# Подсветка команды считается по всей строке, а курсор вставляется между её частями.
+	var head: String = _paint.command(before) if not before.is_empty() else ""
+	var tail: String = TerminalHighlight.escape(after)
+	_line.text = _paint.prompt(_prompt_text) + head + cursor + tail
 
 
 func focus_entry() -> void:
@@ -132,8 +235,8 @@ func submit(line: String) -> TermResult:
 	_history_pos = -1
 	# Пароль не печатается и не пишется в журнал — как в настоящей консоли.
 	var shown: String = "" if terminal.login_pending() else line
-	_print(_prompt.text + shown)
-	SessionLog.write("term", _prompt.text + (shown if not terminal.login_pending() else "***"))
+	_print_bbcode(_paint.prompt(_prompt_text) + _paint.command(shown))
+	SessionLog.write("term", _prompt_text + (shown if not terminal.login_pending() else "***"))
 	var result: TermResult = terminal.execute(line)
 	show_result(result)
 	return result
@@ -165,7 +268,7 @@ func _complete() -> void:
 	var report: Dictionary = terminal.complete(_entry.text)
 	var options: PackedStringArray = report["options"] as PackedStringArray
 	if options.size() > 1:
-		_print(_prompt.text + _entry.text)
+		_print_bbcode(_paint.prompt(_prompt_text) + _paint.command(_entry.text))
 		_print("  ".join(options))
 	_entry.text = str(report["line"])
 	_entry.caret_column = _entry.text.length()
@@ -188,6 +291,7 @@ func _step_history(direction: int) -> void:
 func show_result(result: TermResult) -> void:
 	if result.clear_screen:
 		_output.clear()
+		_has_lines = false
 	# Вопрос («заменить? (y/n)») уже среди строк ответа: второй раз не печатаем.
 	for line: String in result.lines:
 		_print(line)
@@ -209,8 +313,16 @@ func _on_ticked(result: TermResult) -> void:
 	result_shown.emit()
 
 
+## Строка ответа: цвет по смыслу (ошибка, успех, предупреждение).
 func _print(text: String) -> void:
-	_output.add_text(text + "\n")
+	_print_bbcode(_paint.output(text))
+
+
+## Перевод строки ставится перед новой строкой, а не после: под выводом нет пустой строки, и
+## приглашение стоит сразу под последней строкой (баг F9 24.11.2026: приглашение «съезжало»).
+func _print_bbcode(bbcode: String) -> void:
+	_output.append_text(("\n" if _has_lines else "") + bbcode)
+	_has_lines = true
 	_scroll_to_end.call_deferred()
 
 
@@ -235,8 +347,9 @@ func output_text() -> String:
 
 ## Приглашение и индикатор трейса после каждой команды.
 func _refresh() -> void:
-	_prompt.text = terminal.prompt()
+	_prompt_text = terminal.prompt()
 	_entry.secret = terminal.login_pending()
+	_redraw_line()
 	_refresh_trace()
 
 
@@ -263,3 +376,8 @@ func entry_text() -> String:
 
 func entry() -> LineEdit:
 	return _entry
+
+
+## Строка ввода так, как её видит игрок (приглашение и набранное), без тегов.
+func line_text() -> String:
+	return _line.get_parsed_text()

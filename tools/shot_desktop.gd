@@ -50,6 +50,13 @@ func _open(desktop: Control, app: String) -> Control:
 		taskbar.call("open_start_menu")
 		return null
 	var window: Control = desktop.call("open_app", app) as Control
+	# SHOT_TERM="pwd;ls;abc" — выполнить команды в терминале перед снимком, SHOT_TYPE — набрать строку.
+	if app == "terminal" and window != null:
+		var view: TerminalView = (window as DesktopWindow).body.get_child(0) as TerminalView
+		for line: String in OS.get_environment("SHOT_TERM").split(";", false):
+			view.submit(line)
+		view.entry().text = OS.get_environment("SHOT_TYPE")
+		view.entry().caret_column = view.entry().text.length()
 	if app == "mail" and not OS.get_environment("SHOT_MAIL").is_empty() and window != null:
 		var mail: MailApp = window.find_child("MailApp", true, false) as MailApp
 		mail.open(str(Mailbox.inbox()[0]["uid"]))

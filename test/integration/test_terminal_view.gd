@@ -88,3 +88,18 @@ func test_activating_the_terminal_window_focuses_the_entry() -> void:
 	await wait_frames(2)
 	assert_true(view.entry().has_focus())
 
+
+
+func test_prompt_line_follows_output_without_blank_line() -> void:
+	# Баг F9 24.11.2026: после команды приглашение съезжало вниз — под выводом была пустая строка.
+	view.submit("pwd")
+	assert_false(view.output_text().ends_with("\n"), "вывод без пустой строки в конце")
+	assert_eq(view.line_text().strip_edges(), "home:/home$", "строка ввода — приглашение и курсор")
+
+
+func test_typed_text_is_shown_in_the_console_line() -> void:
+	view.entry().text = "ls /home"
+	view.entry().caret_column = 8
+	view.focus_entry()
+	await wait_process_frames(1)
+	assert_string_contains(view.line_text(), "home:/home$ ls /home")
