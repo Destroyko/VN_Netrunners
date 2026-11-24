@@ -1,4 +1,4 @@
-# Общие кирпичи для блокаутов в Blender (docs/art/ai-pipeline.md, раздел 5.7).
+# Общие кирпичи для блокаутов в Blender (docs/art/blender-scenes.md).
 # Только коробки: моделировать всерьёз нельзя, иначе этап съест время генератора.
 #
 # Запуск: blender --background --python tools/blockout/<сцена>.py -- <аргументы>
@@ -158,7 +158,7 @@ def depth_setup(near=1.8, far=5.2, margin=0.12):
     add.inputs[1].default_value = margin
     nt.links.new(nrm.outputs[0], mul.inputs[0])
     nt.links.new(mul.outputs[0], add.inputs[0])
-    # Инверсию (ближнее белое) делаем уже в ComfyUI: ShaderNodeMapRange в композиторе
+    # Инверсию (ближнее белое) делаем после рендера: ShaderNodeMapRange в композиторе
     # 5.3 ведёт себя как порог и превращает карту в чёрно-белую маску
     # В 5.x композитор — нодовая группа, выход у неё обычный Group Output
     nt.interface.new_socket(name="Image", in_out="OUTPUT", socket_type="NodeSocketColor")

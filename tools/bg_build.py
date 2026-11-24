@@ -7,7 +7,7 @@
 
     D:\\AI\\ComfyUI\\python_embeded\\python.exe tools/bg_build.py --seed 21
 
-Почему не системный Python: 3.15 слишком новый, колёс под него нет (docs/art/ai-pipeline.md).
+Почему не системный Python: 3.15 слишком новый, колёс под него нет (docs/art/archive/ai-pipeline.md).
 """
 
 import argparse
