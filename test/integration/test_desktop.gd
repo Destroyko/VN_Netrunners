@@ -172,7 +172,10 @@ func test_tracker_and_tasks_on_the_pc() -> void:
 		Mailbox.mark_read(str(e["uid"]))
 	assert_ne(tracker.goal_text(), "Проверить почту", "прочитал — следующая цель")
 	tracker.open_requested.emit()
-	assert_not_null(desktop.window_of("tasks"), "клик по строке — «Задачи» на ПК")
+	var window: DesktopWindow = desktop.window_of("tasks")
+	assert_not_null(window, "клик по строке — «Задачи» на ПК")
+	assert_eq(tracker.get_parent(), window.get_parent().get_parent(), "строка и слой окон — в одной области стола")
+	assert_gt(tracker.get_index(), window.get_parent().get_index(), "строка цели поверх окон")
 
 
 func test_messages_app_on_the_pc() -> void:

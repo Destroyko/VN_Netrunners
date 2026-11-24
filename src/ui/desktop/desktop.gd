@@ -137,17 +137,18 @@ func _build() -> void:
 
 	# Самочувствие и деньги — в строке свёрнутого телефона (PhoneOverlay), трекер задачи — в
 	# правом верхнем углу стола, мысли героя — внизу по центру.
-	# Строка цели — в теме ОС; клик открывает «Задачи» окном стола.
+	_windows = Control.new()
+	_windows.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_windows.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_area.add_child(_windows)
+
+	# Строка цели — поверх окон (её не закрывает ни одно окно), под затемнением, которое добавляется
+	# к столу позже. В теме ОС; клик открывает «Задачи» окном стола.
 	var tracker := QuestTracker.new()
 	tracker.use_theme(theme_id)
 	tracker.place_top_right()
 	tracker.open_requested.connect(func() -> void: open_app("tasks"))
 	_area.add_child(tracker)
-
-	_windows = Control.new()
-	_windows.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_windows.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_area.add_child(_windows)
 
 	# Сообщения системы ПК — вверху по центру, поверх окон (не мысли героя).
 	var notice := SystemNotice.new()

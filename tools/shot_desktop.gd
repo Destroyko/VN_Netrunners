@@ -26,9 +26,9 @@ func _ready() -> void:
 		Network.for_game().reveal(node_id, [], GameState.minute)
 	for node_id: String in OS.get_environment("SHOT_HACKED").split(",", false):
 		Network.for_game().mark_hacked(node_id)
-	# Окно почты с открытым письмом: SHOT_MAIL=<id письма> — доставить и открыть (проверка вёрстки).
-	var letter: String = OS.get_environment("SHOT_MAIL")
-	if not letter.is_empty():
+	# Почта: SHOT_MAIL="id,id" — доставить письма (последнее окажется сверху и откроется, если задан
+	# SHOT_OPEN); SHOT_FOLDER=sent — показать «Отправленные».
+	for letter: String in OS.get_environment("SHOT_MAIL").split(",", false):
 		Mailbox.deliver(letter)
 	var desktop: Control = (load(Screens.DESKTOP) as PackedScene).instantiate() as Control
 	add_child(desktop)
@@ -55,6 +55,9 @@ func _open(desktop: Control, app: String) -> Control:
 		taskbar.call("open_start_menu")
 		return null
 	var window: Control = desktop.call("open_app", app) as Control
+	# SHOT_MAX=1 — развернуть окно на весь стол (проверить, что строка цели поверх окон).
+	if window != null and not OS.get_environment("SHOT_MAX").is_empty():
+		(window as DesktopWindow).toggle_maximize()
 	# SHOT_TERM="pwd;ls;abc" — выполнить команды в терминале перед снимком, SHOT_TYPE — набрать строку.
 	if app == "terminal" and window != null:
 		var view: TerminalView = (window as DesktopWindow).body.get_child(0) as TerminalView
@@ -66,9 +69,12 @@ func _open(desktop: Control, app: String) -> Control:
 	if app == "map" and window != null and not OS.get_environment("SHOT_HOVER").is_empty():
 		var map: MapView = (window as DesktopWindow).body.get_child(0) as MapView
 		map.call_deferred("_hover", OS.get_environment("SHOT_HOVER"))
-	if app == "mail" and not OS.get_environment("SHOT_MAIL").is_empty() and window != null:
+	if app == "mail" and window != null:
 		var mail: MailApp = window.find_child("MailApp", true, false) as MailApp
-		mail.open(str(Mailbox.inbox()[0]["uid"]))
+		if OS.get_environment("SHOT_FOLDER") == "sent":
+			mail.show_folder(MailApp.FOLDER_SENT)
+		elif not OS.get_environment("SHOT_OPEN").is_empty() and not Mailbox.inbox().is_empty():
+			mail.open(str(Mailbox.inbox()[0]["uid"]))
 	return window
 
 

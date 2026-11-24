@@ -66,6 +66,8 @@ func _build_side() -> void:
 	write.name = "Write"
 	write.text = "Написать"
 	write.theme_type_variation = "AccentButton"
+	# Компактная кнопка в углу панели, а не полоса во всю колонку.
+	write.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	write.pressed.connect(show_compose)
 	_side.add_child(write)
 
@@ -104,8 +106,10 @@ func _build_side() -> void:
 	_empty.name = "Empty"
 	_empty.theme_type_variation = "DimLabel"
 	_empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_empty.custom_minimum_size = Vector2(0, 80)
 	_empty.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# Пусто — одна надпись по центру области списка (читалка справа при этом молчит).
+	_empty.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	list_box.add_child(_empty)
 
 
@@ -230,9 +234,15 @@ func _host_theme() -> String:
 
 func show_folder(folder: String) -> void:
 	_folder = folder
-	(_folder_buttons[folder] as Button).set_pressed_no_signal(true)
+	_mark_folder()
 	_open_uid = ""
 	refresh()
+
+
+## Подсветить вкладку текущей папки (без сигнала группа кнопок другую сама не отжимает).
+func _mark_folder() -> void:
+	for folder: String in _folder_buttons.keys():
+		(_folder_buttons[folder] as Button).set_pressed_no_signal(folder == _folder)
 
 
 func refresh() -> void:
@@ -255,8 +265,10 @@ func refresh() -> void:
 			_rows.add_child(_letter_row("sent:%d" % i, "mail_sent", "Кому: " + str(s["to"]), str(s["subject"]),
 				int(s["day"]), int(s["minute"]), false))
 	_empty.visible = _rows.get_child_count() == 0
-	_empty.text = "Писем нет" if _folder == FOLDER_INBOX else "Отправленных нет"
-	_placeholder.text = "Выберите письмо слева" if _rows.get_child_count() > 0 else "Писем нет"
+	_empty.text = "Писем нет
+Новые письма появятся здесь" if _folder == FOLDER_INBOX 		else "Отправленных нет
+Письма, которые вы отправите, появятся здесь"
+	_placeholder.text = "Выберите письмо слева" if _rows.get_child_count() > 0 else ""
 	if _open_uid.is_empty() or (_folder == FOLDER_INBOX and Mailbox.entry(_open_uid).is_empty()):
 		_open_uid = ""
 	_layout()
@@ -338,7 +350,7 @@ func open(uid: String) -> void:
 	_compose.visible = false
 	if _folder != FOLDER_INBOX:
 		_folder = FOLDER_INBOX
-		(_folder_buttons[FOLDER_INBOX] as Button).set_pressed_no_signal(true)
+		_mark_folder()
 	_open_uid = uid
 	Mailbox.mark_read(uid)
 	var e: Dictionary = Mailbox.entry(uid)
