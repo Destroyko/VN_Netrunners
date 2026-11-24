@@ -15,6 +15,8 @@ func _ready() -> void:
 	var hours: int = int(args[3]) if args.size() > 3 else (int(args[2]) if args.size() > 2 and not each else 0)
 	var root: Window = get_tree().root
 	root.size = Vector2i(1280, 720)
+	# Снимок — готовый кадр, без середины анимаций.
+	DesktopWindow.animate = false
 	GameStart.begin()
 	GameState.set_var("pc.os", os_name)
 	if hours > 0:

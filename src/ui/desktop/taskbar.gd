@@ -1,7 +1,7 @@
 class_name Taskbar
 extends PanelContainer
-## Панель задач: слева «Пуск» и заметность, по центру кнопки окон, справа самочувствие, деньги, время
-## и «Отойти от ПК» (docs/tech/desktop-layout.md, «Панель задач»; вид — docs/tech/desktop-ui-spec.md).
+## Панель задач: слева «Пуск», заметность и сразу за ними кнопки окон (как в Windows), справа
+## самочувствие, деньги, время и «Отойти от ПК». Кнопки — во всю высоту панели (docs/tech/desktop-layout.md, «Панель задач»; вид — docs/tech/desktop-ui-spec.md).
 ## Только читает GameState и слушает EventBus.
 
 signal window_button_pressed(app_id: String)
@@ -44,14 +44,9 @@ func _init() -> void:
 	custom_minimum_size = Vector2(0, HEIGHT)
 	add_theme_stylebox_override("panel", _bar_style())
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", GAP)
+	row.add_theme_constant_override("separation", PAD)
 	add_child(row)
-
-	# Боковые зоны равной ширины: кнопки окон остаются ровно по центру экрана.
-	var left := HBoxContainer.new()
-	left.add_theme_constant_override("separation", PAD)
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(left)
+	var left := row
 	_start = Button.new()
 	_start.name = "Start"
 	_start.text = "Пуск"
@@ -59,8 +54,7 @@ func _init() -> void:
 	_start.add_theme_constant_override("icon_max_width", 18)
 	_start.toggle_mode = true
 	_start.focus_mode = Control.FOCUS_NONE
-	_start.custom_minimum_size = Vector2(0, 32)
-	_start.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_start.custom_minimum_size = Vector2(0, HEIGHT - 1)
 	_style_button(_start, true)
 	_start.toggled.connect(func(on: bool) -> void:
 		if on:
@@ -83,17 +77,14 @@ func _init() -> void:
 	_heat.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	heat_box.add_child(_heat)
 
+	# Кнопки окон — слева, сразу за шкалой; свободное место между ними и правой зоной.
 	_windows = HBoxContainer.new()
-	_windows.add_theme_constant_override("separation", 4)
-	_windows.alignment = BoxContainer.ALIGNMENT_CENTER
+	_windows.add_theme_constant_override("separation", 2)
 	_windows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_windows.size_flags_stretch_ratio = 2.0
 	row.add_child(_windows)
 
 	var right := HBoxContainer.new()
 	right.add_theme_constant_override("separation", PAD + 4)
-	right.alignment = BoxContainer.ALIGNMENT_END
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(right)
 
 	# Самочувствие — тонкие шкалы друг над другом: панель не растягивается в ширину.
@@ -137,8 +128,7 @@ func _init() -> void:
 		leave.text = "Отойти"
 	leave.expand_icon = true
 	leave.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	leave.custom_minimum_size = Vector2(40, 32)
-	leave.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	leave.custom_minimum_size = Vector2(48, HEIGHT - 1)
 	leave.add_theme_constant_override("icon_max_width", 20)
 	leave.focus_mode = Control.FOCUS_NONE
 	_style_button(leave, true)
@@ -182,7 +172,7 @@ func _build_menu() -> void:
 func open_start_menu() -> void:
 	_start.set_pressed_no_signal(true)
 	_menu.reset_size()
-	var at: Vector2 = _start.get_screen_position() + Vector2(0, -_menu.size.y - 6)
+	var at: Vector2 = _start.get_screen_position() + Vector2(4, -_menu.size.y - 4)
 	_menu.popup(Rect2i(Vector2i(at), _menu.size))
 
 
@@ -242,19 +232,18 @@ func _bar_style() -> StyleBoxFlat:
 	style.bg_color = background.lerp(panel, 0.5) if panel.get_luminance() < 0.4 else panel
 	style.border_color = GameTheme.color("border", theme_id)
 	style.border_width_top = 1
-	style.content_margin_left = PAD
-	style.content_margin_right = PAD
-	style.content_margin_top = 4
-	style.content_margin_bottom = 4
+	# Без полей: кнопки «Пуск», окон и «Отойти» во всю высоту панели и вплотную к краям экрана.
+	style.content_margin_left = 0
+	style.content_margin_right = 0
+	style.content_margin_top = 1
+	style.content_margin_bottom = 0
 	return style
 
 
-## Кнопка панели. `framed` — с подложкой («Пуск», «Отойти»); кнопка окна без подложки, а у окна в
-## фокусе — тон плашки и полоса акцента снизу.
+## Кнопка панели во всю высоту, без скруглений. `framed` — с подложкой («Пуск», «Отойти»); кнопка
+## окна без подложки, у окна в фокусе — тон плашки (полоску сверху рисует `TaskButton`).
 func _style_button(button: Button, framed: bool) -> void:
-	var radius: int = int((GameTheme.load_theme(theme_id).get("shape", {}) as Dictionary).get("radius", 4))
 	var raised: Color = GameTheme.color("panel_raised", theme_id)
-	var accent: Color = GameTheme.color("accent", theme_id)
 	var text: Color = GameTheme.color("text", theme_id)
 	var bar: Color = _bar_style().bg_color
 	var states: Dictionary = {
@@ -268,16 +257,13 @@ func _style_button(button: Button, framed: bool) -> void:
 	for state: String in states.keys():
 		var box := StyleBoxFlat.new()
 		box.bg_color = states[state] as Color
-		box.set_corner_radius_all(radius)
-		box.content_margin_left = PAD
-		box.content_margin_right = PAD
-		box.content_margin_top = 4
-		box.content_margin_bottom = 4
+		box.content_margin_left = PAD + 4
+		box.content_margin_right = PAD + 4
 		if state.begins_with("hover") or state == "pressed":
 			box.bg_color = raised
-		if (state == "pressed" or state == "hover_pressed") and not framed:
-			box.border_color = accent
-			box.border_width_bottom = 2
+		# У кнопки окна под мышью — полупрозрачный тон плашки, у окна в фокусе — полный.
+		if state == "hover" and not framed:
+			box.bg_color = Color(raised, 0.5)
 		button.add_theme_stylebox_override(state, box)
 	for role: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
 		button.add_theme_color_override(role, text)
@@ -304,13 +290,15 @@ func _need_bar(bar_name: String, title: String, fill: Color) -> ProgressBar:
 
 ## Кнопка окна на панели: значок, заголовок и признак «окно сейчас в фокусе».
 func set_window(app_id: String, title: String, focused: bool, minimized: bool, icon: Texture2D = null) -> void:
-	var button: Button = _buttons.get(app_id) as Button
+	var button: TaskButton = _buttons.get(app_id) as TaskButton
 	if button == null:
-		button = Button.new()
+		button = TaskButton.new()
+		button.name = "Task_" + app_id
 		button.toggle_mode = true
 		button.focus_mode = Control.FOCUS_NONE
-		button.custom_minimum_size = Vector2(0, 36)
-		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		button.custom_minimum_size = Vector2(0, HEIGHT - 1)
+		button.focused_color = GameTheme.color("accent", theme_id)
+		button.open_color = GameTheme.color("text_dim", theme_id)
 		# Без expand_icon: с текстом растянутый значок получает нулевую ширину; размер задаёт icon_max_width.
 		button.add_theme_constant_override("icon_max_width", WINDOW_ICON)
 		button.add_theme_constant_override("h_separation", GAP)
@@ -320,13 +308,17 @@ func set_window(app_id: String, title: String, focused: bool, minimized: bool, i
 		_buttons[app_id] = button
 	button.icon = icon
 	button.text = title
-	# Свёрнутое окно — блёклое: так видно, что оно убрано, без скобок вокруг названия.
-	button.modulate = Color(1, 1, 1, 0.55 if minimized else 1.0)
 	button.set_pressed_no_signal(focused and not minimized)
+	var state: TaskButton.State = TaskButton.State.OPEN
+	if minimized:
+		state = TaskButton.State.MINIMIZED
+	elif focused:
+		state = TaskButton.State.FOCUSED
+	button.set_state(state)
 
 
 func remove_window(app_id: String) -> void:
-	var button: Button = _buttons.get(app_id) as Button
+	var button: TaskButton = _buttons.get(app_id) as TaskButton
 	if button != null:
 		button.queue_free()
 		_buttons.erase(app_id)

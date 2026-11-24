@@ -14,6 +14,15 @@ const GAP: int = 8
 const PAD: int = 12
 const ICON_SIZE: int = 20
 const BUTTON_SIZE: Vector2 = Vector2(32, 24)
+## Длительность анимаций окна: появление, сворачивание, разворачивание (не дольше 200 мс).
+const OPEN_TIME: float = 0.16
+const HIDE_TIME: float = 0.14
+const RESIZE_TIME: float = 0.18
+const START_SCALE: float = 0.96
+
+## Анимации стола (окна, подсветка на панели задач). Тесты выключают, как `PassOutCurtain.animate`:
+## состояние окна меняется сразу, а время анимации не влияет на проверки.
+static var animate: bool = true
 
 
 var app_id: String = ""
@@ -50,6 +59,7 @@ var _grip_color: Color = Color.WHITE
 ## Содержимое во всё окно, без полей (терминал: у консоли свой край).
 var _flush: bool = false
 var _saved_rect: Rect2 = Rect2()
+var _tween: Tween
 var _dragging: bool = false
 var _resizing: bool = false
 var _drag_offset: Vector2 = Vector2.ZERO
@@ -263,33 +273,91 @@ func close() -> void:
 	queue_free()
 
 
+## Окно появилось на столе: короткое проявление с лёгким увеличением.
+func play_open() -> void:
+	if not _can_animate():
+		return
+	_reset_motion()
+	pivot_offset = size / 2.0
+	scale = Vector2(START_SCALE, START_SCALE)
+	modulate.a = 0.0
+	_tween = _new_tween()
+	_tween.tween_property(self, "scale", Vector2.ONE, OPEN_TIME)
+	_tween.tween_property(self, "modulate:a", 1.0, OPEN_TIME)
+
+
+## Свернуть: состояние меняется сразу, окно уходит вниз к панели и гаснет, потом прячется.
 func minimize() -> void:
 	is_minimized = true
-	visible = false
 	state_changed.emit(self)
+	if not _can_animate():
+		_reset_motion()
+		visible = false
+		return
+	_reset_motion()
+	pivot_offset = Vector2(size.x / 2.0, size.y)
+	_tween = _new_tween()
+	_tween.tween_property(self, "scale", Vector2(START_SCALE, START_SCALE), HIDE_TIME)
+	_tween.tween_property(self, "modulate:a", 0.0, HIDE_TIME)
+	_tween.chain().tween_callback(func() -> void:
+		visible = false
+		_reset_motion())
 
 
 func restore() -> void:
 	is_minimized = false
+	_reset_motion()
 	visible = true
+	if _can_animate():
+		pivot_offset = Vector2(size.x / 2.0, size.y)
+		scale = Vector2(START_SCALE, START_SCALE)
+		modulate.a = 0.0
+		_tween = _new_tween()
+		_tween.tween_property(self, "scale", Vector2.ONE, OPEN_TIME)
+		_tween.tween_property(self, "modulate:a", 1.0, OPEN_TIME)
 	state_changed.emit(self)
 	focus_requested.emit(self)
 
 
+## Развернуть во всю область или вернуть прежний размер; без анимации — сразу.
 func toggle_maximize() -> void:
 	var area: Vector2 = _area()
+	var target: Rect2
 	if is_maximized:
-		position = _saved_rect.position
-		size = _saved_rect.size
+		target = _saved_rect
 	else:
 		_saved_rect = Rect2(position, size)
-		position = Vector2.ZERO
-		size = area
+		target = Rect2(Vector2.ZERO, area)
+	_reset_motion()
+	if _can_animate():
+		_tween = _new_tween()
+		_tween.tween_property(self, "position", target.position, RESIZE_TIME)
+		_tween.tween_property(self, "size", target.size, RESIZE_TIME)
+	else:
+		position = target.position
+		size = target.size
 	is_maximized = not is_maximized
 	_maximize_button.kind = WindowButton.Kind.RESTORE if is_maximized else WindowButton.Kind.MAXIMIZE
 	_maximize_button.tooltip_text = "Восстановить" if is_maximized else "Развернуть"
 	_apply_theme()
 	state_changed.emit(self)
+
+
+func _can_animate() -> bool:
+	return animate and is_inside_tree() and is_visible_in_tree()
+
+
+func _new_tween() -> Tween:
+	return create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+
+## Прервать идущую анимацию и вернуть обычный вид (масштаб 1, полная непрозрачность).
+func _reset_motion() -> void:
+	if _tween != null:
+		_tween.kill()
+		_tween = null
+	scale = Vector2.ONE
+	modulate.a = 1.0
 
 
 ## Область, в которой живут окна: родитель окна (слой окон рабочего стола).

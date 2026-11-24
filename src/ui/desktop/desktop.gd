@@ -138,8 +138,7 @@ func _build() -> void:
 	# Самочувствие и деньги — в строке свёрнутого телефона (PhoneOverlay), трекер задачи — в
 	# правом верхнем углу стола, мысли героя — внизу по центру.
 	var tracker := QuestTracker.new()
-	# Трекер — подсказка игры поверх стола, а не окно ОС: оформление общей темы, как в комнате.
-	tracker.theme = GameTheme.build(GameTheme.DEFAULT_ID)
+	tracker.use_theme(theme_id)
 	tracker.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 12)
 	tracker.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_area.add_child(tracker)
@@ -301,6 +300,7 @@ func attach_window(window: DesktopWindow, size: Vector2) -> void:
 	_open[window.app_id] = window
 	_opened_count += 1
 	focus(window)
+	window.play_open()
 
 
 ## Содержимое окна. Терминал и остальное подключаются здесь, остальные приложения — заглушки M1.

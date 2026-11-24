@@ -5,6 +5,15 @@ extends GutTest
 var desktop: Desktop
 
 
+func before_all() -> void:
+	# Анимации окон мгновенные: проверки не зависят от времени Tween.
+	DesktopWindow.animate = false
+
+
+func after_all() -> void:
+	DesktopWindow.animate = true
+
+
 func before_each() -> void:
 	GameState.reset()
 	var scene: PackedScene = load(Screens.DESKTOP) as PackedScene
@@ -119,6 +128,18 @@ func test_taskbar_has_a_button_per_open_window() -> void:
 		found = child as Taskbar
 	assert_not_null(found)
 	assert_true(found.has_window_button("files"))
+
+
+func test_taskbar_strip_shows_window_state() -> void:
+	var mail: DesktopWindow = desktop.open_app("mail")
+	var button: TaskButton = desktop.find_child("Task_mail", true, false) as TaskButton
+	assert_eq(button.state, TaskButton.State.FOCUSED, "окно в фокусе — яркая полоска")
+	assert_eq(button.strip_color, button.focused_color)
+	desktop.open_app("bank")
+	assert_eq(button.state, TaskButton.State.OPEN, "открыто без фокуса — серая")
+	mail.minimize()
+	assert_eq(button.state, TaskButton.State.MINIMIZED)
+	assert_lt(button.strip_color.a, 0.5, "свёрнуто — едва заметная")
 
 
 func test_heat_bar_colors_follow_stages() -> void:
