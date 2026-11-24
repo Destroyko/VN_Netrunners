@@ -43,6 +43,8 @@ func test_new_windows_cascade() -> void:
 # --- Стол ----------------------------------------------------------------------
 
 func test_every_app_has_an_icon() -> void:
+	for gate: String in [Gates.NEWS, Gates.SHOP]:
+		GameState.set_flag(gate)
 	for app: Dictionary in Desktop.APPS:
 		assert_not_null(desktop.find_child("Icon_" + str(app["id"]), true, false), str(app["id"]))
 
@@ -194,6 +196,8 @@ func test_bank_pay_button_disabled_without_money() -> void:
 # --- Магазин (gameplay/needs.md) --------------------------------------------------
 
 func test_shop_orders_and_eats() -> void:
+	GameState.set_flag(Gates.SHOP)
+	GameState.set_flag(Gates.HUNGER)
 	GameState.set_money(100)
 	var window: DesktopWindow = desktop.open_app("shop")
 	var shop: ShopApp = window.find_child("ShopApp", true, false) as ShopApp
@@ -260,6 +264,7 @@ func test_save_notice_is_a_system_message() -> void:
 
 
 func test_news_app_shows_feed_and_marks_read() -> void:
+	GameState.set_flag(Gates.NEWS)
 	News.publish("news_weather", 1)
 	var icon: Button = desktop.find_child("Icon_news", true, false) as Button
 	assert_eq(icon.text, "Новости (1)")

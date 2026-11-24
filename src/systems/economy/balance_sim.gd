@@ -20,6 +20,9 @@ const EVENING_AT: int = 19 * 60
 ## Прожить `days` дней. Возвращает {rows: [по дню], summary: PackedStringArray}.
 static func run(days: int, seed_value: int = 1) -> Dictionary:
 	GameState.reset()
+	# симуляция проверяет и голод с едой: ворота среза открыты (docs/tech/gates.md)
+	GameState.set_flag(Gates.HUNGER)
+	GameState.set_flag(Gates.SHOP)
 	Clock.reload_config()
 	Rng.set_seed(seed_value)
 	var needs_was: bool = NeedsManager.always_on

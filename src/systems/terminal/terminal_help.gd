@@ -35,13 +35,15 @@ const COMMANDS: Dictionary = {
 static func show(args: PackedStringArray, result: TermResult) -> void:
 	if args.is_empty():
 		for name: String in COMMANDS.keys():
+			if name == "decrypt" and not Gates.is_open(Gates.AUTOCRACK):
+				continue
 			result.add("%-8s %s" % [name, (COMMANDS[name] as Array)[1]])
 		for id: String in Programs.installed():
 			result.add("%-11s %s" % [id, Programs.about(id)])
 		return
 
 	var name: String = args[0].to_lower()
-	if COMMANDS.has(name):
+	if COMMANDS.has(name) and not (name == "decrypt" and not Gates.is_open(Gates.AUTOCRACK)):
 		var entry: Array = COMMANDS[name] as Array
 		result.add("использование: %s" % entry[0])
 		result.add(str(entry[1]))

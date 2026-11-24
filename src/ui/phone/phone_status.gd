@@ -29,6 +29,9 @@ func _init() -> void:
 func _ready() -> void:
 	EventBus.time_advanced.connect(func(_m: int, _p: int) -> void: refresh())
 	EventBus.needs_changed.connect(refresh)
+	EventBus.flag_changed.connect(func(flag: String, _value: bool) -> void:
+		if flag == Gates.HUNGER:
+			refresh())
 	EventBus.money_changed.connect(func(_money_now: int, _delta: int) -> void: refresh())
 	for sig: Signal in [EventBus.mail_received, EventBus.message_received]:
 		sig.connect(func(_uid: String, _id: String) -> void: refresh())
@@ -42,6 +45,7 @@ func refresh() -> void:
 	_energy.max_value = Needs.energy_max()
 	_energy.value = Needs.energy()
 	_energy.tooltip_text = "Энергия: %d / %d" % [int(Needs.energy()), int(Needs.energy_max())]
+	_satiety.visible = Gates.is_open(Gates.HUNGER)
 	_satiety.max_value = Needs.satiety_max()
 	_satiety.value = Needs.satiety()
 	_satiety.tooltip_text = "Сытость: %d / %d" % [int(Needs.satiety()), int(Needs.satiety_max())]

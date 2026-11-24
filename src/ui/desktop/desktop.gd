@@ -21,8 +21,11 @@ const APPS: Array[Dictionary] = [
 	{"id": "files", "title": "Файлы", "color": Color(0.3, 0.45, 0.7), "size": Vector2(520, 380), "min": Vector2(320, 220)},
 	{"id": "mail", "title": "Почта", "color": Color(0.6, 0.45, 0.25), "size": Vector2(520, 380), "min": Vector2(320, 220)},
 	{"id": "bank", "title": "Банк", "color": Color(0.5, 0.5, 0.25), "size": Vector2(520, 380), "min": Vector2(320, 220)},
-	{"id": "news", "title": "Новости", "color": Color(0.55, 0.3, 0.3), "size": Vector2(520, 380), "min": Vector2(320, 220)},
-	{"id": "shop", "title": "Магазин", "color": Color(0.45, 0.3, 0.55), "size": Vector2(520, 380), "min": Vector2(320, 220)},
+	# `gate` — значок скрыт, пока ворота закрыты (docs/tech/gates.md); `requires` — значок виден, но серый.
+	{"id": "news", "title": "Новости", "color": Color(0.55, 0.3, 0.3), "size": Vector2(520, 380), "min": Vector2(320, 220),
+		"gate": Gates.NEWS},
+	{"id": "shop", "title": "Магазин", "color": Color(0.45, 0.3, 0.55), "size": Vector2(520, 380), "min": Vector2(320, 220),
+		"gate": Gates.SHOP},
 	{"id": "tasks", "title": "Задачи", "color": Color(0.35, 0.5, 0.35), "size": Vector2(440, 480), "min": Vector2(320, 260)},
 	{"id": "messenger", "title": "Сообщения", "color": Color(0.25, 0.5, 0.55), "size": Vector2(420, 460), "min": Vector2(300, 260)},
 	# «Работа» (поиск работы и подработки, devices.md) — шаг 8 M3: пока серая.
@@ -111,8 +114,10 @@ func _build() -> void:
 	_icons.position = Vector2(12, 12)
 	_icons.add_theme_constant_override("v_separation", 8)
 	_area.add_child(_icons)
-	for app: Dictionary in APPS:
-		_icons.add_child(_make_icon(app))
+	_fill_icons()
+	EventBus.flag_changed.connect(func(flag: String, _value: bool) -> void:
+		if flag.begins_with("gate."):
+			_fill_icons())
 
 	# Самочувствие и деньги — в строке свёрнутого телефона (PhoneOverlay), трекер задачи — в
 	# правом верхнем углу стола, мысли героя — внизу по центру.
@@ -165,6 +170,18 @@ func _make_icon(app: Dictionary) -> Button:
 	return button
 
 
+## Значки приложений; скрытые закрытыми воротами не рисуются.
+func _fill_icons() -> void:
+	for child: Node in _icons.get_children():
+		_icons.remove_child(child)
+		child.queue_free()
+	for app: Dictionary in APPS:
+		if is_shown(app):
+			_icons.add_child(_make_icon(app))
+	_refresh_news_icon()
+	_refresh_mail_icon()
+
+
 ## Непрочитанные новости — числом на иконке.
 func _refresh_news_icon() -> void:
 	var icon: Button = _icons.get_node_or_null("Icon_news") as Button
@@ -200,7 +217,15 @@ static func app_definition(app_id: String) -> Dictionary:
 	return {}
 
 
+## Виден ли значок: у приложения без `gate` — всегда, иначе когда ворота открыты.
+static func is_shown(app: Dictionary) -> bool:
+	var gate: String = str(app.get("gate", ""))
+	return gate.is_empty() or Gates.is_open(gate)
+
+
 static func is_available(app: Dictionary) -> bool:
+	if not is_shown(app):
+		return false
 	if bool(app.get("stub", false)):
 		return false
 	return Conditions.check_all(app.get("requires", []) as Array)

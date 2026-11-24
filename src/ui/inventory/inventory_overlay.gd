@@ -171,7 +171,7 @@ func _fill_details() -> void:
 	var row := HBoxContainer.new()
 	row.name = "Actions"
 	_details.add_child(row)
-	if Inventory.is_food(kind):
+	if Inventory.is_food(kind) and Gates.is_open(Gates.HUNGER):
 		_action(row, "Eat", "Съесть", func() -> void: Inventory.eat(_selected))
 	# Переложить — в другой открытый контейнер (из инвентаря туда, оттуда — в инвентарь).
 	var target: String = _other if here == Inventory.HERO else Inventory.HERO

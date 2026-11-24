@@ -42,6 +42,7 @@ func test_no_inventory_outside_the_game() -> void:
 
 
 func test_eat_from_inventory() -> void:
+	GameState.set_flag(Gates.HUNGER)
 	Needs.set_satiety(10.0)
 	var uid: String = Inventory.add(Inventory.HERO, "food_noodles")
 	InventoryOverlay.open()

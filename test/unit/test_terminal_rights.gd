@@ -425,6 +425,7 @@ func test_cat_shows_encrypted_marker() -> void:
 
 
 func test_decrypt_auto_starts_bruteforce() -> void:
+	GameState.set_flag(Gates.AUTOCRACK)
 	t.home_fs().put_file("/home/dump/arhiv.enc", {"encrypted": true, "size_kb": 500,
 		"locked": {"text": "секрет"}})
 	assert_string_contains(run("decrypt /home/dump/arhiv.enc"), "недоступна", "без -auto — заглушка")
@@ -433,6 +434,7 @@ func test_decrypt_auto_starts_bruteforce() -> void:
 
 
 func test_reboot_reports_stopped_tasks() -> void:
+	GameState.set_flag(Gates.AUTOCRACK)
 	t.home_fs().put_file("/home/dump/arhiv.enc", {"encrypted": true,
 		"locked": {"text": "x"}})
 	run("decrypt /home/dump/arhiv.enc -auto")
@@ -440,6 +442,7 @@ func test_reboot_reports_stopped_tasks() -> void:
 
 
 func test_decrypt_is_in_help() -> void:
+	GameState.set_flag(Gates.AUTOCRACK)
 	assert_string_contains(run("help"), "decrypt")
 	assert_string_contains(run("help decrypt"), "-auto")
 

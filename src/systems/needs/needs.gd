@@ -51,6 +51,8 @@ static func satiety_max() -> float:
 
 
 static func band() -> String:
+	if not Gates.is_open(Gates.HUNGER):
+		return BAND_NORMAL           # голод спрятан за воротами: сытость ни на что не влияет
 	var s: float = satiety()
 	if s <= _num("hungry_threshold", 20.0):
 		return BAND_HUNGRY
@@ -110,7 +112,8 @@ static func pass_minutes(minutes: int, asleep: bool) -> Array[String]:
 	for i: int in minutes:
 		var before: float = energy()
 		_apply_crashes(start + i + 1)
-		set_satiety(satiety() - _num("satiety_per_hour", 3.0) / 60.0)
+		if Gates.is_open(Gates.HUNGER):
+			set_satiety(satiety() - _num("satiety_per_hour", 3.0) / 60.0)
 		if asleep:
 			set_energy(energy() + restore_per_hour() / 60.0)
 		elif energy() > 0.0:

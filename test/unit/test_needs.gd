@@ -41,6 +41,7 @@ func test_new_game_starts_with_values_from_balance() -> void:
 
 
 func test_awake_energy_and_satiety_melt_slowly() -> void:
+	GameState.set_flag(Gates.HUNGER)
 	Needs.set_satiety(50.0)  # обычная сытость: без множителей
 	Clock.advance(10 * HOUR)
 	assert_almost_eq(Needs.energy(), 60.0, 0.01, "2 в час за ПК")
@@ -77,6 +78,7 @@ func test_waiting_is_not_sleep() -> void:
 
 
 func test_fed_hero_melts_slower_and_rests_better() -> void:
+	GameState.set_flag(Gates.HUNGER)
 	Needs.set_satiety(90.0)
 	assert_eq(Needs.band(), Needs.BAND_FED)
 	assert_almost_eq(Needs.drain_per_hour(), 1.6, 0.001)
@@ -84,6 +86,7 @@ func test_fed_hero_melts_slower_and_rests_better() -> void:
 
 
 func test_hungry_hero_melts_faster_and_rests_worse() -> void:
+	GameState.set_flag(Gates.HUNGER)
 	Needs.set_satiety(10.0)
 	assert_eq(Needs.band(), Needs.BAND_HUNGRY)
 	assert_almost_eq(Needs.drain_per_hour(), 3.0, 0.001)
@@ -97,6 +100,7 @@ func test_eating_fills_satiety_up_to_max() -> void:
 
 
 func test_satiety_stops_at_zero() -> void:
+	GameState.set_flag(Gates.HUNGER)
 	Needs.set_satiety(1.0)
 	Clock.advance(5 * HOUR)
 	assert_eq(Needs.satiety(), 0.0)
@@ -127,6 +131,7 @@ func test_warning_repeats_after_rest() -> void:
 
 
 func test_hunger_thought_once_a_day() -> void:
+	GameState.set_flag(Gates.HUNGER)
 	Needs.set_satiety(20.5)
 	Clock.advance(20)
 	Clock.advance(60)

@@ -290,7 +290,11 @@ func _dispatch(text: String, confirmed: bool, result: TermResult) -> TermResult:
 		"clear": result.clear_screen = true
 		"history": _show_history(result)
 		"reboot": _reboot(result)
-		"decrypt": _decrypt(args, result)
+		"decrypt":
+			if Gates.is_open(Gates.AUTOCRACK):
+				_decrypt(args, result)
+			else:
+				result.add("команда не найдена: %s" % words[0])
 		_:
 			if Programs.is_program(command):
 				_programs.launch(command, args, result)
