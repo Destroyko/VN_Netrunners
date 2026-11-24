@@ -4,9 +4,9 @@
   "title": "Комната",
   "background": {"color": "#1f2433", "image": "res://assets/backgrounds/bg_room_pc_{time}_pc_{pc}.png"},
   "objects": [
-    {"id": "window", "title": "Окно", "kind": "look", "rect": [0.0, 0.0, 0.5, 0.2], "text": "Двор, чужие окна, мокрый асфальт."},
-    {"id": "monitor", "title": "Монитор", "kind": "monitor", "rect": [0.04, 0.17, 0.45, 0.58]},
-    {"id": "system_block", "title": "Системный блок", "kind": "system_block", "rect": [0.48, 0.23, 0.26, 0.47]},
-    {"id": "turn_back", "title": "Отойти от стола", "kind": "turn", "rect": [0.0, 0.3, 0.05, 0.4], "to": "loc_room"}
+    {"id": "window", "title": "Окно", "kind": "look", "rect": [0.0, 0.0, 0.5, 0.2], "mask": "res://assets/masks/loc_room_desk_window.png", "text": "Двор, чужие окна, мокрый асфальт."},
+    {"id": "monitor", "title": "Монитор", "kind": "monitor", "rect": [0.04, 0.17, 0.45, 0.58], "mask": "res://assets/masks/loc_room_desk_monitor.png"},
+    {"id": "system_block", "title": "Системный блок", "kind": "system_block", "rect": [0.48, 0.23, 0.26, 0.47], "mask": "res://assets/masks/loc_room_desk_system_block.png"},
+    {"id": "back", "title": "Отойти от ПК", "kind": "back", "rect": [0.0, 0.93, 1.0, 0.07], "to": "loc_room"}
   ]
 }

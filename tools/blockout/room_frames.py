@@ -76,6 +76,7 @@ PHASES = {
 def extra(p):
     p.add_argument("--res", default="2560,1440", help="размер кадра: ширина,высота")
     p.add_argument("--samples", type=int, default=256)
+    p.add_argument("--grain", type=float, default=0.009, help="зерно плёнки: сигма шума в долях яркости, 0 — без зерна")
     p.add_argument("--pc", default="both", help="on, off или both: состояние ПК (экран и его свет)")
 
 
@@ -499,6 +500,29 @@ def setup(phase, samples=64, pc=True):
     build_light("day" if phase == "morning" else phase, pc)
 
 
+def add_grain(path, strength):
+    """Лёгкое зерно поверх готового кадра: шум яркости, одинаковый по каналам.
+
+    Рендер почти чистый, и картинка выглядит стерильно; зерно даёт ощущение плёнки. Шум
+    детерминирован (зерно от имени файла), поэтому перерендер того же кадра даёт тот же файл."""
+    import zlib
+    import numpy as np
+    img = bpy.data.images.load(path)
+    img.colorspace_settings.name = "Non-Color"       # значения как в файле, без пересчёта
+    w, h = img.size
+    px = np.empty(w * h * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    px = px.reshape(-1, 4)
+    rng = np.random.default_rng(zlib.crc32(os.path.basename(path).encode("utf-8")))
+    noise = rng.normal(0.0, strength, (w * h, 1)).astype(np.float32)
+    px[:, :3] = np.clip(px[:, :3] + noise, 0.0, 1.0)
+    img.pixels.foreach_set(px.reshape(-1))
+    img.filepath_raw = path
+    img.file_format = "PNG"
+    img.save()
+    bpy.data.images.remove(img)
+
+
 def gui(phase="night", view="main", pc="on"):
     """Показать свет в окне Blender (скрипт для вкладки Scripting: room_light_gui.py).
 
@@ -549,6 +573,8 @@ def main():
             path = os.path.join(out, "room_%s_%s_pc_%s.png" % (name, a.phase, mode))
             sc.render.filepath = path
             bpy.ops.render.render(write_still=True)
+            if a.grain > 0.0:
+                add_grain(path, a.grain)
             print("[room] %s" % path)
             quads[name] = screen_quad(cam)
     # Положение экрана не зависит от фазы и состояния ПК: одно на кадр

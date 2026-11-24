@@ -23,8 +23,9 @@ func test_door_moves_hero_and_tells_the_bus() -> void:
 	assert_true(bool(result["ok"]), "подойти к ПК — переход к другому кадру комнаты")
 	assert_eq(Locations.current(), "loc_room_desk")
 	assert_signal_emitted_with_parameters(EventBus, "location_entered", ["loc_room_desk"])
-	assert_true(bool(Locations.use_door("turn_back")["ok"]), "отойти — тот же переход")
-	assert_true(bool(Locations.use_door("door_corridor")["ok"]))
+	assert_true(bool(Locations.use_door("back")["ok"]), "отойти от ПК — полоса «назад»")
+	assert_eq(Locations.current(), "loc_room")
+	assert_true(bool(Locations.use_door("back")["ok"]), "из комнаты полоса ведёт в коридор")
 	assert_eq(str(GameState.to_dict()["vars"].get(Locations.VAR_LOCATION, "")), "loc_corridor", "место — в сейве")
 
 
@@ -122,3 +123,11 @@ func test_real_locations_are_valid() -> void:
 	var v := LocationValidator.new()
 	v.validate(DataLoader.locations(), DataLoader.dialogues())
 	assert_eq(v.errors.size(), 0, "\n".join(v.errors))
+
+
+func test_object_masks_exist() -> void:
+	for id: String in Locations.all():
+		for object: Dictionary in Locations.objects(id):
+			var mask: String = str(object.get("mask", ""))
+			if not mask.is_empty():
+				assert_true(ResourceLoader.exists(mask), "маска есть: %s / %s" % [id, object.get("id")])

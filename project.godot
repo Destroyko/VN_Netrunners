@@ -64,3 +64,7 @@ textures/canvas_textures/default_texture_filter=1
 2d/snap/snap_2d_vertices_to_pixel=true
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+
+[gui]
+
+timers/tooltip_delay_sec=0.2

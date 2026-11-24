@@ -10,7 +10,8 @@ extends Control
 ## - `bed` — телефон с будильником: «спать» или «подождать» (docs/gameplay/time.md);
 ## - `container` — инвентарь и рядом содержимое контейнера (холодильник, шкаф);
 ## - `door` — сразу в другую локацию (или «заперто»); `turn` — то же, но это поворот к другому
-##   кадру комнаты: рисуется стрелкой у края экрана;
+##   кадру комнаты: рисуется стрелкой у края экрана; `back` — то же, полоса внизу экрана с подписью
+##   («В коридор», «Отойти от ПК»);
 ## - `look` — текст в строке внизу; `dialogue` — диалог новеллы.
 ##
 ## Арта пока нет: фон — цвет из данных, объект — полупрозрачная плашка с подписью. Появится
@@ -119,16 +120,23 @@ func _refresh_objects() -> void:
 func _object_button(object: Dictionary) -> Button:
 	var id: String = str(object.get("id", ""))
 	var rect: Array = object.get("rect", [0, 0, 0.1, 0.1]) as Array
-	var button := Button.new()
+	var mask: String = str(object.get("mask", ""))
+	var masked: bool = not mask.is_empty() and ResourceLoader.exists(mask)
+	var button: Button = MaskButton.new() if masked else Button.new()
 	button.name = "Obj_" + id
-	# Доли экрана → якоря: сцена тянется под любой размер окна.
-	button.anchor_left = float(rect[0])
-	button.anchor_top = float(rect[1])
-	button.anchor_right = float(rect[0]) + float(rect[2])
-	button.anchor_bottom = float(rect[1]) + float(rect[3])
 	button.tooltip_text = str(object.get("title", id))
 	var image: String = str(object.get("image", ""))
-	if not image.is_empty() and ResourceLoader.exists(image):
+	if not masked:
+		# Доли экрана → якоря: сцена тянется под любой размер окна.
+		button.anchor_left = float(rect[0])
+		button.anchor_top = float(rect[1])
+		button.anchor_right = float(rect[0]) + float(rect[2])
+		button.anchor_bottom = float(rect[1]) + float(rect[3])
+	if masked:
+		# Точная форма по маске из Blender: кнопка на весь экран, клик и подсветка — по силуэту,
+		# подпись — всплывающей подсказкой у курсора.
+		(button as MaskButton).setup(load(mask) as Texture2D, mask)
+	elif not image.is_empty() and ResourceLoader.exists(image):
 		button.flat = true
 		var art := TextureRect.new()
 		art.texture = load(image) as Texture2D
@@ -138,6 +146,19 @@ func _object_button(object: Dictionary) -> Button:
 		art.set_anchors_preset(Control.PRESET_FULL_RECT)
 		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(art)
+	elif str(object.get("kind", "")) == "back":
+		# «Назад» — полоса внизу экрана, подпись из данных.
+		button.text = str(object.get("title", id))
+		var bar := StyleBoxFlat.new()
+		bar.bg_color = Color(0, 0, 0, 0.45)
+		bar.border_color = Color(1, 1, 1, 0.18)
+		bar.border_width_top = 1
+		button.add_theme_stylebox_override("normal", bar)
+		var bar_hover := bar.duplicate() as StyleBoxFlat
+		bar_hover.bg_color = Color(0.12, 0.14, 0.2, 0.7)
+		bar_hover.border_color = Color(1, 1, 1, 0.5)
+		button.add_theme_stylebox_override("hover", bar_hover)
+		button.add_theme_stylebox_override("pressed", bar_hover)
 	elif str(object.get("kind", "")) == "turn":
 		# Поворот к другому кадру — стрелка у края, подпись во всплывающей подсказке.
 		button.flat = true
@@ -204,7 +225,7 @@ func click(object_id: String) -> void:
 				_on_sit()
 			else:
 				_output.text = "Экран чёрный: компьютер выключен."
-		"door", "turn":
+		"door", "turn", "back":
 			var result: Dictionary = Locations.use_door(object_id)
 			if not bool(result["ok"]):
 				_output.text = str(result["text"])

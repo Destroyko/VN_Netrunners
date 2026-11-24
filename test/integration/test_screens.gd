@@ -114,12 +114,13 @@ func test_game_starts_at_the_bed() -> void:
 	assert_eq(room.call("title_text"), "Комната", "игра начинается в комнате героя")
 	assert_not_null(room.call("object_button", "bed"), "проснулся — общий кадр с кроватью")
 	assert_not_null(room.call("object_button", "to_desk"), "к ПК — из общего кадра")
-	assert_not_null(room.call("object_button", "door_corridor"), "дверь в коридор — из общего кадра")
+	assert_not_null(room.call("object_button", "back"), "полоса «В коридор» — из общего кадра")
+	assert_eq((room.call("object_button", "back") as Button).text, "В коридор")
 
 
 func test_room_has_its_objects() -> void:
 	var room: Node = _room()
-	for id: String in ["monitor", "system_block", "window", "turn_back"]:
+	for id: String in ["monitor", "system_block", "window", "back"]:
 		assert_not_null(room.call("object_button", id), "на месте: " + id)
 	for node_name: String in ["Clock", "Output", "Menu"]:
 		assert_not_null(room.find_child(node_name, true, false), "на месте: " + node_name)
@@ -127,9 +128,13 @@ func test_room_has_its_objects() -> void:
 
 func test_room_object_follows_its_rect() -> void:
 	var room: Node = _room("loc_room")
+	var back: Button = room.call("object_button", "back") as Button
+	assert_almost_eq(back.anchor_top, 0.93, 0.001, "доли экрана из данных — якоря")
+	assert_almost_eq(back.anchor_right, 1.0, 0.001)
 	var bed: Button = room.call("object_button", "bed") as Button
-	assert_almost_eq(bed.anchor_left, 0.0, 0.001, "доли экрана из данных — якоря")
-	assert_almost_eq(bed.anchor_right, 0.43, 0.001)
+	assert_true(bed is MaskButton, "у кровати форма по маске, а не прямоугольник")
+	assert_eq(bed.tooltip_text, "Кровать", "подпись — подсказка у курсора, не надпись на кнопке")
+	assert_eq(bed.text, "")
 
 
 func test_background_follows_time_of_day() -> void:
@@ -254,11 +259,13 @@ func test_second_click_closes_actions() -> void:
 
 func test_doors_walk_through_the_flat() -> void:
 	var room: Node = _room()
-	(room.call("object_button", "turn_back") as Button).emit_signal("pressed")
+	assert_eq((room.call("object_button", "back") as Button).text, "Отойти от ПК")
+	(room.call("object_button", "back") as Button).emit_signal("pressed")
 	await wait_process_frames(1)
 	assert_eq(Locations.current(), "loc_room", "отошёл от стола")
 	assert_null(room.call("object_button", "monitor"), "монитор остался в кадре с ПК")
-	room.call("click", "door_corridor")
+	assert_eq((room.call("object_button", "back") as Button).text, "В коридор", "из общего кадра полоса ведёт в коридор")
+	room.call("click", "back")
 	assert_eq(room.call("title_text"), "Коридор")
 	room.call("click", "door_neighbor")
 	assert_string_contains(str(room.call("output_text")), "Заперто")
