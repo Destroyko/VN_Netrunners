@@ -127,3 +127,14 @@ func test_planner_app_tracks_task() -> void:
 	app.track_button("side_test_courier").emit_signal("pressed")
 	assert_eq(Planner.tracked(), "side_test_courier")
 
+
+func test_phone_screen_is_rounded_and_padded() -> void:
+	var clip: TextureRect = PhoneOverlay.frame.find_child("ScreenClip", true, false) as TextureRect
+	assert_not_null(clip, "экран телефона — отдельный слой")
+	assert_eq(clip.clip_children, CanvasItem.CLIP_CHILDREN_AND_DRAW, "интерфейс обрезается по скруглённой маске")
+	assert_not_null(clip.texture, "маска экрана загружена")
+	assert_almost_eq(clip.size.x, PhoneOverlay.SCREEN_WIDTH, 0.5, "ширина экрана — SCREEN_WIDTH")
+	var pad: MarginContainer = PhoneOverlay.frame.find_child("Pad", true, false) as MarginContainer
+	assert_gt(pad.get_theme_constant("margin_left"), 8, "внутренние отступы: иконки не лезут за скруглённый край")
+	assert_not_null(PhoneOverlay.frame.find_child("Bezel", true, false), "рамка корпуса поверх интерфейса")
+

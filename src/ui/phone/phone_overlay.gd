@@ -8,10 +8,19 @@ extends CanvasLayer
 ## Телефон есть только в игре: сцена его «берёт» (`attach`) и «отдаёт» (`detach`); в главном
 ## меню и настройках его нет. Пока открыто меню игры, телефон спрятан.
 
-const WIDTH: float = 360.0
-const OPEN_HEIGHT: float = 560.0
-const PEEK_HEIGHT: float = 34.0
+## Размеры телефона — из рендера модели разработчика (`assets/ui/phone/phone_screen.json`,
+## `tools/blockout/phone_frames.py`): экран 9:19 с закруглёнными углами. Интерфейс рисуется в экране
+## шириной SCREEN_WIDTH логических пикселей, всё остальное пересчитывается от рендера.
+const SCREEN_WIDTH: float = 360.0
 const MARGIN: float = 12.0
+const LAYOUT_PATH: String = "res://assets/ui/phone/phone_screen.json"
+const MASK_PATH: String = "res://assets/ui/phone/phone_screen_mask.png"
+const BEZEL_PATH: String = "res://assets/ui/phone/phone_%s.png"
+## Запасные размеры, если рендера нет: пропорции прежнего замера.
+const DEFAULT_LAYOUT: Dictionary = {"x": 82, "y": 82, "w": 669, "h": 1436, "image_w": 833, "image_h": 1600,
+	"safe_inset": 29}
+## Сколько свёрнутого телефона торчит над краем экрана: рамка, отступ и строка состояния.
+const PEEK_EXTRA: float = 18.0
 
 const APP_HOME: String = "home"
 ## Значки домашнего экрана по порядку. `stub` — приложение следующих шагов: значок серый.
@@ -26,7 +35,16 @@ const APPS: Array[Dictionary] = [
 	{"id": "map", "title": "Карта", "stub": true},
 ]
 
-var frame: PanelContainer
+var frame: Control
+var _layout: Dictionary = {}
+var _k: float = 1.0
+var _bezel: TextureRect
+var _bezel_phase: String = ""
+var _screen_pos: Vector2 = Vector2.ZERO
+var _screen_size: Vector2 = Vector2.ZERO
+var _image_size: Vector2 = Vector2.ZERO
+var _inset: float = 16.0
+var _status_height: float = 34.0
 var _status: PhoneStatus
 var _screen: MarginContainer
 var _nav: HBoxContainer
@@ -44,6 +62,12 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build()
 	_apply()
+
+
+## Ширина телефона на экране (логическая, без поправки на тесное окно): сцены оставляют под него место.
+var WIDTH: float:
+	get:
+		return _image_size.x if _image_size.x > 0.0 else 448.0
 
 
 # --- Кто держит телефон ----------------------------------------------------------------
@@ -178,11 +202,34 @@ func _apply() -> void:
 		_open = false
 	_screen.visible = _open
 	_nav.visible = _open
-	var height: float = OPEN_HEIGHT if _open else PEEK_HEIGHT
-	frame.offset_right = -MARGIN
-	frame.offset_left = -MARGIN - WIDTH
-	frame.offset_bottom = -_bottom - (MARGIN if _open else 0.0)
-	frame.offset_top = frame.offset_bottom - height
+	_refresh_bezel()
+	# Телефон не выше экрана игры: в тесном окне весь корпус пересчитывается меньше (масштаб < 1).
+	var room: float = get_viewport().get_visible_rect().size.y - 2.0 * MARGIN - _bottom
+	var scale_now: float = clampf(room / _image_size.y, 0.4, 1.0)
+	frame.scale = Vector2(scale_now, scale_now)
+	var width: float = _image_size.x * scale_now
+	var height: float = _image_size.y * scale_now
+	# Открытый целиком стоит у угла; свёрнутый спрятан ниже края и торчит только верхом с состоянием.
+	var peek: float = (_screen_pos.y + _inset + _status_height + PEEK_EXTRA) * scale_now
+	var left: float = -MARGIN - width
+	var top: float = -_bottom - MARGIN - height if _open else -_bottom - peek
+	frame.offset_left = left
+	frame.offset_top = top
+	frame.offset_right = left + _image_size.x
+	frame.offset_bottom = top + _image_size.y
+
+
+## Рамка по времени суток комнаты: день, вечер или ночь (утро как день).
+func _refresh_bezel() -> void:
+	if _bezel == null:
+		return
+	var phase: String = Clock.time_of_day()
+	phase = "day" if phase == "morning" else phase
+	if phase == _bezel_phase:
+		return
+	_bezel_phase = phase
+	var path: String = BEZEL_PATH % phase
+	_bezel.texture = load(path) as Texture2D if ResourceLoader.exists(path) else null
 
 
 # --- Ввод -------------------------------------------------------------------------------
@@ -229,30 +276,60 @@ func _on_status_input(event: InputEvent) -> void:
 
 # --- Сборка -----------------------------------------------------------------------------
 
+func _load_layout() -> void:
+	_layout = DEFAULT_LAYOUT.duplicate()
+	if FileAccess.file_exists(LAYOUT_PATH):
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(LAYOUT_PATH))
+		if parsed is Dictionary:
+			_layout.merge(parsed as Dictionary, true)
+	_k = SCREEN_WIDTH / float(_layout["w"])
+	_screen_pos = Vector2(float(_layout["x"]), float(_layout["y"])) * _k
+	_screen_size = Vector2(float(_layout["w"]), float(_layout["h"])) * _k
+	_image_size = Vector2(float(_layout["image_w"]), float(_layout["image_h"])) * _k
+	_inset = ceilf(float(_layout["safe_inset"]) * _k)
+
+
 func _build() -> void:
-	frame = PanelContainer.new()
+	_load_layout()
+	frame = Control.new()
 	frame.name = "Phone"
 	frame.anchor_left = 1.0
 	frame.anchor_right = 1.0
 	frame.anchor_top = 1.0
 	frame.anchor_bottom = 1.0
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("#14161c")
-	style.border_color = Color("#3a3f4b")
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(10)
-	style.content_margin_left = 10
-	style.content_margin_right = 10
-	style.content_margin_top = 6
-	style.content_margin_bottom = 6
-	frame.add_theme_stylebox_override("panel", style)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(frame)
+
+	# Экран: скруглённая маска обрезает всё, что внутри (clip_children), поэтому приложения не
+	# заходят за закруглённые углы; внутренние отступы — safe_inset рендера.
+	var clip := TextureRect.new()
+	clip.name = "ScreenClip"
+	clip.position = _screen_pos
+	clip.size = _screen_size
+	clip.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	clip.stretch_mode = TextureRect.STRETCH_SCALE
+	if ResourceLoader.exists(MASK_PATH):
+		clip.texture = load(MASK_PATH) as Texture2D
+	clip.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
+	frame.add_child(clip)
+	var back := ColorRect.new()
+	back.color = GameTheme.color("background")
+	back.set_anchors_preset(Control.PRESET_FULL_RECT)
+	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	clip.add_child(back)
+	var pad := MarginContainer.new()
+	pad.name = "Pad"
+	pad.set_anchors_preset(Control.PRESET_FULL_RECT)
+	for side: String in ["left", "right", "top", "bottom"]:
+		pad.add_theme_constant_override("margin_" + side, int(_inset))
+	clip.add_child(pad)
 	var column := VBoxContainer.new()
-	frame.add_child(column)
+	pad.add_child(column)
 	_status = PhoneStatus.new()
 	_status.gui_input.connect(_on_status_input)
 	_status.mouse_filter = Control.MOUSE_FILTER_STOP
 	_status.tooltip_text = "Телефон (Q)"
+	_status.custom_minimum_size = Vector2(0, _status_height)
 	column.add_child(_status)
 	_screen = MarginContainer.new()
 	_screen.name = "Screen"
@@ -276,6 +353,17 @@ func _build() -> void:
 	hide_button.pressed.connect(close)
 	_nav.add_child(hide_button)
 	_screen.add_child(_home())
+
+	# Рамка корпуса поверх интерфейса: экран в ней вырезан, мышь она не трогает.
+	_bezel = TextureRect.new()
+	_bezel.name = "Bezel"
+	_bezel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_bezel.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_bezel.stretch_mode = TextureRect.STRETCH_SCALE
+	_bezel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(_bezel)
+	frame.size = _image_size
+	get_viewport().size_changed.connect(_apply)
 
 
 # --- Для тестов --------------------------------------------------------------------------

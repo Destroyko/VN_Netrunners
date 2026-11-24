@@ -9,7 +9,8 @@
 прямо на него, «верх» кадра — вдоль длинной стороны экрана.
 
 Выход в `assets/_source/blockout/renders/phone/`:
-- `phone_<фаза>.png` — корпус с прозрачным фоном для day, evening, night;
+- `phone_<фаза>.png` — корпус с прозрачным фоном и **вырезанным экраном** для day, evening, night: игра кладёт
+  его поверх интерфейса, и рамка сама обрезает интерфейс по скруглённым углам;
 - `phone_screen_mask.png` — белый закруглённый экран на прозрачном: по нему игра обрезает слой
   интерфейса по форме экрана;
 - `phone_screen.json` — размер кадра, прямоугольник экрана в пикселях, радиус скругления углов и
@@ -148,6 +149,20 @@ def lights(phase, mid, normal, up, right):
     C.set_light_response(ph["floor"], ph["tint"], ph["shadow"], (0.3, 0.45, 1.0), 0.0)
 
 
+def punch_screen(ob):
+    """Экран вырезается из кадра корпуса (прозрачный): материал слота экрана заменяется на holdout."""
+    mat = bpy.data.materials.new("pf_hole")
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    hole = nt.nodes.new("ShaderNodeHoldout")
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(hole.outputs[0], out.inputs["Surface"])
+    for slot in ob.material_slots:
+        if slot.material and slot.material.name == SCREEN_MATERIAL:
+            slot.material = mat
+
+
 def render(path):
     bpy.context.scene.render.filepath = path
     bpy.ops.render.render(write_still=True)
@@ -228,13 +243,14 @@ def main():
     centre, normal, up, right, faces = screen_frame(ob)
     mid, frame_h, frame_w = setup_scene(ob, centre, normal, up, right, height)
     sc.eevee.taa_render_samples = samples
-    for phase in PHASES:
-        lights(phase, mid, normal, up, right)
-        render(os.path.join(OUT, "phone_%s.png" % phase))
-    # маска экрана и его размеры
+    # сначала маска экрана (пока слот ещё называется по материалу), потом корпус с вырезанным экраном
     mask_path = os.path.join(OUT, "phone_screen_mask.png")
     screen_mask(ob, mask_path)
     info = measure(mask_path)
+    punch_screen(ob)
+    for phase in PHASES:
+        lights(phase, mid, normal, up, right)
+        render(os.path.join(OUT, "phone_%s.png" % phase))
     radius = info["corner_radius"]
     info["safe_inset"] = int(math.ceil(radius * 0.45 + info["h"] * 0.004))
     info["aspect"] = round(info["w"] / info["h"], 4)

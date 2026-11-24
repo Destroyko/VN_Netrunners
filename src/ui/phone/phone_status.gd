@@ -45,7 +45,7 @@ func refresh() -> void:
 	_energy.max_value = Needs.energy_max()
 	_energy.value = Needs.energy()
 	_energy.tooltip_text = "Энергия: %d / %d" % [int(Needs.energy()), int(Needs.energy_max())]
-	_satiety.visible = Gates.is_open(Gates.HUNGER)
+	(_satiety.get_parent() as Control).visible = Gates.is_open(Gates.HUNGER)
 	_satiety.max_value = Needs.satiety_max()
 	_satiety.value = Needs.satiety()
 	_satiety.tooltip_text = "Сытость: %d / %d" % [int(Needs.satiety()), int(Needs.satiety_max())]
