@@ -137,10 +137,11 @@ func _build() -> void:
 
 	# Самочувствие и деньги — в строке свёрнутого телефона (PhoneOverlay), трекер задачи — в
 	# правом верхнем углу стола, мысли героя — внизу по центру.
+	# Строка цели — в теме ОС; клик открывает «Задачи» окном стола.
 	var tracker := QuestTracker.new()
 	tracker.use_theme(theme_id)
-	tracker.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 12)
-	tracker.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	tracker.place_top_right()
+	tracker.open_requested.connect(func() -> void: open_app("tasks"))
 	_area.add_child(tracker)
 
 	_windows = Control.new()

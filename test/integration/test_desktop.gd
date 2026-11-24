@@ -165,14 +165,14 @@ func test_tracker_and_tasks_on_the_pc() -> void:
 	Clock.set_time(1, 9 * 60)
 	Effects.apply({"unlock_quest": "side_first_job"})
 	var tracker: QuestTracker = desktop.find_child("QuestTracker", true, false) as QuestTracker
-	assert_not_null(tracker, "трекер в углу стола")
+	assert_not_null(tracker, "строка цели в углу стола")
 	assert_eq(tracker.title_text(), Planner.title_of("side_first_job"))
-	assert_eq(tracker.subtitle_text(), Planner.title_of("side_job_2"), "идущий заказ")
-	assert_string_contains(tracker.steps_text(), "Проверить почту")
+	assert_eq(tracker.goal_text(), "Проверить почту", "только текущая цель")
 	for e: Dictionary in Mailbox.inbox():
 		Mailbox.mark_read(str(e["uid"]))
-	assert_false(tracker.steps_text().contains("Проверить почту"), "прочитал — следующий шаг")
-	assert_not_null(desktop.open_app("tasks"), "«Задачи» на ПК")
+	assert_ne(tracker.goal_text(), "Проверить почту", "прочитал — следующая цель")
+	tracker.open_requested.emit()
+	assert_not_null(desktop.window_of("tasks"), "клик по строке — «Задачи» на ПК")
 
 
 func test_messages_app_on_the_pc() -> void:

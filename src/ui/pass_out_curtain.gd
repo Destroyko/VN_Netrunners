@@ -24,6 +24,8 @@ var _line: Label
 
 func _init() -> void:
 	name = "PassOutCurtain"
+	# Затемнение накрывает экран: строка цели под ним не нужна.
+	add_to_group(QuestTracker.COVER_GROUP)
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP  # пока идёт занавес, кликать по столу нельзя
 	_black = ColorRect.new()

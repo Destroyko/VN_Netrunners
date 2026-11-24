@@ -13,6 +13,8 @@ var _status: Label
 
 func _init() -> void:
 	name = "PauseMenu"
+	# Меню паузы накрывает экран: строка цели под ним не нужна.
+	add_to_group(QuestTracker.COVER_GROUP)
 	visible = false
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
