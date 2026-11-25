@@ -67,7 +67,7 @@ func test_guest_cannot_open_sys() -> void:
 	run("ls /")
 	var closed: int = -1
 	for i: int in last.lines.size():
-		if last.lines[i].begins_with("sys/"):
+		if last.lines[i].contains("  sys/"):
 			closed = i
 	assert_gt(closed, -1, "закрытая папка в списке")
 	assert_eq(last.role_at(closed), "error", "закрытая папка — красным, без метки")

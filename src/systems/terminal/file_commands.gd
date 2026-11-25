@@ -41,11 +41,13 @@ func ls(args: PackedStringArray, result: TermResult) -> void:
 	if entries.is_empty():
 		result.add("пусто")
 		return
-	# Таблица, как `ls -l` (вычитка 25.11.2026): название и права; закрытое правами — красным.
-	result.add_as(TermTable.row(["НАЗВАНИЕ", "ПРАВА"], LS_WIDTHS), "dim")
+	# Таблица, как `ls -l` (вычитка 25.11.2026): права, размер, имя; закрытое правами — красным.
+	result.add_as(TermTable.row(["ПРАВА", "РАЗМЕР".lpad(LS_SIZE), "  ИМЯ"], LS_WIDTHS), "dim")
 	for entry: Dictionary in entries:
 		var name: String = str(entry["name"]) + ("/" if bool(entry["is_dir"]) else "")
-		var line: String = TermTable.row([name, rights_of(entry, FsPath.requires_admin(str(entry["path"])))], LS_WIDTHS)
+		var size: String = "-" if bool(entry["is_dir"]) else "%d КБ" % _size_kb(files.file_data(str(entry["path"])))
+		var rights: String = rights_of(entry, FsPath.requires_admin(str(entry["path"])))
+		var line: String = TermTable.row([rights, size.lpad(LS_SIZE), "  " + name], LS_WIDTHS)
 		if bool(entry["system"]):
 			line += "  [sys]"
 		if bool(entry["locked"]):
@@ -56,7 +58,9 @@ func ls(args: PackedStringArray, result: TermResult) -> void:
 			result.add(line)
 
 
-const LS_WIDTHS: Array[int] = [28]
+## Столбцы `ls`: права, размер (по правому краю), имя.
+const LS_WIDTHS: Array[int] = [12, 8]
+const LS_SIZE: int = 8
 
 
 ## Права в стиле Unix: хозяин — администратор узла, гость — «остальные» (terminal-spec.md).

@@ -62,9 +62,10 @@ func test_prompt_at_home() -> void:
 
 func test_ls_shows_dirs_first_with_slash() -> void:
 	var lines: PackedStringArray = run("ls").split("\n")
-	assert_true(lines[0].begins_with("НАЗВАНИЕ"), "таблица, как ls -l")
-	assert_true(lines[1].begins_with("mail/"), "папки первыми, со слешем")
-	assert_true(Array(lines).any(func(l: String) -> bool: return l.begins_with("readme.txt") and l.contains("-rw-r--r--")))
+	assert_true(lines[0].begins_with("ПРАВА") and lines[0].ends_with("ИМЯ"), "таблица, как ls -l")
+	assert_true(lines[1].begins_with("drwx") and lines[1].ends_with("/"), "папки первыми, со слешем")
+	assert_true(Array(lines).any(func(l: String) -> bool: return l.ends_with("  mail/")))
+	assert_true(Array(lines).any(func(l: String) -> bool: return l.ends_with("readme.txt") and l.begins_with("-rw-r--r--") and l.contains("КБ")))
 
 
 func test_navigation_is_free_of_time() -> void:
