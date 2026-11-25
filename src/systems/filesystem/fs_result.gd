@@ -77,13 +77,13 @@ func message() -> String:
 		Code.OK:
 			return ""
 		Code.NOT_FOUND:
-			return "нет такого файла: %s" % path
+			return "файл не найден: %s" % path
 		Code.NOT_A_DIR:
 			return "это не каталог: %s" % path
 		Code.IS_A_DIR:
 			return "это каталог, а не файл: %s" % path
 		Code.NO_PERMISSION:
-			return "недостаточно прав. нужен доступ администратора"
+			return "доступ запрещён"
 		Code.ALREADY_EXISTS:
 			return "уже существует: %s" % path
 		Code.BAD_PATH:

@@ -35,7 +35,7 @@ func list_installed(result: TermResult) -> void:
 ## `run <программа> [сервис]` — то же, что короткая запись `<программа> [сервис]`.
 func run(args: PackedStringArray, result: TermResult) -> void:
 	if args.is_empty():
-		result.add("использование: run <программа> [порт]")
+		Terminal.usage(result, "run <программа> <порт>")
 		return
 	launch(args[0].to_lower(), args.slice(1), result)
 
@@ -222,7 +222,7 @@ func _logwipe(result: TermResult) -> void:
 		result.add("нет подключения к узлу")
 		return
 	if not _t.admin():
-		result.add("недостаточно прав. нужен доступ администратора")
+		result.add("доступ запрещён")
 		return
 	result.add_all(PackedStringArray(LOGWIPE_LOG))
 	var node: String = _t.node_id()

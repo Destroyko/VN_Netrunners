@@ -41,7 +41,7 @@ func probe(args: PackedStringArray, result: TermResult) -> void:
 	# Без адреса — узел, к которому подключались последним (после connect).
 	var address: String = args[0] if not args.is_empty() else _t.session.target_address()
 	if address.is_empty():
-		result.add("использование: probe [адрес]")
+		Terminal.usage(result, "probe <адрес>")
 		return
 	var seen: NetResult = _t.net.probe(address, _t.now())
 	if not seen.is_ok():
@@ -109,7 +109,7 @@ func connect_to(args: PackedStringArray, result: TermResult) -> void:
 		result.add(NO_NETWORK)
 		return
 	if args.is_empty():
-		result.add("использование: connect <адрес>")
+		Terminal.usage(result, "connect <адрес>")
 		return
 
 	var before_node: String = _t.session.target_id()

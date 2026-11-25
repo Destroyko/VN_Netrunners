@@ -85,7 +85,7 @@ func test_cd_moves_and_prompt_follows() -> void:
 
 
 func test_cd_to_missing_dir() -> void:
-	assert_string_contains(run("cd net-takogo"), "нет такого файла")
+	assert_string_contains(run("cd net-takogo"), "файл не найден")
 
 
 func test_cd_into_a_file() -> void:
@@ -128,12 +128,12 @@ func test_cat_emits_file_read() -> void:
 
 func test_cat_of_missing_file() -> void:
 	var before: int = minute()
-	assert_string_contains(run("cat net.txt"), "нет такого файла")
+	assert_string_contains(run("cat net.txt"), "файл не найден")
 	assert_eq(minute(), before, "ошибка времени не стоит")
 
 
 func test_cat_without_argument_shows_usage() -> void:
-	assert_string_contains(run("cat"), "использование: cat")
+	assert_string_contains(run("cat"), "help cat")
 
 
 func test_quoted_path_with_spaces() -> void:
@@ -150,7 +150,7 @@ func test_cp_copies_at_home() -> void:
 
 
 func test_cp_needs_two_arguments_at_home() -> void:
-	assert_string_contains(run("cp readme.txt"), "использование: cp")
+	assert_string_contains(run("cp readme.txt"), "help cp")
 
 
 func test_cp_over_existing_asks_first() -> void:
@@ -293,7 +293,7 @@ func test_mask_replace_asks_once_for_the_whole_batch() -> void:
 
 
 func test_mask_with_no_matches() -> void:
-	assert_string_contains(run("cp /home/*.zzz /home/dst"), "нет таких файлов")
+	assert_string_contains(run("cp /home/*.zzz /home/dst"), "файлы не найдены")
 
 
 func test_cp_copies_a_whole_folder() -> void:

@@ -366,8 +366,8 @@ func show_result(result: TermResult) -> void:
 		_output.clear()
 		_has_lines = false
 	# Вопрос («заменить? (y/n)») уже среди строк ответа: второй раз не печатаем.
-	for line: String in result.lines:
-		_print(line)
+	for i: int in result.lines.size():
+		_print_bbcode(_paint.output(result.lines[i], result.role_at(i)))
 	var request: Dictionary = result.request
 	match str(request.get("type", "")):
 		"puzzle":

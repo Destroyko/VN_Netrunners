@@ -210,7 +210,7 @@ func test_installed_programs_are_listed() -> void:
 
 
 func test_run_without_a_program_name() -> void:
-	assert_string_contains(run("run"), "использование: run")
+	assert_string_contains(run("run"), "help run")
 
 
 # --- Автодополнение ----------------------------------------------------------

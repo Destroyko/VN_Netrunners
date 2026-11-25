@@ -12,14 +12,14 @@ extends RefCounted
 const ERROR_MARKS: PackedStringArray = [
 	"не найден", "нет такого", "нет таких", "недостаточно прав", "отклонён", "заблокирова", "прервано",
 	"запрещ", "ошибка", "не удалось", "не установлен", "не работает", "нет подключения", "нет сервиса",
-	"не указан", "невозможно",
+	"не указан", "невозможно", "указана неверно", "неверный формат",
 ]
 const OK_MARKS: PackedStringArray = [
 	"установлено", "подключено", "получен", "повышены", "удалено:", "передано", "заменено", "очищено",
 	"сохранено", ": запущен",
 ]
 const WARN_MARKS: PackedStringArray = ["трейс", "обнаружен", "(y/n)", "мониторинг", "внимание"]
-const DIM_MARKS: PackedStringArray = ["использование:", "отменено", "пусто"]
+const DIM_MARKS: PackedStringArray = ["отменено", "пусто"]
 
 var colors: Dictionary = {}
 
@@ -92,8 +92,8 @@ func command(line: String) -> String:
 
 
 ## Строка ответа терминала целиком одним цветом по смыслу: ошибка, успех, предупреждение, справка.
-func output(line: String) -> String:
-	return _paint(line, role_of(line))
+func output(line: String, role: String = "") -> String:
+	return _paint(line, role if not role.is_empty() else role_of(line))
 
 
 ## Смысл строки ответа: "error", "ok", "warn", "dim", "path" (каталог в списке) или "text".

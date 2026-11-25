@@ -80,3 +80,13 @@ func test_notepad_waits_while_a_program_runs() -> void:
 	Clock.reload_config()
 	assert_eq(saved.text(), Terminal.BUSY_TEXT)
 	assert_ne(str(t.home_fs().file_data("/home/readme.txt").get("text", "")), "новый текст")
+
+
+## Вычитка 25.11.2026: файл удалили, пока был открыт в «Блокноте», — «Сохранить» создаёт его заново.
+func test_notepad_recreates_a_deleted_file() -> void:
+	run("edit /home/readme.txt")
+	t.home_fs().remove("/home", "readme.txt", true, true)
+	assert_false(t.home_fs().has_file("/home/readme.txt"))
+	var saved: TermResult = t.save_edit(Network.HOME_ID, "/home/readme.txt", "новый текст")
+	assert_string_contains(saved.text(), "сохранено")
+	assert_eq(str(t.home_fs().file_data("/home/readme.txt").get("text", "")), "новый текст")

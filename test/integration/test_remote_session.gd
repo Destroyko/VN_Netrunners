@@ -158,7 +158,7 @@ func test_guest_cannot_delete_from_the_explorer() -> void:
 	var setup: Array = await _explorer_in_home()
 	var browser: FileBrowser = setup[1] as FileBrowser
 	browser.act(_row(browser, "spisok_pokupok.txt"), FileBrowser.MENU_DELETE)
-	assert_string_contains(browser.status_text(), "недостаточно прав")
+	assert_string_contains(browser.status_text(), "доступ запрещён")
 	assert_true(Filesystem.for_node("node_training_pc").has_file("/home/spisok_pokupok.txt"))
 
 

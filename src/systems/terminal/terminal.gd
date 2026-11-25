@@ -26,6 +26,11 @@ const DESKTOP_DIR: String = "/home/desktop"
 
 const ANSWERS_YES: PackedStringArray = ["y", "yes", "д", "да"]
 const ANSWERS_NO: PackedStringArray = ["n", "no", "н", "нет"]
+## Команду вызвали неверно (нет аргумента): синтаксис и куда смотреть (вычитка 25.11.2026).
+static func usage(result: TermResult, syntax: String) -> void:
+	result.add("команда указана неверно: %s. Подробнее: help %s" % [syntax, syntax.get_slice(" ", 0)])
+
+
 ## Ответ, пока идёт программа: консоль одна, вторая команда ждать не станет (ISS-006).
 const BUSY_TEXT: String = "терминал занят"
 
@@ -618,7 +623,7 @@ func _decrypt(args: PackedStringArray, result: TermResult) -> void:
 	if args.is_empty():
 		var running: Array = BackgroundTasks.tasks()
 		if running.is_empty():
-			result.add("использование: decrypt <файл> -auto")
+			Terminal.usage(result, "decrypt <файл> -auto")
 		else:
 			for t: Dictionary in running:
 				result.add("подбор идёт: %s" % str(t["path"]))
