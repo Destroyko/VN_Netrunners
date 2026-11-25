@@ -149,10 +149,9 @@ func _console_label(label_name: String) -> RichTextLabel:
 
 
 static func _mono_font() -> Font:
+	# Свой моноширинный шрифт игры (IBM Plex Mono), а не системный: одинаково на любой машине.
 	if _font == null:
-		var font := SystemFont.new()
-		font.font_names = PackedStringArray(["Consolas", "DejaVu Sans Mono", "Courier New", "monospace"])
-		_font = font
+		_font = GameTheme.font("mono")
 	return _font
 
 

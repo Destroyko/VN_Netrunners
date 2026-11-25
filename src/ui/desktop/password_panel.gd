@@ -71,9 +71,7 @@ func setup(game: PasswordPuzzle) -> void:
 
 
 static func _mono() -> Font:
-	var font := SystemFont.new()
-	font.font_names = PackedStringArray(["Consolas", "Courier New", "monospace"])
-	return font
+	return GameTheme.font("mono")
 
 
 ## Пул букв: нужные слову (кроме уже открытых) плюс ложные, не совпадающие с буквами слова.

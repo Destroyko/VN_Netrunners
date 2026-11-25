@@ -5,8 +5,9 @@ extends RefCounted
 ## (обычный ПК), `hacker` (хакерская ОС). Игрок может скачать файл темы с чужого ПК и подменить свою (после
 ## перезагрузки тема ПК обновляется), поэтому тема выбирается данными: переменная `pc.theme` или по `pc.os`.
 ##
-## Цвета берутся только через роли (`color`, `build`): тема целиком меняется сменой id. Шрифт один, вопрос
-## шрифта открыт (docs/roadmap.md, шаг 6а).
+## Цвета берутся только через роли (`color`, `build`): тема целиком меняется сменой id. Шрифты — тоже роли
+## (`font`): текст — IBM Plex Sans, заголовки, имена и код — IBM Plex Mono (решено 25.11.2026, OFL,
+## `assets/fonts/`). Шрифты общие для всех тем: меняется цвет, а не начертание.
 
 const THEMES_DIR: String = "res://data/themes"
 const ICONS_DIR: String = "res://assets/ui/icons"
@@ -63,6 +64,26 @@ static func glyph(icon_id: String, theme_id: String = "") -> Texture2D:
 	return load(path) as Texture2D if ResourceLoader.exists(path) else null
 
 
+const FONT_FILES: Dictionary = {
+	"body": "res://assets/fonts/IBMPlexSans-Variable.ttf",
+	"italic": "res://assets/fonts/IBMPlexSans-Italic-Variable.ttf",
+	"mono": "res://assets/fonts/IBMPlexMono-Regular.ttf",
+	"heading": "res://assets/fonts/IBMPlexMono-SemiBold.ttf",
+}
+static var _fonts: Dictionary = {}
+
+
+## Шрифт роли: `body` — текст, `italic` — мысли и пометки, `mono` — терминал и код, `heading` —
+## заголовки окон, имена персонажей, названия программ. Нет файла — шрифт по умолчанию движка.
+static func font(role: String) -> Font:
+	if _fonts.has(role):
+		return _fonts[role] as Font
+	var path: String = str(FONT_FILES.get(role, FONT_FILES["body"]))
+	var loaded: Font = load(path) as Font if ResourceLoader.exists(path) else ThemeDB.fallback_font
+	_fonts[role] = loaded
+	return loaded
+
+
 static func build(theme_id: String = "") -> Theme:
 	var id: String = theme_id if not theme_id.is_empty() else current_id
 	if _built.has(id):
@@ -74,6 +95,7 @@ static func build(theme_id: String = "") -> Theme:
 
 static func _make(id: String) -> Theme:
 	var theme := Theme.new()
+	theme.default_font = font("body")
 	var text: Color = color("text", id)
 	var dim: Color = color("text_dim", id)
 	var accent: Color = color("accent", id)

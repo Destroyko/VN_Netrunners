@@ -2,7 +2,8 @@ extends Control
 ## Экран «Об игре»: версия, движок, где искать лицензии ассетов.
 ##
 ## Версия берётся из project.godot, чтобы не расходилась с настоящей.
-## Реестр лицензий на звук и графику — docs/art/audio.md и docs/art/blender-scenes.md («Лицензии»);
+## Реестр лицензий на звук, графику и шрифты — docs/art/audio.md, docs/art/blender-scenes.md («Лицензии»),
+## docs/art/style-guide.md («Шрифты»);
 ## к релизу (M4) его содержимое должно попасть сюда.
 
 @onready var _text: Label = $Rows/Text

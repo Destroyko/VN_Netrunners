@@ -22,7 +22,8 @@ static func with_names(text: String) -> String:
 
 
 ## Текст для окна: имена подставлены, термины — цветные ссылки, остальной BBCode экранирован.
-static func to_bbcode(text: String) -> String:
+## `term_color` — цвет терминов; окно передаёт цвет роли своей темы.
+static func to_bbcode(text: String, term_color: String = TERM_COLOR) -> String:
 	var source: String = with_names(text).replace("[", "\u0001").replace("]", "\u0002")
 	var out: String = ""
 	var rest: String = source
@@ -38,7 +39,7 @@ static func to_bbcode(text: String) -> String:
 		var parts: PackedStringArray = inner.split("|", true, 1)
 		var id: String = parts[0].strip_edges()
 		var label: String = parts[1] if parts.size() > 1 else title(id)
-		out += "[color=%s][url=%s%s]%s[/url][/color]" % [TERM_COLOR, TERM_PREFIX, id, _escape(label)]
+		out += "[color=%s][url=%s%s]%s[/url][/color]" % [term_color, TERM_PREFIX, id, _escape(label)]
 		rest = rest.substr(close + 2)
 	return out + _escape(rest)
 

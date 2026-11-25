@@ -67,4 +67,5 @@ renderer/rendering_method.mobile="gl_compatibility"
 
 [gui]
 
+theme/custom_font="res://assets/fonts/IBMPlexSans-Variable.ttf"
 timers/tooltip_delay_sec=0.2

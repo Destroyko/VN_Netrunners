@@ -124,6 +124,8 @@ func _build() -> void:
 	_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_title_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Заголовки окон — шрифтом заголовков (моноширинный, «машинный»), текст внутри — обычным.
+	_title_label.add_theme_font_override("font", GameTheme.font("heading"))
 	_title_bar.add_child(_title_label)
 	_buttons.append(_add_title_button(WindowButton.Kind.MINIMIZE, "Свернуть", minimize))
 	_maximize_button = _add_title_button(WindowButton.Kind.MAXIMIZE, "Развернуть", toggle_maximize)
