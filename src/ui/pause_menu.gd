@@ -61,7 +61,7 @@ func toggle() -> void:
 
 func save() -> void:
 	var error: String = SaveSystem.save(SaveSystem.SLOT_MANUAL)
-	_status.text = "игра сохранена" if error.is_empty() else "ошибка сохранения: " + error
+	_status.text = SaveSystem.result_text(error)
 
 
 func status_text() -> String:

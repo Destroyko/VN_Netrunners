@@ -65,33 +65,30 @@ func test_reboot_mid_program_gives_no_result() -> void:
 
 # --- ISS-003: автосейв посреди полоски ---------------------------------------------------
 
-## Передача идёт через полночь, автосейв пишет мир посреди полоски. После загрузки программы нет
-## и итога нет; потраченные до сейва минуты остались — состояние согласовано (И-6).
-func test_autosave_mid_transfer_loads_consistent_world() -> void:
+## Передача идёт через полночь: посреди полоски сохранить нельзя, автосейв ждёт её конца и
+## пишет мир уже с итогом (ISS-003, И-21).
+func test_autosave_waits_for_the_program() -> void:
 	learn_programs()
 	enter("node_job3_server")
-	Clock.set_time(1, 23 * 60 + 55)
+	Clock.set_time(1, 23 * 60 + 58)
 	_running_clock()
-	var save_now: Callable = func(_day: int) -> void: SaveSystem.save(SaveSystem.SLOT_AUTO)
-	EventBus.day_started.connect(save_now)
+	SaveManager.autosave_enabled = true
 	run("cp /home/backup/2025-01-10.bak")
 	assert_true(t.has_job(), "4200 КБ — 9 минут под полоской")
+	assert_eq(SaveSystem.save(SaveSystem.SLOT_MANUAL), SaveSystem.BUSY_ERROR, "ручной сейв — нельзя")
+	Clock.tick(5.0)
+	assert_eq(GameState.day, 2, "полночь прошла посреди полоски")
+	assert_true(t.has_job())
+	await wait_frames(1)
+	assert_false(FileAccess.file_exists(SaveSystem.path_of(SaveSystem.SLOT_AUTO)), "автосейв ждёт")
 	Clock.tick(120.0)
-	EventBus.day_started.disconnect(save_now)
 	assert_false(t.has_job())
-	assert_true(t.home_fs().has_file("/home/downloads/2025-01-10.bak"), "в игре передача дошла")
-
+	await wait_frames(2)
+	SaveManager.autosave_enabled = false
 	Clock.stop()
 	assert_eq(SaveSystem.load_slot(SaveSystem.SLOT_AUTO), "")
-	assert_eq(GameState.day, 2)
-	assert_eq(GameState.minute, 0, "сейв — на полуночи, посреди передачи")
-	assert_false(Filesystem.for_node(Network.HOME_ID).has_file("/home/downloads/2025-01-10.bak"),
-		"итога нет: файл не успел скачаться")
-	assert_eq(HackSession.new(Network.for_game()).target_id(), "", "живое соединение сброшено")
-	var fresh := Terminal.new()
-	assert_false(fresh.has_job())
-	assert_false(fresh.is_remote())
-	assert_false(Clock.is_fast_forwarding(), "в главном меню часы остановлены — полоски нет")
+	assert_true(Filesystem.for_node(Network.HOME_ID).has_file("/home/downloads/2025-01-10.bak"),
+		"сейв — после полоски, с итогом")
 
 
 # --- ISS-006: вторая команда посреди программы --------------------------------------------

@@ -30,7 +30,27 @@ static func exists(slot: String) -> bool:
 
 
 ## Сохранить текущую игру в слот. Возвращает "" или текст ошибки.
+## Сохранить нельзя, пока идёт полоска программы (ISS-003, И-21): её живое состояние в сейв не
+## попадает, а мир посреди неё был бы несогласован. Долгие программы — фоновые задачи с сейвом.
+const BUSY_ERROR: String = "идёт программа"
+
+
+## Что сказать игроку после сохранения.
+static func result_text(error: String) -> String:
+	if error.is_empty():
+		return "игра сохранена"
+	if error == BUSY_ERROR:
+		return "сохранить нельзя: идёт программа"
+	return "ошибка сохранения: " + error
+
+
+static func can_save() -> bool:
+	return not Clock.is_fast_forwarding()
+
+
 static func save(slot: String) -> String:
+	if not can_save():
+		return BUSY_ERROR
 	if not DirAccess.dir_exists_absolute(dir):
 		var made: int = DirAccess.make_dir_recursive_absolute(dir)
 		if made != OK:

@@ -587,7 +587,7 @@ func save_game() -> String:
 	var error: String = SaveSystem.save(SaveSystem.SLOT_MANUAL)
 	var notice: SystemNotice = find_child("SystemNotice", true, false) as SystemNotice
 	if notice != null:
-		notice.show_text("игра сохранена" if error.is_empty() else "ошибка сохранения: " + error)
+		notice.show_text(SaveSystem.result_text(error))
 	return error
 
 
