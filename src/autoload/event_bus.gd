@@ -25,6 +25,8 @@ signal mail_deleted(uid: String, mail_id: String)
 signal message_received(uid: String, message_id: String)
 signal messages_read(contact: String)
 signal message_replied(uid: String, message_id: String, reply_id: String)
+## Показано всплывающее уведомление (`kind`: "message"…) — звук уведомления (шаг 17 M3).
+signal notification_shown(kind: String)
 signal attachment_saved(uid: String, path: String)
 ## Герой отправил письмо со своего ПК: кому и `file_id` вложений (у файлов без id их нет).
 ## По нему закрывается цель `deliver`.

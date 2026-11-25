@@ -445,3 +445,34 @@ func test_leave_button_is_on_the_taskbar() -> void:
 	leave.emit_signal("pressed")
 	assert_gt(int(asked["n"]), 0)
 
+
+
+# --- Мессенджер на ПК и уведомления ---------------------------------------------------
+
+func test_messenger_on_pc_has_two_columns() -> void:
+	Messenger.deliver("msg_test")
+	var window: DesktopWindow = desktop.open_app("messenger")
+	var app: MessagesApp = window.body.get_child(0) as MessagesApp
+	assert_true(app.is_wide(), "на ПК — два столбца")
+	assert_string_contains(app.chat_button("roommate").text, "Ты дома", "под именем — начало сообщения")
+	app.open_chat("roommate")
+	assert_true(app.chat_button("roommate").visible, "чаты видны и при открытом чате")
+	assert_not_null(app.reply_button(0))
+
+
+func test_toast_when_messenger_is_closed() -> void:
+	var toasts: MessageToasts = desktop.toasts()
+	Messenger.deliver("msg_test")
+	assert_eq(toasts.count(), 1, "мессенджер закрыт — всплыло уведомление")
+	toasts.click(0)
+	var window: DesktopWindow = desktop.window_of("messenger")
+	assert_not_null(window, "клик открыл мессенджер")
+	assert_eq((window.body.get_child(0) as MessagesApp).current_chat(), "roommate", "на этом чате")
+	assert_eq(toasts.count(), 0, "открыл мессенджер — уведомления убраны")
+	assert_eq(Messenger.unread_count(), 0, "чат прочитан")
+
+
+func test_no_toast_while_reading() -> void:
+	desktop.open_app("messenger")
+	Messenger.deliver("msg_test")
+	assert_eq(desktop.toasts().count(), 0, "окно в фокусе — уведомлять незачем")

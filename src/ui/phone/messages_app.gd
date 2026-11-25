@@ -3,8 +3,19 @@ extends VBoxContainer
 ## Приложение «Сообщения» (docs/gameplay/messages.md) — в телефоне и на ПК, данные одни.
 ## Список чатов (непрочитанные — с числом) → переписка и кнопки ответа. Правил здесь нет:
 ## всё делает `Messenger`.
+##
+## В телефоне — одна колонка: список чатов или переписка. На ПК (`set_wide`) — как WhatsApp или
+## Telegram на компьютере: слева чаты с последним сообщением, справа открытый чат.
+
+const CHATS_WIDTH: float = 200.0
+const PREVIEW_CHARS: int = 28
 
 var _chats: VBoxContainer
+var _body: HBoxContainer
+var _back: Button
+var _placeholder: Label
+## Два столбца (ПК) или одна колонка (телефон).
+var _wide: bool = false
 var _thread_view: VBoxContainer
 var _thread_title: Label
 var _thread_lines: VBoxContainer
@@ -18,23 +29,41 @@ func _init() -> void:
 	name = "MessagesApp"
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body = HBoxContainer.new()
+	_body.name = "Body"
+	_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_body.add_theme_constant_override("separation", 10)
+	add_child(_body)
 	_chats = VBoxContainer.new()
 	_chats.name = "Chats"
-	add_child(_chats)
+	_chats.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body.add_child(_chats)
 	_thread_view = VBoxContainer.new()
 	_thread_view.name = "Thread"
 	_thread_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	add_child(_thread_view)
+	_thread_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body.add_child(_thread_view)
+	_placeholder = Label.new()
+	_placeholder.name = "Placeholder"
+	_placeholder.text = "Выберите чат"
+	_placeholder.theme_type_variation = "DimLabel"
+	_placeholder.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_placeholder.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_placeholder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_placeholder.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_placeholder.visible = false
+	_body.add_child(_placeholder)
 	var head := HBoxContainer.new()
 	_thread_view.add_child(head)
-	var back := Button.new()
-	back.name = "Back"
-	back.text = "‹ Чаты"
-	back.flat = true
-	back.pressed.connect(show_chats)
-	head.add_child(back)
+	_back = Button.new()
+	_back.name = "Back"
+	_back.text = "‹ Чаты"
+	_back.flat = true
+	_back.pressed.connect(show_chats)
+	head.add_child(_back)
 	_thread_title = Label.new()
 	_thread_title.name = "Title"
+	_thread_title.add_theme_font_override("font", GameTheme.font("heading"))
 	head.add_child(_thread_title)
 	_thread_scroll = ScrollContainer.new()
 	_thread_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -55,6 +84,24 @@ func _ready() -> void:
 	_refresh()
 
 
+## Вид для ПК: два столбца, чаты всегда видны слева.
+func set_wide(on: bool) -> void:
+	_wide = on
+	_chats.size_flags_horizontal = Control.SIZE_FILL if on else Control.SIZE_EXPAND_FILL
+	_chats.custom_minimum_size = Vector2(CHATS_WIDTH if on else 0.0, 0)
+	_back.visible = not on
+	if is_inside_tree():
+		_refresh()
+
+
+func is_wide() -> bool:
+	return _wide
+
+
+func current_chat() -> String:
+	return _contact
+
+
 ## Список чатов: имя собеседника и число непрочитанных.
 func show_chats() -> void:
 	_contact = ""
@@ -68,6 +115,17 @@ func open_chat(contact: String) -> void:
 
 
 func _refresh() -> void:
+	if _wide:
+		# Два столбца: чаты всегда, справа — открытый чат или подсказка.
+		_chats.visible = true
+		_thread_view.visible = not _contact.is_empty()
+		_placeholder.visible = _contact.is_empty()
+		if not _contact.is_empty():
+			Messenger.mark_read(_contact)
+			_fill_thread()
+		_fill_chats()
+		return
+	_placeholder.visible = false
 	_chats.visible = _contact.is_empty()
 	_thread_view.visible = not _contact.is_empty()
 	if _contact.is_empty():
@@ -92,6 +150,12 @@ func _fill_chats() -> void:
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		var unread: int = Messenger.unread_count(contact)
 		button.text = name_of(contact) + ("  (%d)" % unread if unread > 0 else "")
+		if _wide:
+			# На ПК под именем — начало последнего сообщения, как в мессенджерах; открытый чат выделен.
+			button.text += "\n" + last_preview(contact)
+			button.toggle_mode = true
+			button.button_pressed = contact == _contact
+			button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		button.pressed.connect(open_chat.bind(contact))
 		_chats.add_child(button)
 
@@ -129,6 +193,18 @@ func _fill_thread() -> void:
 func _scroll_to_end() -> void:
 	if is_inside_tree():
 		_thread_scroll.scroll_vertical = int(_thread_scroll.get_v_scroll_bar().max_value)
+
+
+## Начало последнего сообщения в чате — для списка чатов и уведомлений.
+static func last_preview(contact: String) -> String:
+	var items: Array = Messenger.thread(contact)
+	if items.is_empty():
+		return ""
+	var entry: Dictionary = items[items.size() - 1] as Dictionary
+	var text: String = Messenger.text_of(entry)
+	if str(entry.get("kind", "")) == Messenger.OUT:
+		text = "Вы: " + text
+	return text if text.length() <= PREVIEW_CHARS else text.left(PREVIEW_CHARS - 1) + "…"
 
 
 static func name_of(contact: String) -> String:

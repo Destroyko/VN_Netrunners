@@ -27,7 +27,7 @@ const APPS: Array[Dictionary] = [
 	{"id": "shop", "title": "Магазин", "color": Color(0.45, 0.3, 0.55), "size": Vector2(520, 380), "min": Vector2(320, 220),
 		"gate": Gates.SHOP},
 	{"id": "tasks", "title": "Задачи", "color": Color(0.35, 0.5, 0.35), "size": Vector2(440, 480), "min": Vector2(320, 260)},
-	{"id": "messenger", "title": "Сообщения", "color": Color(0.25, 0.5, 0.55), "size": Vector2(420, 460), "min": Vector2(300, 260)},
+	{"id": "messenger", "title": "Сообщения", "color": Color(0.25, 0.5, 0.55), "size": Vector2(640, 460), "min": Vector2(460, 300)},
 	# «Работа» (поиск работы и подработки, devices.md) — шаг 8 M3: пока серая.
 	{"id": "work", "title": "Работа", "color": Color(0.4, 0.4, 0.4), "size": Vector2(520, 380), "min": Vector2(320, 220), "stub": true},
 	{"id": "group", "title": "Сайт группы", "color": Color(0.7, 0.25, 0.45), "size": Vector2(520, 380), "min": Vector2(320, 220),
@@ -50,6 +50,7 @@ var terminal: Terminal
 
 var _area: Control
 var _icons: VFlowContainer
+var _toasts: MessageToasts
 var _windows: Control
 var _taskbar: Taskbar
 var _open: Dictionary = {}
@@ -161,6 +162,15 @@ func _build() -> void:
 	notice.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, 8)
 	notice.grow_horizontal = Control.GROW_DIRECTION_BOTH
 
+	# Уведомления о сообщениях — справа внизу над часами панели задач, поверх окон.
+	_toasts = MessageToasts.new()
+	_toasts.theme_id = theme_id
+	_toasts.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 12)
+	_toasts.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_toasts.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_toasts.is_reading = is_reading_messages
+	_toasts.chat_requested.connect(open_chat)
+
 	# Мысль поверх окон: её должно быть видно, даже когда стол завален окнами.
 	var thoughts := HeroThoughts.new()
 	thoughts.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 16)
@@ -168,6 +178,7 @@ func _build() -> void:
 	thoughts.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_area.add_child(thoughts)
 	_area.add_child(notice)
+	_area.add_child(_toasts)
 
 	_taskbar = Taskbar.new()
 	_taskbar.window_button_pressed.connect(_on_taskbar_button)
@@ -278,6 +289,23 @@ func _make_file_icon(entry: Dictionary) -> Button:
 	return button
 
 
+## Игрок читает сообщения: окно «Сообщения» открыто, не свёрнуто и в фокусе.
+func is_reading_messages() -> bool:
+	var window: DesktopWindow = window_of("messenger")
+	return window != null and window.is_focused and not window.is_minimized and is_visible_in_tree()
+
+
+## Открыть мессенджер на чате (клик по уведомлению).
+func open_chat(contact: String) -> void:
+	var window: DesktopWindow = open_app("messenger")
+	if window != null:
+		(window.body.get_child(0) as MessagesApp).open_chat(contact)
+
+
+func toasts() -> MessageToasts:
+	return _toasts
+
+
 ## Открыть «Файлы» на папке `path`.
 func open_files(path: String) -> void:
 	var window: DesktopWindow = open_app("files")
@@ -339,6 +367,9 @@ func open_app(app_id: String) -> DesktopWindow:
 	var app: Dictionary = app_definition(app_id)
 	if app.is_empty() or not is_available(app):
 		return null
+	# Открыл мессенджер — уведомления о сообщениях больше не нужны.
+	if app_id == "messenger" and _toasts != null:
+		_toasts.clear()
 	var existing: DesktopWindow = _open.get(app_id) as DesktopWindow
 	if existing != null:
 		if existing.is_minimized:
@@ -398,7 +429,10 @@ func _make_content(app_id: String) -> Control:
 	if app_id == "news":
 		return NewsApp.new()
 	if app_id == "messenger":
-		return MessagesApp.new()
+		# На ПК — два столбца, как в мессенджере на компьютере.
+		var messages := MessagesApp.new()
+		messages.set_wide(true)
+		return messages
 	if app_id == "tasks":
 		return PlannerApp.new()
 	if app_id == "terminal":
