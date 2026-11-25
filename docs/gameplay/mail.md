@@ -40,5 +40,6 @@
 | --- | --- |
 | `linked_quests`, `delete_block`, `can_delete`, `delete`, `delete_sent` | `Mailbox` |
 | Сигнал об удалении | `EventBus.mail_deleted(uid, mail_id)` |
+| Номер доставленного письма | `uid` = id, номер из растущего счётчика `next_uid` и день: `mail_rent_reminder#7@d12` (ISS-012); удалённое письмо номер не освобождает |
 | Тесты | `test/unit/test_mailbox.gd`, `test/integration/test_desktop.gd` |
 | Пробное длинное письмо для вёрстки | `data/mail/mail_test_long.json` (консоль F1) |

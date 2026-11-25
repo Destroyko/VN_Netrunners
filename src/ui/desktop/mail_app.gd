@@ -277,7 +277,7 @@ func refresh() -> void:
 ## Строка письма: значок состояния, отправитель и время, ниже тема. Непрочитанное — ярче.
 func _letter_row(uid: String, icon_id: String, who: String, subject: String, day: int, minute: int, fresh: bool) -> Button:
 	var row := Button.new()
-	row.name = "Letter_" + uid.replace(":", "_").replace("#", "_")
+	row.name = "Letter_" + uid.replace(":", "_").replace("#", "_").replace("@", "_")
 	row.toggle_mode = true
 	row.button_group = _row_group
 	row.theme_type_variation = "FlatButton"

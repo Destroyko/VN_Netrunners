@@ -9,7 +9,8 @@ extends RefCounted
 ## `mail_replied`; сама почта сюжета не знает.
 ##
 ## Ящик — в `GameState.mail_state()`: входящие [{uid, id, day, minute, read, reply}] (новые в
-## конце), отправленные [{to, subject, body, files, file_ids, day, minute}] и адресная книга.
+## конце), отправленные [{to, subject, body, files, file_ids, day, minute}], адресная книга и
+## счётчик номеров писем `next_uid`.
 ##
 ## Отправить письмо можно только на известный адрес (адресная книга): так игрок не отправит
 ## файл случайно не туда (разработчик, 16.11.2026). Адреса узнаются из писем — отправитель и
@@ -30,15 +31,21 @@ static func exists(id: String) -> bool:
 	return not definition(id).is_empty()
 
 
-## Доставить письмо. Одно и то же письмо может прийти не раз (шаблоны radiant), поэтому у
-## каждого доставленного свой `uid`. Нет такого письма в данных — false.
+## Доставить письмо. Одно и то же письмо может прийти не раз (шаблоны radiant, напоминания),
+## поэтому у каждого доставленного свой `uid`: id, номер из счётчика, который только растёт
+## (`next_uid` в ящике, сейв помнит), и день — `mail_rent_reminder#7@d12` (ISS-012). Номер не
+## зависит от размера ящика: удалённое письмо свой номер не освобождает. Старые сейвы с uid
+## вида `id#N` с новыми не совпадают, миграция не нужна. Нет такого письма в данных — false.
 static func deliver(id: String) -> bool:
 	if not exists(id):
 		push_error("Mailbox: нет письма в data/mail: %s" % id)
 		return false
 	var list: Array = _list()
+	var state: Dictionary = GameState.mail_state()
+	var number: int = int(state.get("next_uid", 1))
+	state["next_uid"] = number + 1
 	var entry: Dictionary = {
-		"uid": "%s#%d" % [id, list.size() + 1],
+		"uid": "%s#%d@d%d" % [id, number, GameState.day],
 		"id": id,
 		"day": GameState.day,
 		"minute": GameState.minute,
@@ -115,6 +122,15 @@ static func sent() -> Array:
 
 
 ## Входящие, новые сверху.
+## Последняя доставленная копия письма `id` (повторные приходят в конец ящика); нет — пусто.
+static func latest(id: String) -> Dictionary:
+	var list: Array = _list()
+	for i: int in range(list.size() - 1, -1, -1):
+		if str((list[i] as Dictionary)["id"]) == id:
+			return list[i] as Dictionary
+	return {}
+
+
 static func inbox() -> Array:
 	var list: Array = _list().duplicate()
 	list.reverse()

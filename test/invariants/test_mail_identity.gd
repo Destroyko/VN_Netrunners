@@ -16,11 +16,9 @@ func _uids() -> Array:
 
 
 func test_uids_stay_unique_after_delete() -> void:
-	if OpenIssue.skip(self, "ISS-012: после удаления письма новый uid совпадает с уже выданным"):
-		return
 	Mailbox.deliver("mail_rent_reminder")
 	Mailbox.deliver("mail_test_long")
-	assert_true(Mailbox.delete("mail_rent_reminder#1"), "письмо без ответов и квеста удаляется")
+	assert_true(Mailbox.delete(str(_uids()[0])), "письмо без ответов и квеста удаляется")
 	Mailbox.deliver("mail_test_long")
 	var uids: Array = _uids()
 	assert_eq(uids.size(), 2)
@@ -33,9 +31,20 @@ func test_uids_stay_unique_after_delete() -> void:
 ## Повторная доставка того же письма (шаблоны radiant): цель «прочитать письмо» нового этапа
 ## не закрывается прочитанной старой копией.
 func test_read_mail_objective_ignores_an_old_read_copy() -> void:
-	if OpenIssue.skip(self, "ISS-013: цель read_mail закрывается прочитанной старой копией письма"):
-		return
 	Mailbox.deliver("mail_job_1")
 	Mailbox.mark_read(str(_uids()[0]))
 	assert_true(Quests.start("side_job_1"))
 	assert_eq(GameState.get_quest_stage("side_job_1"), "mail", "новое письмо ещё не прочитано")
+
+
+
+func test_uid_carries_number_and_day() -> void:
+	Mailbox.deliver("mail_rent_reminder")
+	assert_eq(str(_uids()[0]), "mail_rent_reminder#1@d%d" % GameState.day)
+
+
+## Письмо прочитали раньше, чем начался этап «прочитать», — цель закрыта (софтлока нет).
+func test_read_mail_objective_counts_a_copy_read_in_advance() -> void:
+	Mailbox.deliver("mail_test_long")
+	Mailbox.mark_read(str(_uids()[0]))
+	assert_true(QuestObjectives.satisfied({"type": "read_mail", "mail": "mail_test_long"}, 1))

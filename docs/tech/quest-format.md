@@ -43,7 +43,7 @@ data/
 
 ## Словарь (стандартные типы)
 
-Цели (`objective.type`): `hack_node`, `read_file`, `copy_file`, `delete_file`, `wipe_logs` (почистить логи узла), `mask_backup` (вычистить файл из архивов узла), `talk`, `visit_location`, `wait_until`, `deliver` (отправить файл / сообщение), `read_mail` (прочитать письмо `mail`), `complete_quest` (закончился квест `quest`), `edit_file` (в файле `path` на узле `node` есть текст `contains` — исправил отчёт командой `edit`). У любой цели может быть `title` — так она называется в трекере; без него текст собирается по типу (`Planner.objective_text`).
+Цели (`objective.type`): `hack_node`, `read_file`, `copy_file`, `delete_file`, `wipe_logs` (почистить логи узла), `mask_backup` (вычистить файл из архивов узла), `talk`, `visit_location`, `wait_until`, `deliver` (отправить файл / сообщение), `read_mail` (прочитана последняя доставленная копия письма `mail`; прочитанная заранее — тоже считается, старая прочитанная при новой непрочитанной — нет), `complete_quest` (закончился квест `quest`), `edit_file` (в файле `path` на узле `node` есть текст `contains` — исправил отчёт командой `edit`). У любой цели может быть `title` — так она называется в трекере; без него текст собирается по типу (`Planner.objective_text`).
 
 ### Квест из мини-квестов (M3, 17.11.2026)
 

@@ -72,8 +72,10 @@ static func satisfied(objective: Dictionary, stage_day: int = 0) -> bool:
 			var path: String = str(objective.get("path", ""))
 			return fs.has_file(path) and str(fs.file_data(path).get("text", "")).contains(str(objective.get("contains", "")))
 		"read_mail":
-			var mail_id: String = str(objective.get("mail", ""))
-			return Mailbox.inbox().any(func(e: Dictionary) -> bool: return str(e["id"]) == mail_id and bool(e["read"]))
+			# Прочитана последняя копия письма (ISS-013): прочитанная старая копия при новой,
+			# непрочитанной, цель не закрывает; прочитанная заранее — закрывает (без софтлока).
+			var newest: Dictionary = Mailbox.latest(str(objective.get("mail", "")))
+			return not newest.is_empty() and bool(newest["read"])
 	return false
 
 
