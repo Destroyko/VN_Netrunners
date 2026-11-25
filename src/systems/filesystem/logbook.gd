@@ -197,9 +197,38 @@ func categories() -> PackedStringArray:
 ## Сколько заметности даст этот лог, если игрок уйдёт, не почистив.
 ## Сумма по категориям, а не по файлам.
 func heat_weight(weights: Dictionary = {}) -> int:
+	return _weight_of(categories(), weights)
+
+
+## То же, но только за записи, за которые заметность ещё не начислена: следы прошлых визитов
+## уже оплачены при прошлом отключении (ISS-014, решено 25.11.2026).
+func unpaid_weight(weights: Dictionary = {}) -> int:
+	var found: Dictionary = {}
+	for path: String in entry_paths():
+		var data: Dictionary = _fs.file_data(path)
+		if not bool(data.get("paid", false)):
+			found[str(data.get("log_category", ""))] = true
+	var unpaid: PackedStringArray = []
+	for category: String in CATEGORIES:
+		if found.has(category):
+			unpaid.append(category)
+	return _weight_of(unpaid, weights)
+
+
+## Заметность за записи начислена: следующий визит за них уже не платит.
+func mark_paid() -> void:
+	for path: String in entry_paths():
+		var data: Dictionary = _fs.file_data(path)
+		if not bool(data.get("paid", false)):
+			data = data.duplicate()
+			data["paid"] = true
+			_fs.put_file(path, data)
+
+
+func _weight_of(found: PackedStringArray, weights: Dictionary) -> int:
 	var table: Dictionary = weights if not weights.is_empty() else weights_from_balance()
 	var total: int = 0
-	for category: String in categories():
+	for category: String in found:
 		total += int(table.get(category, 0))
 	return total
 

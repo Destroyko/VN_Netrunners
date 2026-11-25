@@ -20,5 +20,5 @@ func _on_trace_finished(_node_id: String) -> void:
 
 ## Запись о выходе уже написана терминалом, так что неустранимая единица входит в цену.
 func _on_node_disconnected(node_id: String) -> void:
-	Heat.gain(Heat.traces_cost(node_id))
+	Heat.pay_traces(node_id)
 

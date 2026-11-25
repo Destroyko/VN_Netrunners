@@ -188,3 +188,17 @@ func test_quest_effect_and_console_restart_the_quiet_day() -> void:
 	Clock.advance(10)
 	assert_eq(GameState.heat, 15, "консоль F1 тоже")
 
+
+
+## Повторный визит платит только за свои следы (ISS-014): прошлые оплачены при прошлом отключении.
+func test_second_visit_pays_only_for_new_traces() -> void:
+	open_gate()
+	var book: Logbook = logbook("node_training_pc")
+	book.append(Logbook.CATEGORY_SESSION, "вход", 1, 600, false, "login")
+	book.append(Logbook.CATEGORY_FILE_DELETED, "удалён a", 1, 601, false, "a")
+	EventBus.node_disconnected.emit("node_training_pc")
+	assert_eq(GameState.heat, 4, "первый визит: сеанс 1 + удаление 3")
+	logbook("node_training_pc").append(Logbook.CATEGORY_SESSION, "вход", 2, 600, false, "login")
+	EventBus.node_disconnected.emit("node_training_pc")
+	assert_eq(GameState.heat, 5, "второй визит: только его запись сеанса")
+	assert_eq(Heat.traces_cost("node_training_pc"), 4, "в логе по-прежнему лежит всё — чистить есть что")

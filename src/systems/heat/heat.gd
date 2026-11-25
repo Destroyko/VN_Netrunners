@@ -44,6 +44,15 @@ static func traces_cost(node_id: String) -> int:
 	return Logbook.for_node(node_id).heat_weight()
 
 
+## Игрок отключился: начислить заметность за следы этого визита (ещё не оплаченные) и пометить
+## их оплаченными. Возвращает, сколько добавилось.
+static func pay_traces(node_id: String) -> int:
+	var book: Logbook = Logbook.for_node(node_id)
+	var added: int = gain(book.unpaid_weight())
+	book.mark_paid()
+	return added
+
+
 # --- Рост и спад --------------------------------------------------------------
 
 ## Прибавить заметность за промах. Возвращает, сколько реально добавилось (за закрытыми
