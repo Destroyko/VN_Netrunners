@@ -65,7 +65,7 @@ func test_ls_shows_dirs_first_with_slash() -> void:
 	assert_true(lines[0].begins_with("ПРАВА") and lines[0].ends_with("ИМЯ"), "таблица, как ls -l")
 	assert_true(lines[1].begins_with("drwx") and lines[1].ends_with("/"), "папки первыми, со слешем")
 	assert_true(Array(lines).any(func(l: String) -> bool: return l.ends_with("  mail/")))
-	assert_true(Array(lines).any(func(l: String) -> bool: return l.ends_with("readme.txt") and l.begins_with("-rw-r--r--") and l.contains("КБ")))
+	assert_true(Array(lines).any(func(l: String) -> bool: return l.ends_with("readme.txt") and l.begins_with("-rw-r--r--") and l.contains("1 КБ")), str(lines))
 
 
 func test_navigation_is_free_of_time() -> void:

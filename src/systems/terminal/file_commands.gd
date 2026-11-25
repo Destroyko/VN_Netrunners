@@ -59,7 +59,7 @@ func ls(args: PackedStringArray, result: TermResult) -> void:
 
 
 ## Столбцы `ls`: права, размер (по правому краю), имя.
-const LS_WIDTHS: Array[int] = [12, 8]
+const LS_WIDTHS: Array[int] = [12, 10]
 const LS_SIZE: int = 8
 
 
