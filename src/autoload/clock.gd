@@ -123,6 +123,12 @@ func cancel_fast_forward() -> void:
 		fast_forward_dropped.emit()
 
 
+## Сколько реальных секунд уже набежало к следующей игровой минуте (для обратного отсчёта трейса).
+## Под полоской программы счёт идёт в ускоренных секундах.
+func seconds_into_minute() -> float:
+	return _carry
+
+
 func is_fast_forwarding() -> bool:
 	return _fast_left > 0
 

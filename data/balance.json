@@ -58,6 +58,15 @@
     "install_minutes": 30
   },
 
+  "trace_alarm": {
+    "_note": "Тревога трейса в реальных секундах до конца (разработчик, 25.11.2026): рамка экрана вспыхивает раз в slow_period с от slow_from, раз в fast_period с от fast_from, последние solid_from секунд горит с таймером.",
+    "slow_from": 60,
+    "slow_period": 10,
+    "fast_from": 30,
+    "fast_period": 5,
+    "solid_from": 15
+  },
+
   "background": {
     "_note": "Фоновые задачи (docs/gameplay/hacking-loop.md): офлайн-подбор пароля к архиву. Идёт по игровому времени, reboot останавливает. decrypt_minutes — сколько занимает (ночь). Крутим на плейтесте.",
     "decrypt_minutes": 480
