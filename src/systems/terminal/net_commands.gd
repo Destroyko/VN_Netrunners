@@ -50,19 +50,56 @@ func probe(args: PackedStringArray, result: TermResult) -> void:
 
 	# Вывод как у настоящей утилиты (по образцу Hacknet): что открыто и что стоит на узле.
 	# Ни программ, ни сложности, ни расписания — этого сканер знать не может (terminal-spec.md).
+	# Слои — сервисы, мониторинг подключений, анализ действий; у каждого своя полоска, минута на
+	# слой (решено 25.11.2026, ISS-016). Ctrl+C прерывает; раскрытые слои узел помнит.
+	var node: String = seen.node_id
 	var info: Dictionary = seen.info
 	result.add("сканирование %s .........." % info["address"])
 	result.add("узел: %s (%s)" % [info["title"], info["device"]])
 	result.add(PROBE_RULE)
+	var layers: Array[String] = probe_lines(info)
+	var known: int = mini(_t.net.probe_layers(node), layers.size())
+	for i: int in known:
+		result.add(layers[i])
+	if known >= layers.size():
+		_probe_footer(info, result)
+		return
+	_probe_layer(node, str(info["address"]), known, result)
+
+
+## Строки слоёв в порядке сканирования: порты, мониторинг подключений, анализ действий.
+## Мониторинг — с длиной трейса: игрок видит, сколько у него будет времени внутри.
+static func probe_lines(info: Dictionary) -> Array[String]:
+	var lines: Array[String] = []
 	for service: Dictionary in info["services"] as Array:
-		result.add("  порт %-6d %-24s %s" % [
+		lines.append("  порт %-6d %-24s %s" % [
 			int(service["port"]), service["name"], "открыт" if bool(service["cracked"]) else "закрыт"
 		])
+	var trace: int = int(info["trace_minutes"])
+	lines.append("обнаружен мониторинг подключений: %s" % (("да, трейс %d мин" % trace) if trace > 0 else "нет"))
+	lines.append("обнаружен анализ действий: %s" % ("да" if bool(info["ids"]) else "нет"))
+	return lines
+
+
+## Один слой под своей полоской; дошёл — строка слоя, отметка у узла и следующий слой.
+func _probe_layer(node: String, address: String, index: int, result: TermResult) -> void:
+	_t.spend_then(_t.minutes_of("probe", 1), result, func(done: TermResult) -> void:
+		var seen: NetResult = _t.net.probe(address, _t.now())
+		if not seen.is_ok():
+			done.add(seen.message())
+			return
+		var layers: Array[String] = probe_lines(seen.info)
+		done.add(layers[index])
+		_t.net.set_probe_layers(node, index + 1)
+		if index + 1 < layers.size():
+			_probe_layer(node, address, index + 1, done)
+		else:
+			_probe_footer(seen.info, done), true)
+
+
+func _probe_footer(info: Dictionary, result: TermResult) -> void:
 	result.add(PROBE_RULE)
 	result.add("для входа требуется сервисов: %d" % int(info["required_services"]))
-	result.add("обнаружен мониторинг подключений: %s" % ("да" if int(info["trace_minutes"]) > 0 else "нет"))
-	result.add("обнаружен анализ действий: %s" % ("да" if bool(info["ids"]) else "нет"))
-	_t.spend(_t.minutes_of("probe", 2), result)
 
 
 func connect_to(args: PackedStringArray, result: TermResult) -> void:

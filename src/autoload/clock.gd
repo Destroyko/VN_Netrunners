@@ -97,10 +97,11 @@ func tick(seconds: float) -> void:
 ## Потратить минуты программы или передачи (docs/gameplay/time.md, «Что именно ускоряется»):
 ## в игре они проходят ускоренно, пока в терминале бежит полоска; короткие (меньше
 ## `program_min_minutes`) и всё вне игры (тесты, часы стоят) — сразу, как `advance`.
-func fast_forward(minutes: int) -> void:
+## `bar` — показать полоску и для короткого отрезка (слой `probe` — минута).
+func fast_forward(minutes: int, bar: bool = false) -> void:
 	if minutes <= 0:
 		return
-	if not running or minutes < program_min_minutes:
+	if not will_fast_forward(minutes, bar):
 		advance(minutes)
 		return
 	_fast_left += minutes
@@ -108,8 +109,8 @@ func fast_forward(minutes: int) -> void:
 
 
 ## Пойдут ли эти минуты ускоренно под полоску (иначе — сразу).
-func will_fast_forward(minutes: int) -> bool:
-	return running and minutes >= program_min_minutes
+func will_fast_forward(minutes: int, bar: bool = false) -> bool:
+	return running and (bar or minutes >= program_min_minutes)
 
 
 ## Бросить оставшиеся минуты программы (Ctrl+C, обрыв соединения): прошедшие остаются.
@@ -139,6 +140,8 @@ func start() -> void:
 
 
 func stop() -> void:
+	# Остановили посреди программы (выход в меню): её терминал узнаёт, что она не дошла.
+	cancel_fast_forward()
 	running = false
 	_carry = 0.0
 	_fast_left = 0

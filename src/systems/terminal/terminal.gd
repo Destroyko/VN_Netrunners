@@ -433,15 +433,16 @@ func minutes_of(key: String, fallback: int = 1) -> int:
 ## ускоренно под полоской, итог — когда полоска дошла до конца; `Ctrl+C` (`cancel_job`) его
 ## отменяет, обрыв соединения — тоже: программа «не успела». Когда часы стоят (тесты), всё сразу;
 ## трейс, кончающийся раньше программы, отнимает ровно оставшиеся минуты.
-func spend_then(minutes: int, result: TermResult, then: Callable) -> void:
-	if Clock.will_fast_forward(minutes):
+## `bar` — полоска и для короткого шага (слой `probe`).
+func spend_then(minutes: int, result: TermResult, then: Callable, bar: bool = false) -> void:
+	if Clock.will_fast_forward(minutes, bar):
 		_job = {"then": then}
 		if not Clock.fast_forward_finished.is_connected(_on_job_done):
 			Clock.fast_forward_finished.connect(_on_job_done)
 		# Отрезок бросили снаружи (выключение ПК): программа доигрывает итог «не успела».
 		if not Clock.fast_forward_dropped.is_connected(_on_job_done):
 			Clock.fast_forward_dropped.connect(_on_job_done)
-		spend(minutes, result)
+		spend(minutes, result, bar)
 		return
 	var spent: int = minutes
 	if session.is_tracing() and minutes >= session.trace_left():
@@ -481,7 +482,7 @@ func _finish_job() -> void:
 
 
 ## Потратить игровые минуты: сдвинуть часы и спросить у сеанса, что случилось за это время.
-func spend(minutes: int, result: TermResult) -> void:
+func spend(minutes: int, result: TermResult, bar: bool = false) -> void:
 	if minutes <= 0:
 		return
 	# Штраф анализа действий: трейс идёт быстрее часов, часы — как обычно.
@@ -493,7 +494,7 @@ func spend(minutes: int, result: TermResult) -> void:
 	# В игре минуты программы идут ускоренно под полоску (Clock.fast_forward): тогда события
 	# трейса придут позже, отдельным итогом через `ticked`.
 	_collect = result
-	Clock.fast_forward(minutes)
+	Clock.fast_forward(minutes, bar)
 	_collect = null
 	result.minutes += minutes
 

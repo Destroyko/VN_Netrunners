@@ -354,6 +354,21 @@ func service(node_id: String, service_id: String) -> Dictionary:
 
 ## Сколько раз цель настораживалась: доведённый трейс, саботаж. Не затухает. Это же число
 ## идёт в сид пароля, поэтому «осторожная» цель получает новое слово (hacking-loop.md).
+## Сколько слоёв узла `probe` уже раскрыл до конца (ISS-016). Защиту перенастроили (узел
+## насторожился после трейса) — раскрытое не в счёт, сканировать заново.
+func probe_layers(node_id: String) -> int:
+	var entry: Dictionary = _peek(node_id)
+	if int(entry.get("probe_alert", 0)) != alert_level(node_id):
+		return 0
+	return int(entry.get("probe_layers", 0))
+
+
+func set_probe_layers(node_id: String, layers: int) -> void:
+	var entry: Dictionary = _entry(node_id)
+	entry["probe_layers"] = layers
+	entry["probe_alert"] = alert_level(node_id)
+
+
 func alert_level(node_id: String) -> int:
 	return int(_peek(node_id).get("alert", 0))
 
