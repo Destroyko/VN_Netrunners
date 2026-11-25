@@ -14,8 +14,13 @@ extends CanvasLayer
 const SHUTDOWN: String = "shutdown"
 const BOOT: String = "boot"
 const INSTALL: String = "install"
-## Буфер экрана на мониторе в комнате: текст читается и в уменьшенном виде.
-const MONITOR_BUFFER: Vector2i = Vector2i(640, 400)
+## Буфер экрана на мониторе в комнате. Крупнее — мельче текст на мониторе: при 640×400 строки
+## растягивались почти до размера монитора (баг разработчика 25.11.2026).
+const MONITOR_BUFFER: Vector2i = Vector2i(1280, 800)
+## Слой экрана: на мониторе в комнате — часть сцены, под инвентарём, телефоном и окнами
+## (поверх них он ложился, баг разработчика 25.11.2026); за ПК — поверх всего.
+const LAYER_MONITOR: int = 1
+const LAYER_FULL: int = 70
 
 ## Строки появляются по ходу полоски: доля пройденного → строка.
 const BOOT_LINES: Array = [
@@ -46,7 +51,7 @@ var _perspective: ShaderMaterial
 
 
 func _ready() -> void:
-	layer = 70
+	layer = LAYER_FULL
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build()
 	_hide()
@@ -95,6 +100,7 @@ func _place() -> void:
 	var view: Vector2 = _display.get_viewport_rect().size
 	var quad: PackedVector2Array = _monitor_quad()
 	if quad.size() == 4:
+		layer = LAYER_MONITOR
 		_buffer.size = MONITOR_BUFFER
 		var to_screen: Basis = ScreenQuad.square_to_quad(quad)
 		_perspective.set_shader_parameter("screen_to_uv", to_screen.inverse())
@@ -104,6 +110,7 @@ func _place() -> void:
 		# Кнопка — под левым нижним углом монитора: в комнате игрок смотрит на ПК со стороны.
 		_off.position = quad[3] + Vector2(0, 12)
 	else:
+		layer = LAYER_FULL
 		_buffer.size = Vector2i(view)
 		_display.material = null
 		_display.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -146,7 +153,7 @@ func _build() -> void:
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for side: String in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 32)
+		margin.add_theme_constant_override("margin_" + side, 48)
 	screen.add_child(margin)
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 12)
