@@ -119,10 +119,7 @@
       "file_created": 3
     },
     "stage_size": 20,
-    "_note_stages": "5 этапов по 20 единиц; полоска в панели задач — 10 делений, этап = два деления.",
-    "threshold_hint": 60,
-    "threshold_search": 70,
-    "threshold_critical": 80
+    "_note_stages": "5 этапов по 20 единиц; полоска в панели задач — 10 делений, этап = два деления."
   },
 
   "skills": {
