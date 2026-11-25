@@ -519,3 +519,28 @@ func test_notepad_is_one_new_file_replaces_the_old() -> void:
 	assert_false(is_instance_valid(first), "прошлый «Блокнот» закрыт")
 	assert_eq(str(desktop.terminal.editing().get("path", "")), "/home/b.txt")
 	assert_eq(str(desktop.terminal.home_fs().file_data("/home/a.txt")["text"]), "a", "несохранённое пропало")
+
+
+func test_files_window_asks_before_deleting() -> void:
+	var fs: Filesystem = desktop.terminal.home_fs()
+	fs.put_file(Terminal.DESKTOP_DIR + "/lishnee.txt", {"text": "x"})
+	GameState.set_filesystem_state(Network.HOME_ID, fs.to_dict())
+	var files: HomeFiles = desktop.open_app("files").body.get_child(0) as HomeFiles
+	files.browser.act(files.browser.item_names().find("lishnee.txt"), FileBrowser.MENU_DELETE)
+	var dialog: ConfirmationDialog = files.find_child("HomeConfirm", true, false) as ConfirmationDialog
+	assert_not_null(dialog, "окно спрашивает само")
+	assert_eq(dialog.dialog_text, "Вы действительно хотите удалить файл lishnee.txt?")
+	assert_true(desktop.terminal.home_fs().has_file(Terminal.DESKTOP_DIR + "/lishnee.txt"), "до ответа не удалён")
+	dialog.confirmed.emit()
+	assert_false(desktop.terminal.home_fs().has_file(Terminal.DESKTOP_DIR + "/lishnee.txt"))
+
+
+func test_files_window_names_a_system_file_and_deletes_it_on_one_yes() -> void:
+	var files: HomeFiles = desktop.open_app("files").body.get_child(0) as HomeFiles
+	files.open_path("/sys")
+	files.browser.act(files.browser.item_names().find("net.sys"), FileBrowser.MENU_DELETE)
+	var dialog: ConfirmationDialog = files.find_child("HomeConfirm", true, false) as ConfirmationDialog
+	assert_eq(dialog.dialog_text, "Вы действительно хотите удалить системный файл net.sys?")
+	dialog.confirmed.emit()
+	assert_false(desktop.terminal.home_fs().has_file("/sys/net.sys"), "второго вопроса нет")
+	assert_false(desktop.terminal.has_question(), "консоль ни о чём не спрашивает")

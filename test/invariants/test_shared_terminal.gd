@@ -9,8 +9,6 @@ const OpenIssue = preload("res://test/invariants/open_issue.gd")
 # --- ISS-004: «Файлы» съедают вопрос консоли --------------------------------------------
 
 func test_files_window_keeps_the_console_question() -> void:
-	if OpenIssue.skip(self, "ISS-004: действие в окне «Файлы» молча отменяет вопрос консоли"):
-		return
 	enter("node_training_pc")
 	run("cp /home/zametka.txt")
 	run("cp /home/zametka.txt")
@@ -20,29 +18,21 @@ func test_files_window_keeps_the_console_question() -> void:
 	assert_string_contains(t.last_question(), "заменить")
 
 
-## Как сейчас: вопрос пропадает, «y» в консоли — уже не ответ, а неизвестная команда.
-func test_files_window_action_closes_console_question_today() -> void:
-	enter("node_training_pc")
-	run("cp /home/zametka.txt")
-	run("cp /home/zametka.txt")
-	t.execute_local("rm /home/readme.txt")
-	assert_false(t.has_question())
-	assert_string_contains(run("y"), "команда не найдена")
-
-
 # --- ISS-007: вопрос окна «Файлы», отвеченный в консоли -------------------------------------
 
 ## Окно «Файлы» спросило про системный файл своего ПК. Игрок ответил «y» не в окне, а в консоли,
 ## где открыт сеанс с чужим узлом: команда должна остаться командой своего ПК (И-8).
 func test_local_question_answered_in_console_stays_on_own_pc() -> void:
-	if OpenIssue.skip(self, "ISS-007: ответ «y» в консоли выполняет команду окна «Файлы» на чужом узле"):
-		return
 	enter_as_admin("node_office_server")
 	t.execute_local("rm /sys/net.sys")
-	assert_true(t.has_question(), "системный файл — окно спрашивает")
+	assert_false(t.local_question().is_empty(), "системный файл — окно спрашивает")
+	assert_false(t.has_question(), "вопрос окна — не вопрос консоли")
 	run("y")
 	assert_true(Filesystem.for_node("node_office_server").has_file("/sys/net.sys"), "чужой узел не тронут")
-	assert_false(Filesystem.for_node(Network.HOME_ID).has_file("/sys/net.sys"), "удалён файл своего ПК")
+	assert_true(t.home_fs().has_file("/sys/net.sys"), "«y» в консоли — не ответ окну")
+	t.answer_local(true)
+	assert_false(t.home_fs().has_file("/sys/net.sys"), "ответ в окне удалил файл своего ПК")
+	assert_true(Filesystem.for_node("node_office_server").has_file("/sys/net.sys"))
 	assert_true(t.is_remote(), "соединение не оборвано саботажем")
 
 

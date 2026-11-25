@@ -31,6 +31,9 @@ var run_command: Callable
 ## Открыть файл — ещё и `cat` в консоли (трансляция: чтение чужого файла — та же команда).
 ## «Файлы» своего ПК открывают файл в «Блокноте» командой `edit` и `cat` не нужен.
 var cat_on_open: bool = true
+## «Удалить» спрашивает окно-хозяин («Файлы» своего ПК); не задано — сразу `rm` (трансляция:
+## там спрашивает консоль чужого узла).
+var confirm_delete: Callable
 
 var _path_label: Label
 var _list: FileList
@@ -134,7 +137,10 @@ func act(index: int, action: int) -> void:
 				_rename.popup_centered(Vector2i(280, 80))
 		MENU_DELETE:
 			if not entry.is_empty():
-				_run("rm " + _quoted(str(entry["path"])))
+				if confirm_delete.is_valid():
+					confirm_delete.call(str(entry["path"]))
+				else:
+					_run("rm " + _quoted(str(entry["path"])))
 
 
 ## Вставить в текущую папку. Вырезанный файл этого узла перемещается (`mv`). Скопированный —
@@ -194,6 +200,10 @@ func _run(line: String) -> void:
 	var answer: String = str(run_command.call(line))
 	_status.text = answer
 	refresh()
+
+
+func set_status(text: String) -> void:
+	_status.text = text
 
 
 func _quoted(value: String) -> String:

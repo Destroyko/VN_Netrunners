@@ -56,6 +56,8 @@ var _editing: Dictionary = {}
 var _job: Dictionary = {}
 ## Вопрос, на который ждём ответ: {"line": исходная команда}.
 var _pending: Dictionary = {}
+## Вопрос окна «Файлы» (`execute_local`): отдельно от вопроса консоли.
+var _local_pending: Dictionary = {}
 ## Головоломка, которую открыли программой: {"service", "kind", "difficulty", "node"}.
 var _puzzle: Dictionary = {}
 var _line: String = ""
@@ -132,11 +134,43 @@ func is_remote() -> bool:
 
 
 ## Выполнить команду на своём ПК, даже если открыт сеанс с чужим узлом: окно «Файлы» своего ПК
-## работает теми же командами (права, логи, вопросы y/n), но не должно трогать чужую машину.
+## работает теми же командами (права, логи), но не должно трогать чужую машину. Вопрос y/n у окна
+## свой (`local_question`, `answer_local`): вопрос консоли он не закрывает и в консоли на него не
+## ответить (ISS-004, ISS-007).
 func execute_local(line: String) -> TermResult:
+	var console_question: Dictionary = _pending
+	_pending = {}
 	var was: bool = _local
 	_local = true
 	var result: TermResult = execute(line)
+	_local = was
+	_local_pending = _pending
+	_pending = console_question
+	return result
+
+
+## Вопрос y/n, который ждёт ответа в окне «Файлы»; пусто — вопроса нет.
+func local_question() -> String:
+	return str(_local_pending.get("question", ""))
+
+
+## Ответ окна «Файлы» на свой вопрос: «да» повторяет команду с подтверждением на своём ПК.
+func answer_local(yes: bool) -> TermResult:
+	var result := TermResult.new()
+	if _local_pending.is_empty():
+		return result
+	var saved: String = str(_local_pending["line"])
+	_local_pending = {}
+	if not yes:
+		result.add("отменено")
+		return result
+	_sync()
+	if has_job():
+		result.add(BUSY_TEXT)
+		return result
+	var was: bool = _local
+	_local = true
+	_dispatch(saved, true, result)
 	_local = was
 	return result
 
