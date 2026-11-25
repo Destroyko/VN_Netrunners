@@ -299,13 +299,11 @@ func _on_background_input(event: InputEvent) -> void:
 
 # --- Действия ----------------------------------------------------------------------------
 
-## Сесть за ПК: рабочий стол или аварийный экран, если система сломана.
+## Сесть за ПК: рабочий стол или аварийная консоль, если система сломана.
+## Система сломана — стол сам покажет аварийную консоль на весь экран с ошибками загрузки
+## (шаг 7, часть 7): у игрока остаётся терминал, чтобы разобраться.
 func _on_sit() -> void:
-	var report: Dictionary = Room.monitor(Filesystem.for_node(Network.HOME_ID))
-	if bool(report["desktop"]):
-		Desktop.enter_pc(get_tree())
-		return
-	_show(report["lines"] as PackedStringArray)
+	Desktop.enter_pc(get_tree())
 
 
 func _on_rested(_mode: String, _minutes: int, interrupted: String) -> void:
