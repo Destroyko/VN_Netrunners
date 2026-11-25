@@ -96,13 +96,13 @@ func apply(window: Window = null) -> void:
 		return
 
 	window.min_size = MIN_WINDOW_SIZE
-	window.content_scale_factor = resolved_ui_scale(DisplayServer.screen_get_size().y)
 	window.mode = Window.MODE_FULLSCREEN if fullscreen else Window.MODE_WINDOWED
 
 	# Разрешение задаём только в оконном режиме: в полном экране его диктует монитор.
 	if not fullscreen and resolution != RESOLUTION_WINDOW:
 		window.size = resolution
 		window.move_to_center()
+	window.content_scale_factor = fit_ui_scale(resolved_ui_scale(DisplayServer.screen_get_size().y), window.size)
 
 
 func set_master_volume(value: float) -> void:
@@ -118,6 +118,14 @@ func resolved_ui_scale(screen_height: int) -> float:
 	if is_equal_approx(ui_scale, UI_SCALE_AUTO):
 		return suggest_ui_scale(screen_height)
 	return ui_scale
+
+
+## Масштаб, при котором рабочая область не меньше `MIN_WINDOW_SIZE` (решено разработчиком
+## 25.11.2026): на окне 1280×720 масштаб 200 % оставил бы 640×360, а туда не влезает даже
+## консоль. Окно маленькое — масштаб ужимается до того, что помещается (не меньше 100 %).
+static func fit_ui_scale(scale: float, window_size: Vector2i) -> float:
+	var room: float = minf(float(window_size.x) / MIN_WINDOW_SIZE.x, float(window_size.y) / MIN_WINDOW_SIZE.y)
+	return maxf(1.0, minf(scale, room))
 
 
 ## Догадка по высоте экрана. Системный масштаб на Windows узнать нельзя

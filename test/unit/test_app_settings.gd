@@ -170,3 +170,11 @@ func test_broken_value_in_file_is_clamped_on_load() -> void:
 	settings.load_from(TEST_PATH)
 	assert_eq(settings.master_volume, 1.0, "громкость не выше единицы")
 	assert_true(settings.fullscreen)
+
+
+## Масштаб не сжимает рабочую область меньше минимума окна (решено 25.11.2026).
+func test_scale_fits_the_window() -> void:
+	assert_eq(AppSettings.fit_ui_scale(2.0, Vector2i(1280, 720)), 1.0, "1280×720 при 200 % — 640×360: нельзя")
+	assert_almost_eq(AppSettings.fit_ui_scale(2.0, Vector2i(2560, 1440)), 2.0, 0.001, "2560×1440 — можно")
+	assert_almost_eq(AppSettings.fit_ui_scale(2.0, Vector2i(1920, 1080)), 1.5, 0.001, "1920×1080 — не больше 150 %")
+	assert_eq(AppSettings.fit_ui_scale(1.25, Vector2i(1024, 720)), 1.0, "минимальное окно — 100 %")
