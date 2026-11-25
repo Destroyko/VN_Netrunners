@@ -147,14 +147,17 @@ func test_background_follows_time_of_day() -> void:
 	assert_string_contains(str(room.call("background_path")), "bg_room_main_night")
 
 
-func test_room_lists_inventory_items_as_buttons() -> void:
+func test_system_block_opens_the_case_beside_the_inventory() -> void:
 	GameState.reset()
-	Inventory.give("item_flash_backup")
 	Locations.enter("loc_room_desk")
 	var room: Node = _open(Screens.ROOM)
 	room.call("click", "system_block")
-	assert_not_null(room.call("action", "Act_item_item_flash_backup"), "у системного блока — вставить флешку")
-	InventoryOverlay.close()
+	assert_true(InventoryOverlay.is_open(), "слева — инвентарь")
+	assert_true(InventoryOverlay.is_case_open(), "справа — системный блок")
+	assert_eq(InventoryOverlay.case_panel.find_child("Modules", true, false).get_child_count(), PcCasePanel.MODULES.size())
+	assert_true((InventoryOverlay.case_panel.find_child("Module_0", true, false) as Button).disabled, "комплектующих пока нет")
+	(InventoryOverlay.case_panel.find_child("Close", true, false) as Button).emit_signal("pressed")
+	assert_false(InventoryOverlay.is_open(), "закрыл системный блок — закрылся и инвентарь")
 
 
 func test_room_bed_sleeps_until_alarm() -> void:
@@ -206,11 +209,17 @@ func test_system_block_inserts_flash_and_ejects() -> void:
 	Locations.enter("loc_room_desk")
 	var room: Node = _open(Screens.ROOM)
 	room.call("click", "system_block")
-	assert_true(InventoryOverlay.is_open(), "у системного блока слева — инвентарь")
-	(room.call("action", "Act_item_item_flash_backup") as Button).emit_signal("pressed")
+	var case: PcCasePanel = InventoryOverlay.case_panel
+	var uid: String = Inventory.first_uid("item_flash_backup")
+	var noodles: String = Inventory.add(Inventory.HERO, "food_noodles")
+	assert_true(case.can_insert({"inventory_uid": uid}), "флешку — в гнездо USB")
+	assert_false(case.can_insert({"inventory_uid": noodles}), "лапшу — нет")
+	InventoryOverlay.select(uid)
+	InventoryOverlay.detail("Insert").emit_signal("pressed")
 	assert_eq(str(Room.inserted().get("kind", "")), "item_flash_backup", "флешка в гнезде ПК")
 	assert_eq(Inventory.count("item_flash_backup", Inventory.HERO), 0)
-	(room.call("action", "Act_eject") as Button).emit_signal("pressed")
+	assert_false(case.can_insert({"inventory_uid": uid}), "гнездо занято")
+	case.eject()
 	assert_eq(Inventory.count("item_flash_backup", Inventory.HERO), 1, "вынул — снова в инвентаре")
 	InventoryOverlay.close()
 
@@ -234,27 +243,27 @@ func test_room_hears_the_courier() -> void:
 	assert_string_contains(str(room.call("output_text")), "Курьер", "герой дома — слышит курьера здесь")
 
 
-func test_room_power_is_an_action_of_system_block() -> void:
+func test_power_is_in_the_system_block_window() -> void:
 	var room: Node = _room()
-	assert_false(bool(room.call("actions_shown")), "пока ничего не выбрано — действий нет")
 	room.call("click", "system_block")
-	var power: Button = room.call("action", "Act_power") as Button
+	var power: Button = InventoryOverlay.case_panel.power_button()
 	assert_eq(power.text, "Выключить компьютер")
-	assert_not_null(room.call("action", "Act_hardware"))
 	power.emit_signal("pressed")
 	assert_false(PcPower.is_on())
+	InventoryOverlay.close()
 	room.call("click", "monitor")
 	assert_string_contains(str(room.call("output_text")), "выключен", "монитор чёрный")
 	room.call("click", "system_block")
-	(room.call("action", "Act_power") as Button).emit_signal("pressed")
+	InventoryOverlay.case_panel.power_button().emit_signal("pressed")
 	assert_true(PcPower.is_on())
+	InventoryOverlay.close()
 
 
-func test_second_click_closes_actions() -> void:
+func test_second_click_closes_the_system_block() -> void:
 	var room: Node = _room()
 	room.call("click", "system_block")
 	room.call("click", "system_block")
-	assert_false(bool(room.call("actions_shown")))
+	assert_false(InventoryOverlay.is_open())
 
 
 func test_doors_walk_through_the_flat() -> void:

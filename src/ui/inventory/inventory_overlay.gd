@@ -20,6 +20,8 @@ const SLOT_FONT_SIZE: int = 12
 const DETAILS_MIN_HEIGHT: float = 112.0
 
 var panel: PanelContainer
+## «Системный блок» справа: открыт, когда инвентарь открыт у системника (`open(Inventory.PC)`).
+var case_panel: PcCasePanel
 var _grids: HBoxContainer
 var _details: VBoxContainer
 var _status: Label
@@ -32,6 +34,8 @@ var _renaming: String = ""
 ## Тема, которой нарисовано окно, и плашки слотов и опасных кнопок по её ролям.
 var _theme_id: String = ""
 var _styles: Dictionary = {}
+## Меню правой кнопки по предмету («Вставить»).
+var _slot_menu: PopupMenu
 
 
 func _ready() -> void:
@@ -47,7 +51,9 @@ func open(other: String = "") -> void:
 	if not PhoneOverlay.in_game():
 		return
 	_apply_theme()
-	_other = other
+	# У системника рядом не сетка, а окно комплектующих (шаг 7.5).
+	case_panel.visible = other == Inventory.PC
+	_other = "" if other == Inventory.PC else other
 	_selected = ""
 	_status.text = ""
 	panel.visible = true
@@ -56,6 +62,7 @@ func open(other: String = "") -> void:
 
 func close() -> void:
 	panel.visible = false
+	case_panel.visible = false
 	_other = ""
 	_selected = ""
 	_confirm_discard = ""
@@ -77,6 +84,10 @@ func other_container() -> String:
 	return _other
 
 
+func is_case_open() -> bool:
+	return panel.visible and case_panel.visible
+
+
 func refresh() -> void:
 	if not panel.visible:
 		return
@@ -90,6 +101,7 @@ func refresh() -> void:
 	if not _selected.is_empty() and Inventory.find(_selected).is_empty():
 		_selected = ""
 	_fill_details()
+	case_panel.refresh()
 
 
 # --- Сетка --------------------------------------------------------------------------------
@@ -146,6 +158,7 @@ func _grid(container: String) -> Control:
 			slot.button_pressed = uid == _selected
 			slot.pressed.connect(select.bind(uid))
 			slot.set_drag_forwarding(_drag.bind(uid, slot.text), _can_drop.bind(container), _drop.bind(container))
+			slot.gui_input.connect(_on_slot_input.bind(uid))
 		else:
 			# Пустой слот — пустая ячейка: видно, сколько места осталось.
 			slot.disabled = true
@@ -206,6 +219,18 @@ func _drop(_at: Vector2, data: Variant, container: String) -> void:
 	move_to(str((data as Dictionary)["inventory_uid"]), container)
 
 
+## Правая кнопка по предмету: «Вставить», если рядом открыт системный блок и предмет подходит.
+func _on_slot_input(event: InputEvent, uid: String) -> void:
+	var click: InputEventMouseButton = event as InputEventMouseButton
+	if click == null or not click.pressed or click.button_index != MOUSE_BUTTON_RIGHT:
+		return
+	if not is_case_open() or not case_panel.can_insert({"inventory_uid": uid}):
+		return
+	_slot_menu.set_meta("uid", uid)
+	_slot_menu.position = Vector2i(get_viewport().get_mouse_position())
+	_slot_menu.popup()
+
+
 ## Переложить и сказать, если не вышло («Холодильник: заполнен»).
 func move_to(uid: String, container: String) -> void:
 	var error: String = Inventory.move(uid, container)
@@ -262,6 +287,8 @@ func _fill_details() -> void:
 	var target: String = _other if here == Inventory.HERO else Inventory.HERO
 	if not target.is_empty() and target != here and Inventory.accepts(target, kind):
 		_action(row, "Move", "→ " + str(Inventory.TITLES.get(target, target)), move_to.bind(_selected, target))
+	if is_case_open() and case_panel.can_insert({"inventory_uid": _selected}):
+		_action(row, "Insert", "Вставить", case_panel.insert.bind(_selected))
 	if not Inventory.is_food(kind):
 		_action(row, "Rename", "Переименовать", func() -> void:
 			_renaming = _selected
@@ -416,6 +443,20 @@ func _build() -> void:
 	_status.theme_type_variation = "WarnLabel"
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(_status)
+	_slot_menu = PopupMenu.new()
+	_slot_menu.name = "SlotMenu"
+	_slot_menu.add_item("Вставить", 0)
+	_slot_menu.id_pressed.connect(func(_id: int) -> void: case_panel.insert(str(_slot_menu.get_meta("uid", ""))))
+	add_child(_slot_menu)
+	# Окно системного блока — справа; закрыл его — закрылся и инвентарь.
+	case_panel = PcCasePanel.new()
+	case_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT, Control.PRESET_MODE_MINSIZE, 16)
+	case_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	case_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	case_panel.visible = false
+	case_panel.close_requested.connect(close)
+	case_panel.said.connect(func(text: String) -> void: _status.text = text)
+	add_child(case_panel)
 
 
 ## Оформление по общей теме: окно непрозрачное (сцена не просвечивает сквозь слоты), рамка и
@@ -440,6 +481,8 @@ func _apply_theme() -> void:
 	frame.shadow_size = 12
 	frame.shadow_offset = Vector2(0, 4)
 	panel.add_theme_stylebox_override("panel", frame)
+	case_panel.theme = panel.theme
+	case_panel.add_theme_stylebox_override("panel", frame)
 
 	# Пустая ячейка — тон фона с бледной рамкой; занятая — чуть светлее панели; выбранная — плашка
 	# и рамка акцента в два раза толще, чтобы выбор читался и без цвета.
@@ -458,6 +501,7 @@ func _apply_theme() -> void:
 		var box: StyleBoxFlat = _styles[key] as StyleBoxFlat
 		box.content_margin_top = 6
 		box.content_margin_bottom = 6
+	case_panel.apply_styles(_styles)
 	refresh()
 
 

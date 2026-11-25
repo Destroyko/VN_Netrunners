@@ -17,7 +17,7 @@ extends Control
 ## Арта пока нет: фон — цвет из данных, объект — полупрозрачная плашка с подписью. Появится
 ## картинка по пути из данных — встанет сама, код менять не нужно.
 
-const PANEL_KINDS: PackedStringArray = ["system_block"]
+const PANEL_KINDS: PackedStringArray = []
 
 var _background: ColorRect
 var _background_art: TextureRect
@@ -209,6 +209,14 @@ func click(object_id: String) -> void:
 	if object.is_empty():
 		return
 	var kind: String = str(object.get("kind", ""))
+	# Системный блок: слева инвентарь, справа окно «Системный блок» (шаг 7.5). Второй клик — закрыть.
+	if kind == "system_block":
+		_close_panel()
+		if InventoryOverlay.is_case_open():
+			InventoryOverlay.close()
+		else:
+			InventoryOverlay.open(Inventory.PC)
+		return
 	if PANEL_KINDS.has(kind):
 		if _selected == object_id and _panel.visible:
 			_close_panel()
@@ -251,17 +259,8 @@ func _refresh_panel() -> void:
 		_actions.remove_child(child)
 		child.queue_free()
 	match str(object.get("kind", "")):
-		"system_block":
-			_action("Act_power", "Выключить компьютер" if PcPower.is_on() else "Включить компьютер", _on_power)
-			_action("Act_hardware", "Осмотреть железо", func() -> void: _show(Room.hardware()))
-			var plugged: Dictionary = Room.inserted()
-			if not plugged.is_empty():
-				_action("Act_eject", "Вынуть: " + Inventory.label_of(plugged), func() -> void: _show(PackedStringArray([Room.eject()])))
-			for id: String in Inventory.items():
-				if not Inventory.accepts(Inventory.PC, id):
-					continue
-				var button: Button = _action("Act_item_" + id, "Вставить: " + Inventory.name_of(id), func() -> void: insert(Inventory.first_uid(id)))
-				button.tooltip_text = Inventory.about(id)
+		_:
+			pass
 	_panel.visible = true
 	_place_panel(object)
 
@@ -315,20 +314,6 @@ func _on_rested(_mode: String, _minutes: int, interrupted: String) -> void:
 
 func _exit_tree() -> void:
 	PhoneOverlay.detach(self)
-
-
-## Питание ПК. Выключение закрывает и спрятанный стол — это уже не «отошёл», а выключил
-## (docs/gameplay/hacking.md, «Питание ПК»).
-func _on_power() -> void:
-	if PcPower.is_on():
-		PcPower.shut_down()
-		Desktop.discard_kept()
-		_output.text = "Компьютер выключен."
-	else:
-		var report: Dictionary = PcPower.power_on()
-		var errors: PackedStringArray = report.get("errors", PackedStringArray()) as PackedStringArray
-		_output.text = "Компьютер включён." if errors.is_empty() else "Компьютер включён, но при загрузке ошибки."
-	_refresh_panel()
 
 
 ## Вырубился здесь: тот же занавес; просыпается герой у себя, на кровати — в какой бы комнате
