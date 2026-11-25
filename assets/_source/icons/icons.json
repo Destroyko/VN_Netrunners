@@ -31,6 +31,10 @@
     "node_router":  {"title": "Узел: роутер",        "tile": "blue_dark"},
     "node_server":  {"title": "Узел: сервер",        "tile": "blue_dark"},
     "node_phone":   {"title": "Узел: телефон",       "tile": "blue_dark"},
-    "node_unknown": {"title": "Узел: неизвестно",    "tile": "graphite"}
+    "node_unknown": {"title": "Узел: неизвестно",    "tile": "graphite"},
+    "time_morning": {"title": "Утро",                "tile": "blue_dark"},
+    "time_day":     {"title": "День",                "tile": "blue_dark"},
+    "time_evening": {"title": "Вечер",               "tile": "blue_dark"},
+    "time_night":   {"title": "Ночь",                "tile": "blue_dark"}
   }
 }

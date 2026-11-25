@@ -22,8 +22,8 @@ const PANEL_KINDS: PackedStringArray = ["system_block"]
 var _background: ColorRect
 var _background_art: TextureRect
 var _objects: Control
-var _title: Label
-var _clock: Label
+## Карточка сцены слева вверху: время суток, время и место (как в новеллах).
+var _card: SceneCard
 var _menu: Button
 var _output: Label
 var _panel: PanelContainer
@@ -74,7 +74,7 @@ func _ready() -> void:
 func _show_location() -> void:
 	var id: String = Locations.current()
 	var def: Dictionary = Locations.def_of(id)
-	_title.text = str(def.get("title", id))
+	_card.show_place(str(def.get("title", id)))
 	var background: Dictionary = def.get("background", {}) as Dictionary
 	_background.color = Color(str(background.get("color", "#1f2433")))
 	_shown_background = "-"
@@ -359,7 +359,7 @@ func _show_wake(curtain: PassOutCurtain = null) -> void:
 
 
 func _refresh_clock() -> void:
-	_clock.text = Clock.format_now()
+	_card.refresh_time()
 
 
 ## Esc: сначала закрывает панель действий, потом — меню игры.
@@ -407,22 +407,17 @@ func _build() -> void:
 	_objects.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_objects)
 
-	var top := HBoxContainer.new()
-	top.name = "Top"
-	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE, Control.PRESET_MODE_MINSIZE, 8)
-	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(top)
-	_title = Label.new()
-	_title.name = "Title"
-	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(_title)
-	_clock = Label.new()
-	_clock.name = "Clock"
-	top.add_child(_clock)
+	# Слева вверху — карточка сцены (время суток, время, место), справа — кнопка меню.
+	_card = SceneCard.new()
+	_card.use_theme(GameTheme.current_id)
+	_card.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT, Control.PRESET_MODE_MINSIZE, 12)
+	add_child(_card)
 	_menu = Button.new()
 	_menu.name = "Menu"
 	_menu.text = "Меню (Esc)"
-	top.add_child(_menu)
+	_menu.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 8)
+	_menu.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	add_child(_menu)
 
 	_output = Label.new()
 	_output.name = "Output"
@@ -472,8 +467,12 @@ func output_text() -> String:
 
 
 func clock_text() -> String:
-	return _clock.text
+	return _card.time_text()
 
 
 func title_text() -> String:
-	return _title.text
+	return _card.place_text()
+
+
+func scene_card() -> SceneCard:
+	return _card
