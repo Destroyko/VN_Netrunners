@@ -306,6 +306,25 @@ func toasts() -> MessageToasts:
 	return _toasts
 
 
+## «Блокнот» для `edit`: текст файла, «Сохранить» пишет его на тот узел, где файл открыт.
+func open_editor(request: Dictionary, view: TerminalView) -> DesktopWindow:
+	var window := DesktopWindow.new()
+	window.app_id = "editor"
+	window.title = "Блокнот — %s" % FsPath.name_of(str(request["path"]))
+	window.set_minimum(Vector2(360, 260))
+	var editor := FileEditor.new()
+	editor.setup(request)
+	editor.saved.connect(func(text: String) -> void:
+		var result: TermResult = terminal.save_edit(str(request["node"]), str(request["path"]), text)
+		if view != null and is_instance_valid(view):
+			view.show_result(result)
+		window.close())
+	editor.cancelled.connect(window.close)
+	window.body.add_child(editor)
+	attach_window(window, Vector2(520, 380))
+	return window
+
+
 ## Открыть «Файлы» на папке `path`.
 func open_files(path: String) -> void:
 	var window: DesktopWindow = open_app("files")
@@ -651,6 +670,7 @@ static func pc_sound_on() -> bool:
 func _connect_view(view: TerminalView) -> void:
 	view.puzzle_requested.connect(func(request: Dictionary) -> void: _puzzles.show(request, view))
 	view.remote_requested.connect(func(request: Dictionary) -> void: _remote.open(request, view))
+	view.edit_requested.connect(func(request: Dictionary) -> void: open_editor(request, view))
 	view.result_shown.connect(_on_result_shown)
 	view.ready.connect(view.focus_entry)
 

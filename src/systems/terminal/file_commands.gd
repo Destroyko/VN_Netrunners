@@ -257,6 +257,50 @@ func _size_kb(data: Dictionary) -> int:
 	return maxi(1, ceili(float(str(data.get("text", "")).length()) / 1024.0))
 
 
+## `edit`: открыть текстовый файл в «Блокноте» для правки (решено 25.11.2026). Права — как у
+## `mv` и `rm`: на чужом узле гость не правит. Сам файл меняет `save_edit`, когда игрок сохранил.
+func edit(args: PackedStringArray, result: TermResult) -> void:
+	if args.is_empty():
+		result.add("использование: edit <файл>")
+		return
+	if _guest_on_node(result):
+		return
+	var path: String = FsPath.resolve(_t.cwd(), args[0])
+	var fs: Filesystem = _t.fs()
+	if not fs.has_file(path):
+		result.add("нет такого файла: %s" % args[0])
+		return
+	var data: Dictionary = fs.file_data(path)
+	if bool(data.get("encrypted", false)) or not data.has("text"):
+		result.add("%s: это не текстовый файл" % FsPath.name_of(path))
+		return
+	result.request = {"type": "edit", "node": _t.node_id(), "path": path, "text": str(data["text"])}
+
+
+## Сохранить правку из «Блокнота». Соединение могло оборваться или смениться, пока игрок
+## печатал: тогда файл не трогаем. На чужом узле правка пишется в его лог.
+func save_edit(node: String, path: String, text: String, result: TermResult) -> void:
+	if node != _t.node_id():
+		result.add("соединение потеряно: изменения не сохранены")
+		return
+	if _guest_on_node(result):
+		return
+	var fs: Filesystem = _t.fs()
+	if not fs.has_file(path):
+		result.add("файл исчез: изменения не сохранены")
+		return
+	var data: Dictionary = fs.file_data(path).duplicate()
+	data["text"] = text
+	fs.put_file(path, data)
+	GameState.set_filesystem_state(node, fs.to_dict())
+	result.add("сохранено: %s" % FsPath.name_of(path))
+	# Правка — та же запись на диск: категория «запись», потолок заметности за взлом не растёт.
+	if not _in_logs(path):
+		_t.note(Logbook.CATEGORY_FILE_CREATED, "изменён файл %s" % FsPath.name_of(path))
+	EventBus.file_edited.emit(node, path)
+	_t.spend(_t.minutes_of("terminal_command"), result)
+
+
 func mv(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 	if args.size() < 2:
 		result.add("использование: mv <файл> <куда>")

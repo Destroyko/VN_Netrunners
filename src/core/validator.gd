@@ -21,6 +21,7 @@ const OBJECTIVE_TYPES: PackedStringArray = [
 	"file_at",
 	"read_mail",
 	"complete_quest",
+	"edit_file",
 ]
 
 const QUEST_TYPES: PackedStringArray = ["main", "side", "radiant"]

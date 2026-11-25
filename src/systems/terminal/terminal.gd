@@ -232,6 +232,14 @@ func execute(line: String) -> TermResult:
 	return _dispatch(text, false, result)
 
 
+## Игрок сохранил правку в «Блокноте» (`edit`): записать файл на узле, где он открывался.
+func save_edit(node: String, path: String, text: String) -> TermResult:
+	_sync()
+	var result := TermResult.new()
+	_files.save_edit(node, path, text, result)
+	return result
+
+
 # --- Вход по паролю ------------------------------------------------------------
 
 func begin_login(node: String, service: String) -> void:
@@ -292,6 +300,7 @@ func _dispatch(text: String, confirmed: bool, result: TermResult) -> TermResult:
 		"cp": _files.cp(args, result, confirmed)
 		"put": _files.put(args, result, confirmed)
 		"mv": _files.mv(args, result, confirmed)
+		"edit": _files.edit(args, result)
 		"rm": _files.rm(args, result, confirmed)
 		"mkdir": _files.mkdir(args, result)
 		"scan": _network.scan(result)

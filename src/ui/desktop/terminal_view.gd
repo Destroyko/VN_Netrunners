@@ -9,6 +9,8 @@ extends VBoxContainer
 signal puzzle_requested(request: Dictionary)
 ## Подключились к ПК (или он спросил пароль): стол открывает трансляцию его рабочего стола.
 signal remote_requested(request: Dictionary)
+## `edit`: открыть «Блокнот» с текстом файла (стол показывает окно, сохранение — `Terminal.save_edit`).
+signal edit_requested(request: Dictionary)
 ## Команда выполнена: карта сети и режим стола перечитывают состояние.
 signal result_shown
 
@@ -327,6 +329,8 @@ func show_result(result: TermResult) -> void:
 			puzzle_requested.emit(request)
 		"remote":
 			remote_requested.emit(request)
+		"edit":
+			edit_requested.emit(request)
 	_refresh()
 	result_shown.emit()
 

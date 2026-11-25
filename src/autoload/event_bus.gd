@@ -109,6 +109,8 @@ signal trace_finished(node_id: String)
 signal file_read(node_id: String, path: String)
 signal file_copied(node_id: String, path: String)
 signal file_deleted(node_id: String, path: String)
+## Файл изменён командой `edit` (цель квеста «исправить файл» перепроверяется).
+signal file_edited(node_id: String, path: String)
 
 # --- Головоломки (M1) --------------------------------------------------------
 

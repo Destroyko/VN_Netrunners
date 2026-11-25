@@ -476,3 +476,17 @@ func test_no_toast_while_reading() -> void:
 	desktop.open_app("messenger")
 	Messenger.deliver("msg_test")
 	assert_eq(desktop.toasts().count(), 0, "окно в фокусе — уведомлять незачем")
+
+
+func test_edit_opens_a_notepad_and_saves() -> void:
+	var fs: Filesystem = desktop.terminal.home_fs()
+	fs.put_file("/home/zametka.txt", {"text": "старое"})
+	GameState.set_filesystem_state(Network.HOME_ID, fs.to_dict())
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	view.submit("edit /home/zametka.txt")
+	var window: DesktopWindow = desktop.window_of("editor")
+	assert_not_null(window, "открылся «Блокнот»")
+	var editor: FileEditor = window.body.get_child(0) as FileEditor
+	editor.set_text("новое")
+	(editor.find_child("Save", true, false) as Button).emit_signal("pressed")
+	assert_eq(str(desktop.terminal.home_fs().file_data("/home/zametka.txt")["text"]), "новое")

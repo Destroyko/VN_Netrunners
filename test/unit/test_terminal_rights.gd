@@ -459,3 +459,41 @@ func test_download_whole_folder_from_node() -> void:
 	assert_true(t.home_fs().has_file(Terminal.DUMP_DIR + "/proekt/perepiska.txt"), "папка узла — к себе целиком")
 	assert_string_contains(text, "передано файлов: 3 из 3")
 
+
+
+# --- edit: правка текстового файла (шаг 7 M3) ------------------------------------------
+
+func test_edit_asks_the_desktop_to_open_a_notepad() -> void:
+	enter_as_admin("node_training_pc")
+	var result: TermResult = t.execute("edit spisok_pokupok.txt")
+	assert_eq(str(result.request.get("type", "")), "edit")
+	assert_string_contains(str(result.request["text"]), "энергетиков")
+
+
+func test_guest_cannot_edit_on_a_node() -> void:
+	enter("node_training_pc")
+	assert_string_contains(run("edit /home/spisok_pokupok.txt"), "недостаточно прав")
+
+
+func test_saving_an_edit_changes_the_file_and_leaves_a_trace() -> void:
+	enter_as_admin("node_training_pc")
+	var path: String = "/home/spisok_pokupok.txt"
+	var result: TermResult = t.save_edit("node_training_pc", path, "Хлеб и кофе.")
+	assert_string_contains(result.text(), "сохранено")
+	assert_eq(str(Filesystem.for_node("node_training_pc").file_data(path)["text"]), "Хлеб и кофе.")
+	assert_true(logbook("node_training_pc").categories().has(Logbook.CATEGORY_FILE_CREATED), "правка — в лог узла как запись")
+
+
+func test_edit_is_not_saved_after_disconnect() -> void:
+	enter_as_admin("node_training_pc")
+	run("dc")
+	var result: TermResult = t.save_edit("node_training_pc", "/home/spisok_pokupok.txt", "x")
+	assert_string_contains(result.text(), "изменения не сохранены")
+
+
+func test_edit_file_objective_checks_the_text() -> void:
+	var objective: Dictionary = {"type": "edit_file", "node": "node_training_pc", "path": "/home/spisok_pokupok.txt", "contains": "кофе."}
+	assert_false(QuestObjectives.satisfied(objective))
+	enter_as_admin("node_training_pc")
+	t.save_edit("node_training_pc", "/home/spisok_pokupok.txt", "Хлеб и кофе.")
+	assert_true(QuestObjectives.satisfied(objective), "в файле нужный текст — цель выполнена")

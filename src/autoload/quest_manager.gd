@@ -17,6 +17,7 @@ func _ready() -> void:
 	EventBus.dialogue_ended.connect(func(id: String) -> void:
 		Quests.on_event({"event": "dialogue_ended", "dialogue": id}))
 	# Прочитал письмо — цель «проверить почту» перепроверяется (она по состоянию).
+	EventBus.file_edited.connect(func(_node: String, _path: String) -> void: Quests.on_event({}))
 	EventBus.mail_read.connect(func(_uid: String, _mail_id: String) -> void: Quests.on_event({}))
 	# Мини-квест закончился — этап родителя («закончить мини-квест») перепроверяется.
 	EventBus.quest_completed.connect(func(_id: String, _outcome: String) -> void: Quests.on_event({}))

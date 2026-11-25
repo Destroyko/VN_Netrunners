@@ -20,7 +20,8 @@ const BY_EVENT: Dictionary = {
 ## Цели, которые закрываются состоянием мира. `complete_quest` — этап квеста-родителя ждёт, пока
 ## закончится его мини-квест (docs/tech/quest-format.md, «Квест из мини-квестов»).
 ## `read_mail` — тоже по состоянию: письмо могли прочитать раньше, чем начался этап.
-const BY_STATE: PackedStringArray = ["file_at", "wait_until", "complete_quest", "read_mail"]
+## `edit_file` — в файле на узле есть нужный текст (исправил отчёт, подменил цифру).
+const BY_STATE: PackedStringArray = ["file_at", "wait_until", "complete_quest", "read_mail", "edit_file"]
 ## Цели следующих этапов: валидатор их пропускает, но пока они не закрываются (`archmask` ещё нет).
 const NOT_YET: PackedStringArray = ["mask_backup"]
 
@@ -66,6 +67,10 @@ static func satisfied(objective: Dictionary, stage_day: int = 0) -> bool:
 			return Conditions.check_all(objective.get("until", []) as Array)
 		"complete_quest":
 			return GameState.is_quest_completed(str(objective.get("quest", "")))
+		"edit_file":
+			var fs: Filesystem = Filesystem.for_node(str(objective.get("node", Network.HOME_ID)))
+			var path: String = str(objective.get("path", ""))
+			return fs.has_file(path) and str(fs.file_data(path).get("text", "")).contains(str(objective.get("contains", "")))
 		"read_mail":
 			var mail_id: String = str(objective.get("mail", ""))
 			return Mailbox.inbox().any(func(e: Dictionary) -> bool: return str(e["id"]) == mail_id and bool(e["read"]))
