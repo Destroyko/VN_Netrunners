@@ -457,5 +457,32 @@ func title_text() -> String:
 	return _card.place_text()
 
 
+## Углы экрана монитора на экране игрока (поле `screen` у объекта-монитора, доли картинки
+## фона): туда экран загрузки ПК рисуется в перспективе (`BootOverlay`). Нет монитора — пусто.
+func monitor_screen_quad() -> PackedVector2Array:
+	var quad := PackedVector2Array()
+	for object: Dictionary in Locations.objects(Locations.current()):
+		if str(object.get("kind", "")) != "monitor" or not object.has("screen"):
+			continue
+		var art: Rect2 = _art_rect()
+		for corner: Variant in object["screen"] as Array:
+			var point: Array = corner as Array
+			quad.append(global_position + art.position + Vector2(float(point[0]), float(point[1])) * art.size)
+		break
+	return quad
+
+
+## Где на экране лежит картинка фона: она заполняет экран с сохранением пропорций
+## (`STRETCH_KEEP_ASPECT_COVERED`), лишнее обрезается по краям.
+func _art_rect() -> Rect2:
+	var texture: Texture2D = _background_art.texture if _background_art != null else null
+	if texture == null:
+		return Rect2(Vector2.ZERO, size)
+	var image: Vector2 = texture.get_size()
+	var scale: float = maxf(size.x / image.x, size.y / image.y)
+	var shown: Vector2 = image * scale
+	return Rect2((size - shown) / 2.0, shown)
+
+
 func scene_card() -> SceneCard:
 	return _card

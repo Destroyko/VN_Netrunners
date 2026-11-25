@@ -604,3 +604,26 @@ func test_defense_blocks_follow_the_scan() -> void:
 	assert_eq(DefenseView.blocks_of(info, 1).size(), 1)
 	var all: int = (info["services"] as Array).size() + 2
 	assert_eq(DefenseView.blocks_of(info, 99).size(), all, "порты, мониторинг, анализ действий")
+
+
+## Баг разработчика 25.11.2026: консоль у двери узла (`10.0.0.7>`), а карта отмечала «вы здесь» дома.
+func test_map_marks_the_node_at_the_door_as_here() -> void:
+	Effects.apply({"reveal_node": {"node": "node_training_pc"}})
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	view.submit("connect 10.0.0.7")
+	await wait_frames(2)
+	var map: MapView = desktop.window_of("map").body.get_child(0) as MapView
+	assert_eq(map.here(), "node_training_pc")
+	assert_eq(map.state_of("node_training_pc"), "вы здесь")
+
+
+## Баг разработчика 25.11.2026: окно консоли поднималось только кликом по шапке.
+func test_click_on_the_console_screen_raises_its_window() -> void:
+	var console: DesktopWindow = desktop.open_app("terminal")
+	var files: DesktopWindow = desktop.open_app("files")
+	assert_gt(files.get_index(), console.get_index(), "«Файлы» сверху")
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	(console.body.get_child(0) as TerminalView).call("_on_screen_input", click)
+	assert_gt(console.get_index(), files.get_index(), "клик по экрану консоли поднял её окно")

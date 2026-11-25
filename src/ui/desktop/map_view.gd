@@ -163,11 +163,11 @@ func _process(delta: float) -> void:
 func _draw_map() -> void:
 	var colors: Dictionary = _colors()
 	_draw_grid(colors)
-	var here: String = terminal.node_id()
+	var current: String = here()
 	for edge: Array in _edges:
-		_draw_edge(str(edge[0]), str(edge[1]), here, colors)
+		_draw_edge(str(edge[0]), str(edge[1]), current, colors)
 	for id: String in known_nodes():
-		_draw_node(id, id == here, colors)
+		_draw_node(id, id == current, colors)
 
 
 ## Цвета карты из темы окна: фон, сетка, линии, импульсы, узлы по состоянию.
@@ -303,8 +303,17 @@ func card_text(id: String) -> String:
 
 
 ## Состояние узла для игрока.
+## Где герой для карты: узел, к которому подключён, даже если ещё у двери (вход не выполнен) —
+## как в приглашении консоли `10.0.0.7>` (баг разработчика 25.11.2026); иначе свой ПК.
+func here() -> String:
+	if terminal == null:
+		return Network.HOME_ID
+	var target: String = terminal.session.target_id()
+	return target if not target.is_empty() else terminal.node_id()
+
+
 func state_of(id: String) -> String:
-	if terminal != null and id == terminal.node_id():
+	if terminal != null and id == here():
 		return "вы здесь"
 	if id == Network.HOME_ID:
 		return "свой компьютер"
@@ -314,7 +323,7 @@ func state_of(id: String) -> String:
 
 
 func _state_color(id: String, colors: Dictionary) -> Color:
-	if terminal != null and id == terminal.node_id():
+	if terminal != null and id == here():
 		return colors["hot"] as Color
 	if id == Network.HOME_ID or bool((_entries.get(id, {}) as Dictionary).get("hacked", false)):
 		return colors["ok"] as Color

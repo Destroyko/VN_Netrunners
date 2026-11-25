@@ -1,8 +1,12 @@
 extends CanvasLayer
 ## Экран своего ПК, пока он выключается, загружается или ставит систему с флешки (шаг 7.5).
 ## Чёрный экран с текстом, как у настоящего железа, и полоской: минуты идут ускоренно
-## (`Clock.fast_forward`), как у программы. Во время загрузки и установки внизу — «Выключить
-## питание»: установка прерывается без последствий (`PcPower.abort_boot`).
+## (`Clock.fast_forward`), как у программы. Во время загрузки и установки — «Выключить питание»:
+## установка прерывается без последствий (`PcPower.abort_boot`).
+##
+## Где его видно (баг разработчика 25.11.2026): в комнате — **на мониторе**, в перспективе экрана
+## на фоне (углы — поле `screen` у объекта-монитора в данных локации, `ScreenQuad`); за ПК
+## (перезагрузка со стола) — на весь экран. Сам экран рисуется в свой буфер (`SubViewport`).
 ##
 ## Правил здесь нет: когда загрузка закончилась и что поставлено, решает `PcPower`; окно только
 ## показывает. Пока минуты не идут (часы стоят, тесты), экрана нет.
@@ -10,6 +14,8 @@ extends CanvasLayer
 const SHUTDOWN: String = "shutdown"
 const BOOT: String = "boot"
 const INSTALL: String = "install"
+## Буфер экрана на мониторе в комнате: текст читается и в уменьшенном виде.
+const MONITOR_BUFFER: Vector2i = Vector2i(640, 400)
 
 ## Строки появляются по ходу полоски: доля пройденного → строка.
 const BOOT_LINES: Array = [
@@ -31,17 +37,19 @@ const INSTALL_LINES: Array = [
 const SHUTDOWN_LINES: Array = [[0.0, "завершение работы .........."]]
 
 var _mode: String = ""
-var _screen: ColorRect
+var _buffer: SubViewport
+var _display: TextureRect
 var _text: RichTextLabel
 var _bar: Label
 var _off: Button
+var _perspective: ShaderMaterial
 
 
 func _ready() -> void:
 	layer = 70
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build()
-	_screen.visible = false
+	_hide()
 	EventBus.pc_boot_started.connect(func(install: bool, _minutes: int) -> void: _show(INSTALL if install else BOOT))
 	EventBus.pc_power_changed.connect(func(on: bool) -> void:
 		if not on and Clock.is_fast_forwarding():
@@ -49,25 +57,64 @@ func _ready() -> void:
 
 
 func mode() -> String:
-	return _mode if _screen.visible else ""
+	return _mode if _display.visible else ""
+
+
+## Экран на мониторе в комнате (true) или на весь экран (false).
+func on_monitor() -> bool:
+	return _display.material != null
 
 
 func _show(what: String) -> void:
 	_mode = what
-	_screen.visible = true
+	_display.visible = true
 	_off.visible = what != SHUTDOWN
+	_place()
 	_redraw()
+
+
+func _hide() -> void:
+	_display.visible = false
+	_off.visible = false
+	_mode = ""
 
 
 func _process(_delta: float) -> void:
-	if not _screen.visible:
+	if not _display.visible:
 		return
 	# Минуты прошли (или их бросили) — экран больше не нужен: дальше стол или комната.
 	if not Clock.is_fast_forwarding() and not PcPower.is_booting():
-		_screen.visible = false
-		_mode = ""
+		_hide()
 		return
+	_place()
 	_redraw()
+
+
+## Куда показывать: монитор текущей сцены, если он есть, иначе весь экран.
+func _place() -> void:
+	var view: Vector2 = _display.get_viewport_rect().size
+	var quad: PackedVector2Array = _monitor_quad()
+	if quad.size() == 4:
+		_buffer.size = MONITOR_BUFFER
+		var to_screen: Basis = ScreenQuad.square_to_quad(quad)
+		_perspective.set_shader_parameter("screen_to_uv", to_screen.inverse())
+		_perspective.set_shader_parameter("view_size", view)
+		_display.material = _perspective
+		_display.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		# Кнопка — под левым нижним углом монитора: в комнате игрок смотрит на ПК со стороны.
+		_off.position = quad[3] + Vector2(0, 12)
+	else:
+		_buffer.size = Vector2i(view)
+		_display.material = null
+		_display.mouse_filter = Control.MOUSE_FILTER_STOP
+		_off.position = view - _off.get_combined_minimum_size() - Vector2(48, 48)
+
+
+func _monitor_quad() -> PackedVector2Array:
+	var scene: Node = get_tree().current_scene if get_tree() != null else null
+	if scene != null and scene.has_method("monitor_screen_quad"):
+		return scene.call("monitor_screen_quad") as PackedVector2Array
+	return PackedVector2Array()
 
 
 func _redraw() -> void:
@@ -86,17 +133,21 @@ func _redraw() -> void:
 
 
 func _build() -> void:
-	_screen = ColorRect.new()
-	_screen.name = "BootScreen"
-	_screen.color = Color.BLACK
-	_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_screen.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(_screen)
+	_buffer = SubViewport.new()
+	_buffer.name = "ScreenBuffer"
+	_buffer.size = MONITOR_BUFFER
+	_buffer.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(_buffer)
+	var screen := ColorRect.new()
+	screen.name = "BootScreen"
+	screen.color = Color.BLACK
+	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_buffer.add_child(screen)
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for side: String in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 48)
-	_screen.add_child(margin)
+		margin.add_theme_constant_override("margin_" + side, 32)
+	screen.add_child(margin)
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 12)
 	margin.add_child(column)
@@ -113,13 +164,20 @@ func _build() -> void:
 	_bar.add_theme_font_override("font", font)
 	_bar.add_theme_color_override("font_color", Color(0.78, 0.8, 0.82))
 	column.add_child(_bar)
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	column.add_child(spacer)
+
+	_display = TextureRect.new()
+	_display.name = "Display"
+	_display.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_display.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_display.stretch_mode = TextureRect.STRETCH_SCALE
+	_display.texture = _buffer.get_texture()
+	add_child(_display)
+	_perspective = ShaderMaterial.new()
+	_perspective.shader = load("res://src/ui/boot/screen_quad.gdshader") as Shader
+
 	_off = Button.new()
 	_off.name = "PowerOff"
 	_off.text = "Выключить питание"
-	_off.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_off.focus_mode = Control.FOCUS_NONE
 	_off.pressed.connect(func() -> void: PcPower.abort_boot())
-	column.add_child(_off)
+	add_child(_off)

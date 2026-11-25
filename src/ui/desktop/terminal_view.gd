@@ -109,6 +109,10 @@ func _build() -> void:
 
 	_output = _console_label("Output")
 	_output.selection_enabled = true
+	_output.gui_input.connect(func(event: InputEvent) -> void:
+		var click: InputEventMouseButton = event as InputEventMouseButton
+		if click != null and click.pressed:
+			_raise_window())
 	column.add_child(_output)
 	_line = _console_label("Line")
 	_line.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -275,8 +279,21 @@ func focus_entry() -> void:
 ## Клик в любом месте экрана ставит курсор в строку ввода, как в настоящей консоли.
 func _on_screen_input(event: InputEvent) -> void:
 	var click: InputEventMouseButton = event as InputEventMouseButton
+	if click != null and click.pressed:
+		_raise_window()
 	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
 		_entry.grab_focus()
+
+
+## Экран консоли забирает клик себе (курсор, выделение текста), и до окна он не доходит: окно
+## консоли становилось активным только по шапке (баг разработчика 25.11.2026). Поднимаем его сами.
+func _raise_window() -> void:
+	var node: Node = get_parent()
+	while node != null:
+		if node is DesktopWindow:
+			(node as DesktopWindow).focus_requested.emit(node)
+			return
+		node = node.get_parent()
 
 
 # --- Ввод ----------------------------------------------------------------------
