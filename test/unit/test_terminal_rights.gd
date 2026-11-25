@@ -305,6 +305,27 @@ func test_deleting_net_sys_on_a_node_is_sabotage() -> void:
 	run("pwd")
 	assert_true(Filesystem.for_node("node_office_server").has_file(SystemFiles.FILE_NET), "владелец вернул net.sys")
 	assert_eq(Network.for_game().due_repairs(t.now()).size(), 0, "починенный второй раз не чинят")
+	assert_true(Logbook.for_node("node_office_server").is_empty(), "переустановка ОС: логи пусты (ISS-015)")
+
+
+## `mv net.sys` на чужом узле — тот же саботаж, что `rm`, и тот же след в логе (ISS-015).
+func test_moving_net_sys_on_a_node_is_sabotage() -> void:
+	learn_programs()
+	enter("node_office_server")
+	run("rootstep")
+	run("mv /sys/net.sys /home/net.sys")
+	assert_eq(t.prompt(), "home:/home$ ", "выкинуло из узла")
+	assert_string_contains(run("connect 77.61.204.12"), "узел не в сети")
+
+
+func test_moving_a_file_on_a_node_leaves_a_trace() -> void:
+	learn_programs()
+	enter("node_training_pc")
+	run("rootstep")
+	var before: int = logbook("node_training_pc").count()
+	run("mv /home/zametka.txt /home/old.txt")
+	assert_eq(logbook("node_training_pc").count(), before + 1, "перенос — след «удалён файл»")
+	assert_true(logbook("node_training_pc").categories().has(Logbook.CATEGORY_FILE_DELETED))
 
 
 # --- Стены: защита, которая мешает и после входа ---------------------------------

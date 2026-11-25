@@ -114,12 +114,20 @@ func _sync_wrappers() -> void:
 	session = HackSession.new(net)
 
 
-## Владелец починил узел, с которого игрок снёс net.sys: возвращаем файл на место.
+## Владелец починил узел, с которого игрок снёс net.sys: переустановил ОС (ISS-015) —
+## системные файлы из данных узла на месте, логи пусты.
 ## Делаем лениво, когда кто-то смотрит: часы идут не только в терминале (сон, ожидание),
 ## а подписки на смену дня у сети нет — и не нужна, пока нужный файл виден лишь отсюда.
 func _apply_repairs() -> void:
 	for node_id: String in net.due_repairs(now()):
-		Filesystem.for_node(node_id).put_file(SystemFiles.FILE_NET, {"system": true})
+		var restored: Filesystem = Filesystem.for_node(node_id)
+		var original: Dictionary = (DataLoader.nodes().get(node_id, {}) as Dictionary).get("files", {}) as Dictionary
+		for path: String in original.keys():
+			if bool((original[path] as Dictionary).get("system", false)) and not restored.has_file(path):
+				restored.put_file(path, original[path] as Dictionary)
+		if not restored.has_file(SystemFiles.FILE_NET):
+			restored.put_file(SystemFiles.FILE_NET, {"system": true})
+		Logbook.for_node(node_id).clear()
 		net.mark_repaired(node_id)
 
 

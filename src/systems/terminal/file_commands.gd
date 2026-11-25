@@ -349,8 +349,17 @@ func mv(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 		return
 	var moved: FsResult = _t.fs().move(_t.cwd(), args[0], args[1], _t.admin(), confirmed)
 	_finish_copy(moved, result)
-	if moved.is_ok():
-		_t.spend(_t.minutes_of("terminal_command"), result)
+	if not moved.is_ok():
+		return
+	var from: String = str(moved.paths[0])
+	# Файл ушёл со своего места — для владельца это то же, что удаление (ISS-015): след в логе,
+	# а `net.sys` не на месте — узел вне сети. Перенос самих записей лога следов не оставляет,
+	# как и их удаление.
+	if not _in_logs(from):
+		_t.note(Logbook.CATEGORY_FILE_DELETED, "удалён файл %s" % FsPath.name_of(from))
+	if _t.is_remote() and from == SystemFiles.FILE_NET:
+		_t.handle_events(_t.session.node_sabotaged(_t.node_id(), _t.now()), result)
+	_t.spend(_t.minutes_of("terminal_command"), result)
 
 
 func rm(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
