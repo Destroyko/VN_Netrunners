@@ -225,7 +225,8 @@ func _plan_minutes(fs: Filesystem, plan: Array) -> int:
 ## Спросить «заменить?», если на месте уже есть файлы. true — вопрос задан, ждём ответа.
 func _ask_clashes(to_fs: Filesystem, from_cwd: String, plan: Array, result: TermResult) -> bool:
 	var clashes: Array = plan.filter(func(step: Dictionary) -> bool:
-		return to_fs.has_file(to_fs._destination_for(from_cwd, str(step["from"]), str(step["to_arg"]))))
+		var dest: String = to_fs._destination_for(from_cwd, str(step["from"]), str(step["to_arg"]))
+		return to_fs.has_file(dest) and not to_fs.is_locked(dest))
 	if clashes.is_empty():
 		return false
 	if clashes.size() == 1 and plan.size() == 1:
@@ -243,6 +244,17 @@ func _run_plan(
 	if plan.is_empty():
 		result.add("нет таких файлов")
 		return []
+	# Занятый файл на месте назначения не заменяется — и вопроса о замене про него нет.
+	var free: Array = []
+	for step: Dictionary in plan:
+		var dest: String = to_fs._destination_for(from_cwd, str(step["from"]), str(step["to_arg"]))
+		if to_fs.has_file(dest) and to_fs.is_locked(dest):
+			result.add(FsResult.fail(FsResult.Code.BUSY, dest).message())
+		else:
+			free.append(step)
+	if free.is_empty():
+		return []
+	plan = free
 	if not confirmed:
 		var clashes: Array = plan.filter(func(step: Dictionary) -> bool:
 			return to_fs.has_file(to_fs._destination_for(from_cwd, str(step["from"]), str(step["to_arg"]))))
@@ -353,6 +365,8 @@ func rm(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 		result.add(removed.message())
 		return
 
+	for busy: String in removed.skipped:
+		result.add(FsResult.fail(FsResult.Code.BUSY, busy).message())
 	result.add("удалено: %d" % removed.paths.size())
 	var outside_logs: bool = false
 	for path: String in removed.paths:

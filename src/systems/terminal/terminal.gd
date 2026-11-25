@@ -140,11 +140,25 @@ func execute_local(line: String) -> TermResult:
 
 
 func fs() -> Filesystem:
-	return Filesystem.for_node(node_id())
+	return _with_locks(Filesystem.for_node(node_id()))
 
 
 func home_fs() -> Filesystem:
-	return Filesystem.for_node(Network.HOME_ID)
+	return _with_locks(Filesystem.for_node(Network.HOME_ID))
+
+
+## Файлы узла, занятые программами: архив под фоновым подбором (ISS-018).
+func busy_paths(node: String) -> PackedStringArray:
+	var paths: PackedStringArray = []
+	if node == Network.HOME_ID:
+		for task: Dictionary in BackgroundTasks.tasks():
+			paths.append(str(task["path"]))
+	return paths
+
+
+func _with_locks(filesystem: Filesystem) -> Filesystem:
+	filesystem.locked = busy_paths(filesystem.node_id)
+	return filesystem
 
 
 ## На своём ПК у героя полные права всегда (примеры в terminal-spec.md: `home:/sys$ rm`),

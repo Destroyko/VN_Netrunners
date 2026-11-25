@@ -22,6 +22,8 @@ enum Code {
 	NEEDS_CONFIRM_REPLACE,
 	## Под удаление попал системный файл: `rm`.
 	NEEDS_CONFIRM_DELETE,
+	## Файл в работе у программы (фоновый подбор, «Блокнот»): не двигается, не удаляется.
+	BUSY,
 }
 
 var code: Code = Code.OK
@@ -29,6 +31,8 @@ var code: Code = Code.OK
 var path: String = ""
 ## Затронутые пути: что удалено, скопировано, перемещено. Для `rm *` их несколько.
 var paths: PackedStringArray = []
+## Файлы, которые маска пропустила, потому что они заняты (`rm *`).
+var skipped: PackedStringArray = []
 ## Текст для вывода (например, содержимое файла при `cat`).
 var text: String = ""
 ## Файл на месте назначения был заменён — после того, как игрок ответил «y».
@@ -88,6 +92,8 @@ func message() -> String:
 			return "сюда нельзя писать: %s" % path
 		Code.NEEDS_CONFIRM_REPLACE:
 			return "здесь уже есть %s. заменить? (y/n)" % FsPath.name_of(path)
+		Code.BUSY:
+			return "занят: %s" % FsPath.name_of(path)
 		Code.NEEDS_CONFIRM_DELETE:
 			# Консоль не рассказывает, что случится: она только переспрашивает.
 			if paths.size() > 1:

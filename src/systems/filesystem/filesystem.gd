@@ -18,6 +18,9 @@ var node_id: String = ""
 var _files: Dictionary = {}
 ## Пустые каталоги, созданные игроком.
 var _dirs: Dictionary = {}
+## Файлы в работе у программ (решено 25.11.2026, ISS-006, ISS-018): их нельзя удалить,
+## переместить, переименовать и заменить. Список даёт вызывающий (терминал), в сейв не идёт.
+var locked: PackedStringArray = []
 
 
 func _init(for_node: String = "", files: Dictionary = {}, dirs: Dictionary = {}) -> void:
@@ -202,6 +205,8 @@ func remove(cwd: String, arg: String, is_admin: bool = false, force: bool = fals
 		return FsResult.fail(FsResult.Code.NOT_FOUND, target)
 	if FsPath.requires_admin(target) and not is_admin:
 		return FsResult.fail(FsResult.Code.NO_PERMISSION, target)
+	if is_locked(target):
+		return FsResult.fail(FsResult.Code.BUSY, target)
 	if is_system(target) and not force:
 		return FsResult.fail(FsResult.Code.NEEDS_CONFIRM_DELETE, target)
 	_files.erase(target)
@@ -219,6 +224,7 @@ func _remove_by_mask(cwd: String, arg: String, is_admin: bool, force: bool) -> F
 	# отвечать, когда половина маски уже удалена.
 	var matched: PackedStringArray = []
 	var system_files: PackedStringArray = []
+	var skipped: PackedStringArray = []
 	for file_path: String in paths():
 		if not FsPath.is_direct_child(file_path, directory):
 			continue
@@ -226,10 +232,18 @@ func _remove_by_mask(cwd: String, arg: String, is_admin: bool, force: bool) -> F
 			continue
 		if FsPath.requires_admin(file_path) and not is_admin:
 			continue
+		# Занятый файл маска обходит: остальные удаляются (`rm *` при идущем подборе).
+		if is_locked(file_path):
+			skipped.append(file_path)
+			continue
 		matched.append(file_path)
 		if is_system(file_path):
 			system_files.append(file_path)
 
+	if matched.is_empty() and not skipped.is_empty():
+		var busy := FsResult.fail(FsResult.Code.BUSY, skipped[0])
+		busy.skipped = skipped
+		return busy
 	if matched.is_empty():
 		return FsResult.fail(FsResult.Code.NOT_FOUND, directory.path_join(mask))
 	# Один вопрос на всю маску: `rm *` в /sys — ровно тот случай, ради которого он нужен.
@@ -241,11 +255,17 @@ func _remove_by_mask(cwd: String, arg: String, is_admin: bool, force: bool) -> F
 	for file_path: String in matched:
 		_files.erase(file_path)
 		_keep_parent(file_path)
-	return FsResult.ok_many(matched)
+	var done: FsResult = FsResult.ok_many(matched)
+	done.skipped = skipped
+	return done
 
 
 ## Системный файл — тот, что помечен в данных узла. Не список имён: на разных машинах
 ## системными могут быть разные файлы, и решает это контент, а не код.
+func is_locked(path: String) -> bool:
+	return locked.has(FsPath.normalize(path))
+
+
 func is_system(path: String) -> bool:
 	return bool((_files.get(FsPath.normalize(path), {}) as Dictionary).get("system", false))
 
@@ -264,6 +284,8 @@ func move(
 		return FsResult.fail(FsResult.Code.BAD_PATH, to)
 	if (FsPath.requires_admin(from) or FsPath.requires_admin(to)) and not is_admin:
 		return FsResult.fail(FsResult.Code.NO_PERMISSION, to)
+	if is_locked(from) or is_locked(to):
+		return FsResult.fail(FsResult.Code.BUSY, from if is_locked(from) else to)
 
 	var was_there: bool = _files.has(to)
 	if was_there and not overwrite:
@@ -303,6 +325,8 @@ func copy_to(
 	# Замена возможна, но не молча: игрок может копировать чужую тему просто посмотреть
 	# и случайно потерять свою, которую искал полигры. Поэтому сначала вопрос.
 	var was_there: bool = target_fs._files.has(to)
+	if was_there and target_fs.is_locked(to):
+		return FsResult.fail(FsResult.Code.BUSY, to)
 	if was_there and not overwrite:
 		return FsResult.fail(FsResult.Code.NEEDS_CONFIRM_REPLACE, to)
 	target_fs._files[to] = (_files[from] as Dictionary).duplicate(true)
