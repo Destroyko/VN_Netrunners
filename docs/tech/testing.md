@@ -9,7 +9,11 @@
 - Без `.gutconfig.json` в корне GUT не видит подпапки `test/`, поэтому файл есть в репозитории.
 - Запуск без окна (headless):
   `godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://test -gexit`
-- `test/unit` — быстрые тесты логики; `test/integration` — связки систем и сценарии.
+- `test/unit` — быстрые тесты логики; `test/integration` — связки систем и сценарии;
+  `test/invariants` — стыки механик и инварианты карты `tech/interactions.md`. Тест на открытую
+  проблему из `docs/issues.md` описывает правильное поведение и начинается с
+  `if OpenIssue.skip(self, "ISS-…"): return` (`pending`, набор зелёный). Прогнать их по-настоящему —
+  `RUN_OPEN_ISSUES=1` в окружении перед запуском godot; исправили — эти две строки убрать.
 - Позже: автозапуск тестов в GitHub Actions на каждый push.
 
 ## Что покрываем тестами
