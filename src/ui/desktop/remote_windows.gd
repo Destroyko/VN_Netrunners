@@ -41,6 +41,8 @@ func open(request: Dictionary, view: TerminalView) -> void:
 		# Закрыть трансляцию — отключиться от узла, как в Radmin (вердикт гейта M1, 16.11.2026).
 		# Если окно закрылось само из-за dc или обрыва, цели уже нет — второй раз не отключаемся.
 		if _terminal.session.target_id() == node and is_instance_valid(view):
+			# Программа на этом узле обрывается вместе с соединением: итога нет.
+			view.interrupt()
 			view.submit("dc"))
 	var session := RemoteSession.new()
 	# Трансляция — чужой экран во всё окно, без полей вокруг.

@@ -237,3 +237,22 @@ func test_closing_the_remote_window_disconnects() -> void:
 	await wait_frames(2)
 	assert_false(desktop.terminal.session.has_connection(), "закрыть трансляцию = отключиться")
 	assert_true(desktop.terminal.session.target_id().is_empty(), "и у двери тоже не стоим")
+
+
+func test_closing_the_remote_window_mid_program_disconnects() -> void:
+	# Терминал занят программой (ISS-006), но закрыть трансляцию — всё равно отключиться:
+	# программа обрывается вместе с соединением.
+	var setup: Array = await _explorer_in_home()
+	var desktop: Desktop = setup[0] as Desktop
+	for id: String in Programs.ids():
+		GameState.set_flag(Programs.flag_for(id))
+	Clock.configure({"real_seconds_per_minute": 4, "program_speedup": 3, "program_min_minutes": 2})
+	Clock.start()
+	desktop.terminal.execute("rootstep")
+	assert_true(desktop.terminal.has_job())
+	desktop.window_of("remote").close()
+	await wait_frames(2)
+	Clock.stop()
+	Clock.reload_config()
+	assert_false(desktop.terminal.has_job(), "программы нет")
+	assert_false(desktop.terminal.session.has_connection(), "закрыть трансляцию = отключиться")

@@ -26,6 +26,8 @@ const DESKTOP_DIR: String = "/home/desktop"
 
 const ANSWERS_YES: PackedStringArray = ["y", "yes", "д", "да"]
 const ANSWERS_NO: PackedStringArray = ["n", "no", "н", "нет"]
+## Ответ, пока идёт программа: консоль одна, вторая команда ждать не станет (ISS-006).
+const BUSY_TEXT: String = "терминал занят"
 
 ## Уровень ОС героя: от него зависит автодополнение (terminal-spec.md). Переменная состояния
 ## `pc.os`: old / normal / hacker. Пока нет флешки соседки (шаг 6), по умолчанию normal.
@@ -214,6 +216,11 @@ func execute(line: String) -> TermResult:
 	_sync()
 	var result := TermResult.new()
 	var text: String = line.strip_edges()
+	# Идёт программа: любая новая команда (с клавиатуры, мышью из окон) — отказ, игрок сам
+	# планирует работу (решено 25.11.2026). Прервать — Ctrl+C (`cancel_job`).
+	if has_job():
+		result.add(BUSY_TEXT)
+		return result
 	# Сервер ждёт пароль: строка — это пароль, а не команда, и в историю она не идёт.
 	if not _login.is_empty():
 		return _attempt_login(text, result)

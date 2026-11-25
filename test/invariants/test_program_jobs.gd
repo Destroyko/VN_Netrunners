@@ -102,14 +102,13 @@ func test_autosave_mid_transfer_loads_consistent_world() -> void:
 ## `TerminalView.submit` — мимо закрытой строки ввода. Вторая программа не должна молча отменять
 ## итог первой.
 func test_second_program_does_not_drop_the_first_result() -> void:
-	if OpenIssue.skip(self, "ISS-006: команда мышью посреди программы подменяет её итог"):
-		return
 	learn_programs()
 	enter("node_training_pc")
 	Effects.apply({"add_file": {"node": "node_training_pc", "path": "/home/big.bin", "size_kb": 2000}})
 	_running_clock()
 	run("rootstep")
-	t.execute("cp /home/big.bin")
+	assert_eq(t.execute("cp /home/big.bin").text(), Terminal.BUSY_TEXT, "вторая команда — отказ")
+	assert_eq(t.execute_local("rm /home/desktop/x").text(), Terminal.BUSY_TEXT, "окно «Файлы» — тоже")
 	Clock.tick(120.0)
 	assert_true(Network.for_game().access.has_root("node_training_pc", _now()),
 		"rootstep дошёл до конца полоски — права есть")

@@ -281,6 +281,9 @@ func _on_screen_input(event: InputEvent) -> void:
 
 ## Выполнить строку как введённую с клавиатуры. Итог возвращается — его показывает и проводник.
 func submit(line: String) -> TermResult:
+	# Программа идёт: команда не печатается в консоль, отказ видит окно, откуда она пришла.
+	if terminal.has_job():
+		return terminal.execute(line)
 	_history_pos = -1
 	# Пароль не печатается и не пишется в журнал — как в настоящей консоли.
 	var shown: String = "" if terminal.login_pending() else line
