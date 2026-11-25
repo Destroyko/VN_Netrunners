@@ -73,7 +73,7 @@ static func blocks_of(info: Dictionary, known: int) -> Array[Dictionary]:
 	var trace: int = int(info.get("trace_minutes", 0))
 	all.append({"title": "мониторинг", "state": ("трейс %d мин" % trace) if trace > 0 else "нет", "good": trace <= 0})
 	var ids: bool = bool(info.get("ids", false))
-	all.append({"title": "анализ действий", "state": "есть" if ids else "нет", "good": not ids})
+	all.append({"title": "анализ подозрит. действий", "state": "есть" if ids else "нет", "good": not ids})
 	return all.slice(0, mini(known, all.size()))
 
 

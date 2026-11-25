@@ -30,8 +30,8 @@ func test_probe_takes_a_minute_per_layer() -> void:
 	var before: int = t.now()
 	var text: String = run("probe " + ADDRESS)
 	assert_eq(t.now() - before, _layers(), "по минуте на слой")
-	assert_string_contains(text, "обнаружен мониторинг подключений: да, трейс")
-	assert_string_contains(text, "для входа требуется сервисов")
+	assert_string_contains(text, "мониторинг подключений: да, трейс")
+	assert_string_contains(text, "-----", "разведка закончена чертой")
 	assert_eq(Network.for_game().probe_layers(NODE), _layers())
 
 
@@ -68,7 +68,7 @@ func test_ctrl_c_keeps_finished_layers_and_probe_resumes() -> void:
 func test_fully_scanned_node_answers_at_once() -> void:
 	run("probe " + ADDRESS)
 	var before: int = t.now()
-	assert_string_contains(run("probe " + ADDRESS), "для входа требуется сервисов")
+	assert_string_contains(run("probe " + ADDRESS), "анализ подозрительных действий")
 	assert_eq(t.now(), before, "всё раскрыто — ответ сразу")
 
 

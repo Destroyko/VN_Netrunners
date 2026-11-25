@@ -36,6 +36,6 @@ static func session_closed(node: String, was_connected: bool) -> void:
 		return
 	if not traces_covered():
 		Logbook.for_node(node).append(
-			Logbook.CATEGORY_SESSION, "сеанс закрыт", GameState.day, GameState.minute, false, "logout"
+			Logbook.CATEGORY_SESSION, "соединение удалённого сеанса %s разорвано" % Network.external_address(), GameState.day, GameState.minute, false, "logout"
 		)
 	EventBus.node_disconnected.emit(node)

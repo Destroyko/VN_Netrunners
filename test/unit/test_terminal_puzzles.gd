@@ -42,7 +42,7 @@ func test_catching_the_hash_opens_the_service() -> void:
 	var text: String = t.finish_puzzle(1).text()
 	assert_string_contains(text, "доступ получен")
 	assert_string_contains(text, "пароль: " + word.to_upper(), "пароль показан игроку")
-	assert_string_contains(run(word), "подключено", "игрок вводит его сам")
+	assert_string_contains(run(word), "вход выполнен", "игрок вводит его сам")
 	assert_true(t.session.has_connection())
 
 

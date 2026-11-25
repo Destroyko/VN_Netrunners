@@ -364,9 +364,9 @@ func test_cracked_firewall_lets_files_out() -> void:
 
 func test_probe_shows_action_analysis() -> void:
 	reveal("node_office_server")
-	assert_string_contains(run("probe 77.61.204.12"), "обнаружен анализ действий: да")
+	assert_string_contains(run("probe 77.61.204.12"), "анализ подозрительных действий: да")
 	reach_training_pc()
-	assert_string_contains(run("probe 10.0.0.7"), "обнаружен анализ действий: нет")
+	assert_string_contains(run("probe 10.0.0.7"), "анализ подозрительных действий: нет")
 
 
 func test_action_analysis_makes_loud_actions_eat_the_trace() -> void:

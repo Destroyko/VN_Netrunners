@@ -32,7 +32,7 @@ func test_probe_describes_the_node_and_reveals_its_name() -> void:
 	run("scan")
 	var text: String = run("probe 10.0.0.1")
 	assert_string_contains(text, "Роутер (дом)")
-	assert_string_contains(text, "обнаружен мониторинг подключений: нет")
+	assert_string_contains(text, "мониторинг подключений: нет")
 	assert_string_contains(run("nodes"), "Роутер (дом)")
 
 
@@ -40,8 +40,9 @@ func test_probe_shows_services_without_game_internals() -> void:
 	reach_training_pc()
 	var text: String = run("probe 10.0.0.7")
 	assert_string_contains(text, "порт 22")
-	assert_string_contains(text, "закрыт")
-	assert_string_contains(text, "для входа требуется сервисов: 1")
+	var port: int = Array(last.lines).find_custom(func(l: String) -> bool: return l.contains("порт 22"))
+	assert_eq(last.role_at(port), "lock", "закрытый порт — красный [Х]")
+	assert_false(text.contains("требуется сервисов"), "сколько сервисов для входа — не пишем (вычитка 25.11.2026)")
 	assert_false(text.contains("passhound"), "какой программой ломать — знание игрока, не сканера")
 	assert_false(text.contains("сложность"))
 	assert_false(text.contains("вскрыто"))
@@ -51,7 +52,7 @@ func test_probe_shows_services_without_game_internals() -> void:
 func test_probe_reports_monitoring_but_not_the_schedule() -> void:
 	reveal("node_office_server")
 	var text: String = run("probe 77.61.204.12")
-	assert_string_contains(text, "обнаружен мониторинг подключений: да")
+	assert_string_contains(text, "мониторинг подключений: да")
 	assert_false(text.contains("08:00"), "расписание узнаётся отдельной механикой, не сканером")
 
 
@@ -88,7 +89,7 @@ func test_connect_to_own_pc_is_refused() -> void:
 
 func test_connect_router_changes_the_prompt() -> void:
 	run("scan")
-	assert_string_contains(run("connect 10.0.0.1"), "подключено")
+	assert_string_contains(run("connect 10.0.0.1"), "вход выполнен")
 	assert_eq(t.prompt(), "10.0.0.1:/home$ ")
 	assert_signal_emitted(EventBus, "node_connected")
 
@@ -130,7 +131,7 @@ func test_probe_without_an_address_examines_the_target() -> void:
 	run("connect 10.0.0.7")
 	var text: String = run("probe")
 	assert_string_contains(text, "порт 22")
-	assert_string_contains(text, "сканирование 10.0.0.7")
+	assert_string_contains(text, "сканирование узла 10.0.0.7")
 
 
 func test_connect_outside_prime_time() -> void:
@@ -157,7 +158,7 @@ func test_dc_without_connection() -> void:
 
 func test_dc_disconnects_and_emits() -> void:
 	enter("node_training_pc")
-	assert_eq(run("dc"), "отключено")
+	assert_eq(run("dc"), "соединение разорвано")
 	assert_eq(t.prompt(), "home:/home$ ")
 	assert_signal_emitted(EventBus, "node_disconnected")
 
@@ -166,7 +167,7 @@ func test_dc_before_connecting_drops_the_target() -> void:
 	reach_training_pc()
 	var before: int = get_signal_emit_count(EventBus, "node_disconnected")
 	run("connect 10.0.0.7")
-	assert_eq(run("dc"), "цель сброшена")
+	assert_eq(run("dc"), "соединение разорвано")
 	assert_signal_emit_count(EventBus, "node_disconnected", before, "подключения не было")
 
 
@@ -306,7 +307,7 @@ func test_scan_at_the_door_does_not_run_on_your_own_pc() -> void:
 	assert_eq(t.prompt(), "77.61.204.12> ")
 	for line: String in ["scan", "ls", "cd /home", "cat readme.txt"]:
 		assert_eq(run(line), "вход не выполнен", line)
-	assert_string_contains(run("probe"), "сканирование 77.61.204.12", "разведка цели работает")
+	assert_string_contains(run("probe"), "сканирование узла 77.61.204.12", "разведка цели работает")
 	assert_false(run("passhound 8080").contains("вход не выполнен"), "взломщики работают")
 
 

@@ -41,7 +41,7 @@ func test_login_window_opens_and_lets_in_with_the_password() -> void:
 	form.try_login()
 	await wait_frames(2)
 	assert_true(desktop.terminal.session.has_connection(), "вошли через окно")
-	assert_string_contains(view.output_text(), "подключено", "консоль тоже вошла")
+	assert_string_contains(view.output_text(), "вход выполнен", "консоль тоже вошла")
 	assert_false(view.output_text().contains(word), "пароль, набранный в окне, не печатается в консоли")
 	var remote: DesktopWindow = desktop.window_of("remote")
 	assert_not_null(remote, "трансляция осталась")
