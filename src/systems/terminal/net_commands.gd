@@ -54,6 +54,8 @@ func probe(args: PackedStringArray, result: TermResult) -> void:
 	# слой (решено 25.11.2026, ISS-016). Ctrl+C прерывает; раскрытые слои узел помнит.
 	var node: String = seen.node_id
 	var info: Dictionary = seen.info
+	# Стол открывает рядом с консолью виджет «Защита узла» (шаг 7, часть 6).
+	result.request = {"type": "probe", "node": node}
 	result.add("сканирование %s .........." % info["address"])
 	result.add("узел: %s (%s)" % [info["title"], info["device"]])
 	result.add(PROBE_RULE)

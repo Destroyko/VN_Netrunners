@@ -11,6 +11,8 @@ signal puzzle_requested(request: Dictionary)
 signal remote_requested(request: Dictionary)
 ## `edit`: открыть «Блокнот» с текстом файла (стол показывает окно, сохранение — `Terminal.save_edit`).
 signal edit_requested(request: Dictionary)
+## `probe`: стол показывает рядом виджет «Защита узла».
+signal probe_requested(request: Dictionary)
 ## Команда выполнена: карта сети и режим стола перечитывают состояние.
 signal result_shown
 
@@ -357,6 +359,8 @@ func show_result(result: TermResult) -> void:
 			remote_requested.emit(request)
 		"edit":
 			edit_requested.emit(request)
+		"probe":
+			probe_requested.emit(request)
 	_refresh()
 	result_shown.emit()
 

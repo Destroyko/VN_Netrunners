@@ -557,3 +557,38 @@ func test_prompt_does_not_jump_after_the_first_command() -> void:
 	view.submit("pwd")
 	await wait_frames(3)
 	assert_almost_eq(line.position.y, row * (banner_lines + 2), 1.0, "эхо команды встало на место строки ввода, ответ — ниже")
+
+
+# --- Виджеты взлома рядом с консолью (шаг 7, часть 6) -----------------------------------
+
+func test_connect_opens_the_map_beside_the_console() -> void:
+	Effects.apply({"reveal_node": {"node": "node_training_pc"}})
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	assert_null(desktop.window_of("map"))
+	view.submit("connect 10.0.0.7")
+	await wait_frames(2)
+	var map: DesktopWindow = desktop.window_of("map")
+	assert_not_null(map, "connect — карта сети рядом")
+	var console: DesktopWindow = desktop.window_of("terminal")
+	assert_false(Rect2(map.position, map.size).intersects(Rect2(console.position, console.size).grow(-1.0)) \
+		and map.position.x > console.position.x, "карта стоит сбоку, а не поверх консоли")
+
+
+func test_probe_opens_defense_blocks_layer_by_layer() -> void:
+	Effects.apply({"reveal_node": {"node": "node_office_server"}})
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	view.submit("probe 77.61.204.12")
+	await wait_frames(2)
+	var window: DesktopWindow = desktop.window_of(HackWidgets.DEFENSE_APP)
+	assert_not_null(window, "probe — виджет «Защита узла»")
+	var defense: DefenseView = window.body.get_child(0) as DefenseView
+	assert_eq(defense.block_count(), Network.for_game().probe_layers("node_office_server"), "блок на каждый раскрытый слой")
+	assert_gt(defense.block_count(), 0)
+
+
+func test_defense_blocks_follow_the_scan() -> void:
+	var info: Dictionary = Network.for_game().describe("node_office_server", 0)
+	assert_eq(DefenseView.blocks_of(info, 0).size(), 0, "ничего не раскрыто — блоков нет")
+	assert_eq(DefenseView.blocks_of(info, 1).size(), 1)
+	var all: int = (info["services"] as Array).size() + 2
+	assert_eq(DefenseView.blocks_of(info, 99).size(), all, "порты, мониторинг, анализ действий")
