@@ -63,31 +63,49 @@ func open_defense(node: String) -> DesktopWindow:
 	return window
 
 
-## Консоль слева, справа от неё колонка: карта сверху, «Защита узла» под ней. Не помещается
-## справа — консоль отъезжает к левому краю, колонка сужается до свободного места.
+## Консоль слева, справа от неё колонка: карта сверху, «Защита узла» под ней.
 func arrange() -> void:
 	var console: DesktopWindow = _desktop.window_of("terminal")
 	var map: DesktopWindow = _desktop.window_of("map")
 	var defense: DesktopWindow = _desktop.window_of(DEFENSE_APP)
 	if console == null or (map == null and defense == null):
 		return
+	# Область окон стола; до раскладки (стол только собран) она бывает меньше самой консоли —
+	# тогда берём экран.
 	var area: Vector2 = console.get_parent_area_size()
-	if area == Vector2.ZERO:
-		return
-	var want: float = 0.0
+	if area.x < console.size.x or area.y < console.size.y:
+		area = console.get_viewport_rect().size
+	var column: Array[DesktopWindow] = []
+	var sizes: Array[Rect2] = []
 	for window: DesktopWindow in [map, defense]:
 		if window != null:
-			want = maxf(want, window.get_combined_minimum_size().x)
-	if console.position.x + console.size.x + GAP + want > area.x:
-		console.position.x = GAP
-	var x: float = console.position.x + console.size.x + GAP
-	var width: float = maxf(want, area.x - x - GAP)
+			column.append(window)
+			sizes.append(Rect2(Vector2.ZERO, window.size).merge(Rect2(Vector2.ZERO, window.get_combined_minimum_size())))
+	var plan: Dictionary = layout(area, Rect2(console.position, console.size), sizes)
+	console.position.x = float(plan["console_x"])
+	for i: int in column.size():
+		var rect: Rect2 = (plan["column"] as Array)[i] as Rect2
+		column[i].position = rect.position
+		column[i].size = rect.size
+
+
+## Расчёт расстановки без окон (тестируется отдельно). `sizes` — окна колонки сверху вниз:
+## size — желаемый размер, он же не меньше минимального. Не помещается справа — консоль
+## отъезжает к левому краю, колонка занимает свободную ширину, по высоте окна идут подряд.
+## Возвращает {console_x, column: [Rect2]}.
+static func layout(area: Vector2, console: Rect2, sizes: Array[Rect2]) -> Dictionary:
+	var want: float = 0.0
+	for size: Rect2 in sizes:
+		want = maxf(want, size.size.x)
+	var console_x: float = console.position.x
+	if console_x + console.size.x + GAP + want > area.x:
+		console_x = GAP
+	var x: float = console_x + console.size.x + GAP
+	var width: float = maxf(minf(want, area.x - x - GAP), 1.0)
 	var y: float = console.position.y
-	for window: DesktopWindow in [map, defense]:
-		if window == null:
-			continue
-		window.size.x = width
-		window.position = Vector2(minf(x, area.x - width), y)
-		var room: float = area.y - y - GAP
-		window.size.y = clampf(window.size.y, window.get_combined_minimum_size().y, maxf(window.get_combined_minimum_size().y, room))
-		y = window.position.y + window.size.y + GAP
+	var column: Array[Rect2] = []
+	for size: Rect2 in sizes:
+		var height: float = clampf(size.size.y, 1.0, maxf(1.0, area.y - y - GAP))
+		column.append(Rect2(Vector2(x, y), Vector2(width, height)))
+		y += height + GAP
+	return {"console_x": console_x, "column": column}

@@ -569,9 +569,21 @@ func test_connect_opens_the_map_beside_the_console() -> void:
 	await wait_frames(2)
 	var map: DesktopWindow = desktop.window_of("map")
 	assert_not_null(map, "connect — карта сети рядом")
-	var console: DesktopWindow = desktop.window_of("terminal")
-	assert_false(Rect2(map.position, map.size).intersects(Rect2(console.position, console.size).grow(-1.0)) \
-		and map.position.x > console.position.x, "карта стоит сбоку, а не поверх консоли")
+
+
+
+func test_widgets_stand_in_a_column_beside_the_console() -> void:
+	var area := Vector2(1280, 672)
+	var plan: Dictionary = HackWidgets.layout(area, Rect2(120, 40, 860, 520), [Rect2(0, 0, 560, 380), Rect2(0, 0, 420, 210)] as Array[Rect2])
+	assert_eq(float(plan["console_x"]), HackWidgets.GAP, "справа не помещается — консоль к левому краю")
+	var map: Rect2 = (plan["column"] as Array)[0] as Rect2
+	var defense: Rect2 = (plan["column"] as Array)[1] as Rect2
+	assert_eq(map.position.x, HackWidgets.GAP + 860 + HackWidgets.GAP, "карта справа от консоли")
+	assert_lte(map.end.x, area.x, "в пределах экрана")
+	assert_eq(defense.position.y, map.end.y + HackWidgets.GAP, "защита под картой")
+	assert_lte(defense.end.y, area.y)
+	var roomy: Dictionary = HackWidgets.layout(Vector2(1920, 1040), Rect2(120, 40, 860, 520), [Rect2(0, 0, 560, 380)] as Array[Rect2])
+	assert_eq(float(roomy["console_x"]), 120.0, "место есть — консоль не двигается")
 
 
 func test_probe_opens_defense_blocks_layer_by_layer() -> void:
