@@ -62,8 +62,9 @@ func test_prompt_at_home() -> void:
 
 func test_ls_shows_dirs_first_with_slash() -> void:
 	var lines: PackedStringArray = run("ls").split("\n")
-	assert_eq(lines[0], "mail/")
-	assert_true(lines.has("readme.txt"))
+	assert_true(lines[0].begins_with("НАЗВАНИЕ"), "таблица, как ls -l")
+	assert_true(lines[1].begins_with("mail/"), "папки первыми, со слешем")
+	assert_true(Array(lines).any(func(l: String) -> bool: return l.begins_with("readme.txt") and l.contains("-rw-r--r--")))
 
 
 func test_navigation_is_free_of_time() -> void:

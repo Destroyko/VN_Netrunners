@@ -175,7 +175,7 @@ func test_deepscan_on_the_router_lists_the_network_with_depth() -> void:
 	var before: int = minute()
 	var text: String = run("deepscan")
 	assert_string_contains(text, "10.0.0.7")
-	assert_string_contains(text, "через 1")
+	assert_string_contains(text, "СТАТУС", "таблица узлов")
 	assert_true(Network.for_game().is_known("node_training_pc"), "найденное — в адресной книге")
 	assert_eq(minute(), before + Programs.minutes_for("deepscan"), "работает дольше scan")
 	assert_false(t.session.is_tracing(), "разведка трейс не запускает")

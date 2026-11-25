@@ -40,15 +40,31 @@ func ls(args: PackedStringArray, result: TermResult) -> void:
 	var entries: Array[Dictionary] = files.list(path, _t.admin())
 	if entries.is_empty():
 		result.add("пусто")
+		return
+	# Таблица, как `ls -l` (вычитка 25.11.2026): название и права; закрытое правами — красным.
+	result.add_as(TermTable.row(["НАЗВАНИЕ", "ПРАВА"], LS_WIDTHS), "dim")
 	for entry: Dictionary in entries:
-		var line: String = str(entry["name"]) + ("/" if bool(entry["is_dir"]) else "")
+		var name: String = str(entry["name"]) + ("/" if bool(entry["is_dir"]) else "")
+		var line: String = TermTable.row([name, rights_of(entry, FsPath.requires_admin(str(entry["path"])))], LS_WIDTHS)
 		if bool(entry["system"]):
 			line += "  [sys]"
-		# Закрытое правами — красным, без метки (вычитка 25.11.2026): видно, что войти нельзя.
 		if bool(entry["locked"]):
 			result.add_as(line, "error")
+		elif bool(entry["is_dir"]):
+			result.add_as(line, "path")
 		else:
 			result.add(line)
+
+
+const LS_WIDTHS: Array[int] = [28]
+
+
+## Права в стиле Unix: хозяин — администратор узла, гость — «остальные» (terminal-spec.md).
+## Обычное — гость читает (755 / 644), только для администратора — 700 / 600.
+static func rights_of(entry: Dictionary, admin_only: bool) -> String:
+	if bool(entry["is_dir"]):
+		return "drwx------" if admin_only else "drwxr-xr-x"
+	return "-rw-------" if admin_only else "-rw-r--r--"
 
 
 func cd(args: PackedStringArray, result: TermResult) -> void:

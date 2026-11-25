@@ -99,7 +99,7 @@ const LOCK_MARKS: Dictionary = {"lock": "[Х]", "unlock": "[✓]"}
 
 func output(line: String, role: String = "") -> String:
 	if LOCK_MARKS.has(role):
-		return _paint("%s  %s" % [line, LOCK_MARKS[role]], "error" if role == "lock" else "ok")
+		return _paint(line + str(LOCK_MARKS[role]), "error" if role == "lock" else "ok")
 	return _paint(line, role if not role.is_empty() else role_of(line))
 
 

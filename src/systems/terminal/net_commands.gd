@@ -6,6 +6,8 @@ extends RefCounted
 const NO_NETWORK: String = "ошибка: отсутствует файл /sys/net.sys"
 
 const PROBE_RULE: String = "----------------------------------------"
+## Таблица портов `probe`: ПОРТ, ТИП, СТАТУС.
+const PORT_WIDTHS: Array[int] = [8, 30]
 
 var _t: Terminal
 
@@ -22,15 +24,14 @@ func scan(result: TermResult) -> void:
 	var found: Array[Dictionary] = _t.net.scan(_t.node_id())
 	if found.is_empty():
 		result.add("найдено узлов: 0")
-	for entry: Dictionary in found:
-		result.add_as(book_line(entry), book_role(entry))
+	else:
+		add_book(found, result)
 	_t.spend(_t.minutes_of("terminal_command"), result)
 
 
 ## `nodes`: всё, что игрок уже знает. Только чтение — сеть для этого не нужна.
 func nodes(result: TermResult) -> void:
-	for entry: Dictionary in _t.net.address_book():
-		result.add_as(book_line(entry), book_role(entry))
+	add_book(_t.net.address_book(), result)
 
 
 ## `probe`: сервисы узла и их состояние, сколько нужно для входа, есть ли мониторинг. Трейс не запускает.
@@ -59,6 +60,7 @@ func probe(args: PackedStringArray, result: TermResult) -> void:
 	result.add("запущено сканирование узла %s .........." % info["address"])
 	result.add("узел: %s (%s)" % [info["title"], info["device"]])
 	result.add(PROBE_RULE)
+	result.add_as(TermTable.row(["ПОРТ", "ТИП", "СТАТУС"], PORT_WIDTHS), "dim")
 	var layers: Array[String] = probe_lines(info)
 	var known: int = mini(_t.net.probe_layers(node), layers.size())
 	for i: int in known:
@@ -74,8 +76,8 @@ func probe(args: PackedStringArray, result: TermResult) -> void:
 static func probe_lines(info: Dictionary) -> Array[String]:
 	var lines: Array[String] = []
 	for service: Dictionary in info["services"] as Array:
-		# Состояние порта — замком и цветом строки (вычитка 25.11.2026), без слова.
-		lines.append("  порт %-6d %s" % [int(service["port"]), service["name"]])
+		# Строка таблицы портов; состояние — «[Х]» / «[✓]» и цвет (вычитка 25.11.2026).
+		lines.append(TermTable.row([str(service["port"]), str(service["name"])], PORT_WIDTHS))
 	var trace: int = int(info["trace_minutes"])
 	lines.append("мониторинг подключений: %s" % (("да, трейс %d мин" % trace) if trace > 0 else "нет"))
 	lines.append("анализ подозрительных действий: %s" % ("да" if bool(info["ids"]) else "нет"))
@@ -189,11 +191,22 @@ func _tell_trace(result: TermResult) -> void:
 	if _t.session.is_tracing():
 		result.add("трейс: %d мин" % _t.session.trace_left())
 
-## Строка адресной книги: адрес, тип, имя (после probe), пометка о взломе. Её же печатает deepscan.
+## Адресная книга — таблица (вычитка 25.11.2026): IP, тип узла, имя (после probe), статус.
+## Статус — «[Х]» / «[✓]» и цвет строки (роль из `book_role`), у своего ПК пусто.
+const BOOK_WIDTHS: Array[int] = [17, 9, 24]
+
+
+static func book_header() -> String:
+	return TermTable.row(["IP", "УЗЕЛ", "ИМЯ", "СТАТУС"], BOOK_WIDTHS)
+
+
 static func book_line(entry: Dictionary) -> String:
-	var title: String = str(entry["title"])
-	var line: String = "%-16s %s" % [entry["address"], entry["device"]]
-	if not title.is_empty():
-		line += "  " + title
-	return line
+	return TermTable.row([entry["address"], entry["device"], str(entry["title"])], BOOK_WIDTHS)
+
+
+## Шапка и строки книги в ответ (scan, nodes).
+static func add_book(entries: Array, result: TermResult) -> void:
+	result.add_as(book_header(), "dim")
+	for entry: Dictionary in entries:
+		result.add_as(book_line(entry), book_role(entry))
 

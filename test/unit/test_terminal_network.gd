@@ -39,8 +39,8 @@ func test_probe_describes_the_node_and_reveals_its_name() -> void:
 func test_probe_shows_services_without_game_internals() -> void:
 	reach_training_pc()
 	var text: String = run("probe 10.0.0.7")
-	assert_string_contains(text, "порт 22")
-	var port: int = Array(last.lines).find_custom(func(l: String) -> bool: return l.contains("порт 22"))
+	assert_string_contains(text, "ПОРТ")
+	var port: int = Array(last.lines).find_custom(func(l: String) -> bool: return l.begins_with("22 "))
 	assert_eq(last.role_at(port), "lock", "закрытый порт — красный [Х]")
 	assert_false(text.contains("требуется сервисов"), "сколько сервисов для входа — не пишем (вычитка 25.11.2026)")
 	assert_false(text.contains("passhound"), "какой программой ломать — знание игрока, не сканера")
@@ -130,7 +130,7 @@ func test_probe_without_an_address_examines_the_target() -> void:
 	reach_training_pc()
 	run("connect 10.0.0.7")
 	var text: String = run("probe")
-	assert_string_contains(text, "порт 22")
+	assert_string_contains(text, "Вход по паролю")
 	assert_string_contains(text, "сканирование узла 10.0.0.7")
 
 

@@ -191,8 +191,10 @@ func _deepscan(program: String, _args: PackedStringArray, result: TermResult) ->
 		var found: Array[Dictionary] = _t.net.deep_scan(here)
 		if found.is_empty():
 			done.add("других узлов не найдено")
+			return
+		done.add_as(NetCommands.book_header(), "dim")
 		for entry: Dictionary in found:
-			done.add_as("  %s  через %d" % [NetCommands.book_line(entry), int(entry["depth"])], NetCommands.book_role(entry)))
+			done.add_as(NetCommands.book_line(entry), NetCommands.book_role(entry)))
 
 
 # --- Автоматические программы ------------------------------------------------

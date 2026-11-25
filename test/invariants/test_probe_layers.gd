@@ -44,7 +44,7 @@ func test_each_layer_has_its_own_bar_and_line() -> void:
 	assert_true(Clock.is_fast_forwarding())
 	Clock.tick(2.0)
 	assert_eq(got.size(), 1, "слой дошёл — его строка")
-	assert_string_contains(str(got[0]), "порт")
+	assert_string_contains(str(got[0]), "8080")
 	assert_true(t.has_job(), "следующий слой — своя полоска")
 
 
