@@ -16,6 +16,10 @@ signal result_shown
 const FONT_SIZE: int = 15
 const BLINK_SECONDS: float = 0.53
 
+## Ширина полоски программы в символах.
+const PROGRESS_CELLS: int = 24
+## Программа идёт: полоска вместо строки ввода.
+var _busy: bool = false
 var terminal: Terminal
 
 var _scroll: ScrollContainer
@@ -168,9 +172,19 @@ func _host_theme() -> String:
 # --- Курсор ---------------------------------------------------------------------
 
 ## Курсор мигает, пока строка в фокусе; набрал или сдвинул — снова горит (как в настоящей консоли).
+## Пока идут минуты программы (Clock.fast_forward), вместо строки ввода — полоска, ввод закрыт.
 func _process(delta: float) -> void:
 	if _entry == null:
 		return
+	if Clock.is_fast_forwarding():
+		_busy = true
+		_entry.editable = false
+		_line.text = progress_text(Clock.fast_progress())
+		return
+	if _busy:
+		_busy = false
+		_entry.editable = true
+		_redraw_line()
 	if _entry.caret_column != _last_caret:
 		_last_caret = _entry.caret_column
 		_wake_cursor()
@@ -182,6 +196,17 @@ func _process(delta: float) -> void:
 		_blink_left = BLINK_SECONDS
 		_cursor_on = not _cursor_on
 		_redraw_line()
+
+
+## Полоска программы, как у настоящих консольных утилит: `[#########.........]  45%`.
+static func progress_text(progress: float) -> String:
+	var filled: int = clampi(int(round(progress * PROGRESS_CELLS)), 0, PROGRESS_CELLS)
+	return "[lb]%s%s[rb] %3d%%" % ["#".repeat(filled), ".".repeat(PROGRESS_CELLS - filled), int(round(progress * 100.0))]
+
+
+## Идёт ли программа (ввод закрыт, на месте строки ввода — полоска).
+func is_busy() -> bool:
+	return _busy
 
 
 func _wake_cursor() -> void:
@@ -242,6 +267,8 @@ func submit(line: String) -> TermResult:
 
 
 func _on_submitted(text: String) -> void:
+	if Clock.is_fast_forwarding():
+		return
 	_entry.clear()
 	submit(text)
 	_entry.grab_focus()

@@ -24,6 +24,16 @@ var advance_count: int = 0
 var _carry: float = 0.0
 ## Границы времени суток в минутах от начала дня: ночь → утро → день → вечер.
 var _bounds: Dictionary = {"morning": 360, "day": 660, "evening": 1080, "night": 1320}
+## Во сколько раз быстрее идут минуты программы (balance.json, clock.program_speedup).
+var program_speedup: float = 10.0
+## Короче этого — минуты тратятся сразу: секунда полоски ради `cat` только раздражает.
+var program_min_minutes: int = 3
+## Сколько минут программы ещё пройти ускоренно и сколько было всего (для полоски).
+var _fast_left: int = 0
+var _fast_total: int = 0
+
+## Ускоренный отрезок программы закончился: терминал снова принимает ввод.
+signal fast_forward_finished
 
 
 func _ready() -> void:
@@ -40,6 +50,8 @@ func configure(cfg: Dictionary) -> void:
 	minutes_per_day = int(cfg.get("minutes_per_day", DEFAULT_MINUTES_PER_DAY))
 	start_date = str(cfg.get("start_date", DEFAULT_START_DATE))
 	real_seconds_per_minute = maxf(0.1, float(cfg.get("real_seconds_per_minute", 4.0)))
+	program_speedup = maxf(1.0, float(cfg.get("program_speedup", 10.0)))
+	program_min_minutes = int(cfg.get("program_min_minutes", 3))
 	var bounds: Dictionary = cfg.get("time_of_day_bounds", {}) as Dictionary
 	for key: String in _bounds.keys():
 		if bounds.has(key):
@@ -58,10 +70,46 @@ func _process(delta: float) -> void:
 func tick(seconds: float) -> void:
 	if not running or is_paused():
 		return
+	# Идёт программа: её минуты бегут в `program_speedup` раз быстрее, обычный ход ждёт.
+	if _fast_left > 0:
+		_carry += seconds * program_speedup
+		while _carry >= real_seconds_per_minute and _fast_left > 0:
+			_carry -= real_seconds_per_minute
+			_fast_left -= 1
+			advance(1)
+		if _fast_left == 0:
+			_fast_total = 0
+			_carry = 0.0
+			fast_forward_finished.emit()
+		return
 	_carry += seconds
 	while _carry >= real_seconds_per_minute:
 		_carry -= real_seconds_per_minute
 		advance(1)
+
+
+## Потратить минуты программы или передачи (docs/gameplay/time.md, «Что именно ускоряется»):
+## в игре они проходят ускоренно, пока в терминале бежит полоска; короткие (меньше
+## `program_min_minutes`) и всё вне игры (тесты, часы стоят) — сразу, как `advance`.
+func fast_forward(minutes: int) -> void:
+	if minutes <= 0:
+		return
+	if not running or minutes < program_min_minutes:
+		advance(minutes)
+		return
+	_fast_left += minutes
+	_fast_total += minutes
+
+
+func is_fast_forwarding() -> bool:
+	return _fast_left > 0
+
+
+## Сколько уже прошло от ускоренного отрезка, 0..1 (для полоски).
+func fast_progress() -> float:
+	if _fast_total <= 0:
+		return 1.0
+	return 1.0 - float(_fast_left) / float(_fast_total)
 
 
 func start() -> void:
@@ -72,6 +120,8 @@ func start() -> void:
 func stop() -> void:
 	running = false
 	_carry = 0.0
+	_fast_left = 0
+	_fast_total = 0
 
 
 func pause(reason: String) -> void:

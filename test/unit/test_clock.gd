@@ -122,6 +122,38 @@ func test_dialog_pauses_the_clock() -> void:
 	assert_eq(GameState.minute, 1)
 
 
+func test_program_minutes_run_faster_under_a_bar() -> void:
+	Clock.configure({"minutes_per_day": TEST_DAY, "real_seconds_per_minute": 4, "program_speedup": 10, "program_min_minutes": 3})
+	Clock.start()
+	Clock.fast_forward(15)
+	assert_true(Clock.is_fast_forwarding(), "rootstep на 15 минут — под полоской")
+	assert_eq(GameState.minute, 0, "минуты ещё не прошли")
+	Clock.tick(3.0)
+	assert_eq(GameState.minute, 7, "×10: за 3 секунды — 7 минут")
+	assert_almost_eq(Clock.fast_progress(), 7.0 / 15.0, 0.01)
+	Clock.tick(3.0)
+	assert_eq(GameState.minute, 15, "отрезок программы не перескакивает дальше своих минут")
+	assert_false(Clock.is_fast_forwarding())
+	Clock.tick(4.0)
+	assert_eq(GameState.minute, 16, "дальше — обычный темп")
+	Clock.stop()
+
+
+func test_short_actions_and_tests_spend_time_at_once() -> void:
+	Clock.configure({"minutes_per_day": TEST_DAY, "program_min_minutes": 3})
+	Clock.start()
+	Clock.fast_forward(1)
+	assert_eq(GameState.minute, 1, "короткое действие — сразу, без полоски")
+	Clock.stop()
+	Clock.fast_forward(15)
+	assert_eq(GameState.minute, 16, "часы стоят (тесты) — тоже сразу")
+	assert_false(Clock.is_fast_forwarding())
+
+
+func test_progress_text_is_a_console_bar() -> void:
+	assert_eq(TerminalView.progress_text(0.5), "[lb]############............[rb]  50%")
+
+
 # --- Дата ------------------------------------------------------------------
 
 func test_first_day_is_thursday_2_april() -> void:

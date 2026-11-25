@@ -342,8 +342,10 @@ func spend(minutes: int, result: TermResult) -> void:
 	if extra > 0:
 		handle_events(session.advance(extra, now()), result)
 	# Ход часов двигает трейс через HackManager; что случилось, дописывается в этот итог.
+	# В игре минуты программы идут ускоренно под полоску (Clock.fast_forward): тогда события
+	# трейса придут позже, отдельным итогом через `ticked`.
 	_collect = result
-	Clock.advance(minutes)
+	Clock.fast_forward(minutes)
 	_collect = null
 	result.minutes += minutes
 
