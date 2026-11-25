@@ -481,7 +481,10 @@ func _describe(events: Array[Dictionary], result: TermResult) -> void:
 
 ## Сеанс закрыт — у терминала больше нет ни головоломки, ни вопроса пароля, ни чужого каталога.
 func _forget_session() -> void:
-	_puzzle = {}
+	if not _puzzle.is_empty():
+		var dropped: Dictionary = _puzzle
+		_puzzle = {}
+		PuzzleOutcome.new(self).abandon(dropped)
 	_login = {}
 	_cwd_remote = HOME_DIR
 	# Соединение оборвалось посреди программы: остальные минуты не идут, программа «не успела».
@@ -532,8 +535,8 @@ func set_puzzle(data: Dictionary) -> void:
 
 
 ## Интерфейс закончил головоломку. `gained` — сколько слоёв вскрыто за эту попытку: у «пароля»
-## 1 или 0, у «матрицы» столько целей собрано. Время на головоломку уже потрачено при запуске
-## программы: пока она открыта, игровое время стоит (time.md).
+## 1 или 0, у «матрицы» столько целей собрано. Время на головоломку потрачено при запуске
+## программы; пока она открыта, часы идут, как везде, кроме диалогов и меню (time.md, ISS-019).
 func finish_puzzle(gained: int) -> TermResult:
 	_sync()
 	var result := TermResult.new()

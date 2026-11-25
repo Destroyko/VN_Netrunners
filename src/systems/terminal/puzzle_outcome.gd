@@ -14,6 +14,19 @@ func _init(terminal: Terminal) -> void:
 	_t = terminal
 
 
+## Сеанс оборвался, пока головоломка открыта (`dc`, перезагрузка, трейс, конец прайм-тайма):
+## проваленная попытка (решено 25.11.2026, ISS-009). Собранное в этом окне не засчитано;
+## счёт попыток растёт — следующий запуск даёт новую партию и стоит как после провала.
+func abandon(data: Dictionary) -> void:
+	var node: String = str(data["node"])
+	var service: String = str(data["service"])
+	var now_minute: int = _t.now()
+	var progress: PuzzleProgress = PuzzleProgress.for_game()
+	var attempt: int = progress.attempts(node, service, now_minute) + 1
+	progress.record(node, service, now_minute, 0)
+	EventBus.puzzle_failed.emit(str(data["kind"]), int(data["level"]), node, service, attempt)
+
+
 ## `data` — то, что терминал запомнил при запуске взломщика (узел, сервис, вид, ступень, слоёв
 ## всего, пароль); `gained` — сколько слоёв вскрыто за эту попытку.
 func apply(data: Dictionary, gained: int, result: TermResult) -> void:

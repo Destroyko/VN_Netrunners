@@ -37,8 +37,6 @@ func test_closing_the_puzzle_counts_the_attempt() -> void:
 
 
 func test_dc_mid_puzzle_counts_the_attempt() -> void:
-	if OpenIssue.skip(self, "ISS-009: dc посреди головоломки — попытка не засчитана, та же партия снова"):
-		return
 	var first_seed: int = _open_puzzle()
 	run("dc")
 	assert_null(t.current_puzzle(), "сеанс закрыт — головоломки нет")
