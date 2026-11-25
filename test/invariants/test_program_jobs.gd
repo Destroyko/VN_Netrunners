@@ -110,3 +110,41 @@ func test_second_program_does_not_drop_the_first_result() -> void:
 	Clock.tick(120.0)
 	assert_true(Network.for_game().access.has_root("node_training_pc", _now()),
 		"rootstep дошёл до конца полоски — права есть")
+
+
+# --- ISS-002: программа во сне ------------------------------------------------------------
+
+## Герой уснул посреди программы: минуты сна — её минуты, итог в ту же минуту, когда она дошла.
+func test_program_finishes_during_sleep() -> void:
+	learn_programs()
+	enter("node_training_pc")
+	_running_clock()
+	var got: Array = []
+	t.job_finished.connect(func(r: TermResult) -> void: got.append(r.text()))
+	run("rootstep")
+	assert_true(t.has_job())
+	Rest.pass_time(60, Rest.MODE_SLEEP)
+	assert_false(t.has_job(), "программа дошла во сне")
+	assert_false(Clock.is_fast_forwarding(), "проснулся — полоски нет, ввод открыт")
+	assert_true(Network.for_game().access.has_root("node_training_pc", _now()), "итог применён")
+	assert_string_contains(str(got), "права администратора получены")
+
+
+## Трейс дотикал во сне раньше конца передачи: файла нет.
+func test_trace_cuts_the_program_during_sleep() -> void:
+	learn_programs()
+	GameState.set_flag(Programs.GATE_PRESSURE)
+	reveal("node_office_server", ["svc_admin_login"])
+	Clock.set_time(1, 10 * 60)
+	run("connect 77.61.204.12")
+	run("gridrunner 1194")
+	solve_puzzle()
+	assert_true(t.session.is_tracing())
+	Effects.apply({"add_file": {"node": "node_office_server", "path": "/home/big.bin", "size_kb": 400000}})
+	_running_clock()
+	run("cp /home/big.bin")
+	assert_true(t.has_job())
+	Rest.pass_time(600, Rest.MODE_WAIT)
+	assert_false(t.has_job())
+	assert_false(t.home_fs().has_file("/home/downloads/big.bin"), "трейс оборвал раньше — файла нет")
+	assert_false(t.is_remote())

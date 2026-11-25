@@ -31,6 +31,8 @@ var program_min_minutes: int = 2
 ## Сколько минут программы ещё пройти ускоренно и сколько было всего (для полоски).
 var _fast_left: int = 0
 var _fast_total: int = 0
+## Минута отрезка идёт из `tick`: она уже списана с `_fast_left`, `advance` её второй раз не считает.
+var _in_fast_tick: bool = false
 
 ## Ускоренный отрезок программы закончился: терминал снова принимает ввод.
 signal fast_forward_finished
@@ -78,7 +80,9 @@ func tick(seconds: float) -> void:
 		while _carry >= real_seconds_per_minute and _fast_left > 0:
 			_carry -= real_seconds_per_minute
 			_fast_left -= 1
+			_in_fast_tick = true
 			advance(1)
+			_in_fast_tick = false
 		if _fast_left == 0:
 			_fast_total = 0
 			_carry = 0.0
@@ -178,6 +182,14 @@ func advance(minutes: int) -> void:
 		GameState.day += 1
 		EventBus.day_started.emit(GameState.day)
 	EventBus.time_advanced.emit(GameState.minute, minutes)
+	# Время прошло другим путём (сон, вырубание, еда), пока шла программа: эти минуты — её минуты
+	# (ISS-002). Трейс и расписание узла видели каждую из них раньше: оборвали — итога не будет.
+	if _fast_left > 0 and not _in_fast_tick:
+		_fast_left = maxi(0, _fast_left - minutes)
+		if _fast_left == 0:
+			_fast_total = 0
+			_carry = 0.0
+			fast_forward_finished.emit()
 
 
 ## Перевод времени напрямую — для отладочной консоли и загрузки сценариев.
