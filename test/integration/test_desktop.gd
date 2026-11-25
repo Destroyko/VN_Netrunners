@@ -544,3 +544,16 @@ func test_files_window_names_a_system_file_and_deletes_it_on_one_yes() -> void:
 	dialog.confirmed.emit()
 	assert_false(desktop.terminal.home_fs().has_file("/sys/net.sys"), "второго вопроса нет")
 	assert_false(desktop.terminal.has_question(), "консоль ни о чём не спрашивает")
+
+
+## Баг разработчика 25.11.2026: после первой команды строка ввода прыгала вниз — пустая строка в
+## конце заставки не занимала места, пока за ней не появлялась следующая.
+func test_prompt_does_not_jump_after_the_first_command() -> void:
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	await wait_frames(3)
+	var line: Control = view.find_child("Line", true, false) as Control
+	var banner_lines: int = desktop.terminal.banner().size()
+	var row: float = line.position.y / banner_lines
+	view.submit("pwd")
+	await wait_frames(3)
+	assert_almost_eq(line.position.y, row * (banner_lines + 2), 1.0, "эхо команды встало на место строки ввода, ответ — ниже")

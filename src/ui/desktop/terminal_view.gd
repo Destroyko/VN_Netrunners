@@ -377,7 +377,9 @@ func _print(text: String) -> void:
 ## Перевод строки ставится перед новой строкой, а не после: под выводом нет пустой строки, и
 ## приглашение стоит сразу под последней строкой (баг F9 24.11.2026: приглашение «съезжало»).
 func _print_bbcode(bbcode: String) -> void:
-	_output.append_text(("\n" if _has_lines else "") + bbcode)
+	# Пустая последняя строка в высоту текста не идёт: строка ввода стояла бы вплотную и прыгала
+	# вниз, как только придёт следующая. Пробел занимает строку сразу — ничего не сдвигается.
+	_output.append_text(("\n" if _has_lines else "") + (bbcode if not bbcode.is_empty() else " "))
 	_has_lines = true
 	_scroll_to_end.call_deferred()
 
