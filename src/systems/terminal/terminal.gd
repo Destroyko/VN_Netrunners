@@ -19,7 +19,10 @@ extends RefCounted
 const HISTORY_LIMIT: int = 50
 const HOME_DIR: String = "/home"
 ## Куда `cp` кладёт файл с узла, если не сказано иначе (terminal-spec.md, «Добыча»).
-const DUMP_DIR: String = "/home/dump"
+## Куда `cp` с узла кладёт файл по умолчанию — «Загрузки» (до 25.11.2026 — `/home/dump`, сейв v3).
+const DUMP_DIR: String = "/home/downloads"
+## Рабочий стол героя — обычная папка: файлы на столе и ярлыки приложений (`.lnk`).
+const DESKTOP_DIR: String = "/home/desktop"
 
 const ANSWERS_YES: PackedStringArray = ["y", "yes", "д", "да"]
 const ANSWERS_NO: PackedStringArray = ["n", "no", "н", "нет"]
@@ -41,6 +44,8 @@ var session: HackSession
 var _history: PackedStringArray = []
 var _cwd_home: String = HOME_DIR
 var _cwd_remote: String = HOME_DIR
+## Команда идёт на своём ПК при открытом сеансе (`execute_local`).
+var _local: bool = false
 ## Вопрос, на который ждём ответ: {"line": исходная команда}.
 var _pending: Dictionary = {}
 ## Головоломка, которую открыли программой: {"service", "kind", "difficulty", "node"}.
@@ -111,11 +116,21 @@ func _apply_repairs() -> void:
 # --- Где мы ------------------------------------------------------------------
 
 func node_id() -> String:
-	return session.current_id()
+	return Network.HOME_ID if _local else session.current_id()
 
 
 func is_remote() -> bool:
-	return session.has_connection()
+	return not _local and session.has_connection()
+
+
+## Выполнить команду на своём ПК, даже если открыт сеанс с чужим узлом: окно «Файлы» своего ПК
+## работает теми же командами (права, логи, вопросы y/n), но не должно трогать чужую машину.
+func execute_local(line: String) -> TermResult:
+	var was: bool = _local
+	_local = true
+	var result: TermResult = execute(line)
+	_local = was
+	return result
 
 
 func fs() -> Filesystem:

@@ -5,7 +5,8 @@ extends Node
 
 ## Версия формата сейва. Меняешь структуру — поднимай версию и пиши миграцию.
 ## v2 (M3, 17.11.2026): предметы — экземпляры в контейнерах (раздел `inventory`), а не флаги.
-const SAVE_VERSION: int = 2
+## v3 (M3, 25.11.2026): скачанное — `/home/downloads` вместо `/home/dump`.
+const SAVE_VERSION: int = 3
 
 ## Уровни сложности, docs/gameplay/difficulty.md. Фиксируется при старте игры.
 enum Difficulty { STORY = 1, EASY = 2, NORMAL = 3, NETRUNNER = 4 }

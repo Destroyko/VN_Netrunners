@@ -12,10 +12,11 @@ signal leave_requested
 ## «Пуск»: только то, что относится к компьютеру. Сохранение и выход из игры — в меню по Esc в
 ## комнате (плейтест M2, 17.11.2026). Программы и блокнот появятся здесь в M3.
 const MENU_ITEMS: Dictionary = {
-	"terminal": "Терминал", "reboot": "Перезагрузить", "shut_down": "Выключить",
+	"terminal": "Терминал", "files": "Файлы", "reboot": "Перезагрузить", "shut_down": "Выключить",
 }
 ## Значки пунктов «Пуска» и где проходит черта: действия питания — отдельной группой внизу.
-const MENU_ICONS: Dictionary = {"terminal": "terminal", "reboot": "reboot", "shut_down": "power"}
+## «Файлы» в «Пуске» всегда: даже если игрок удалил ярлыки со стола, проводник под рукой.
+const MENU_ICONS: Dictionary = {"terminal": "terminal", "files": "files", "reboot": "reboot", "shut_down": "power"}
 const MENU_POWER: PackedStringArray = ["reboot", "shut_down"]
 const MENU_WIDTH: float = 240.0
 

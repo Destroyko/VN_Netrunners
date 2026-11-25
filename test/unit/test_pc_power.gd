@@ -42,8 +42,8 @@ func test_shut_down_drops_connection_like_dc() -> void:
 
 
 func test_shut_down_stops_background_tasks() -> void:
-	t.home_fs().put_file("/home/dump/arhiv.enc", {"encrypted": true, "locked": {"text": "x"}})
-	BackgroundTasks.start_decrypt("/home/dump/arhiv.enc")
+	t.home_fs().put_file("/home/downloads/arhiv.enc", {"encrypted": true, "locked": {"text": "x"}})
+	BackgroundTasks.start_decrypt("/home/downloads/arhiv.enc")
 	assert_eq(int(PcPower.shut_down()["stopped"]), 1)
 	assert_eq(BackgroundTasks.tasks().size(), 0)
 

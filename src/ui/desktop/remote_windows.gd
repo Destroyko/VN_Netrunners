@@ -103,7 +103,8 @@ func paste() -> void:
 func drop_file(data: Dictionary) -> void:
 	if _terminal.session.target_id() != str(data.get("node", "")):
 		return
-	run_command("cp \"%s\"" % str(data["remote_file"]))
+	# Брошенный на стол файл ложится на стол — в папку рабочего стола, а не в «Загрузки».
+	run_command("cp \"%s\" %s/" % [str(data["remote_file"]), Terminal.DESKTOP_DIR])
 
 
 ## После каждой команды окно сверяется с консолью: вошли — стол цели, отменили вход или

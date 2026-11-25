@@ -390,7 +390,50 @@ func test_answer_button_opens_filled_form() -> void:
 
 
 func test_start_menu_has_only_pc_actions() -> void:
-	assert_eq(Taskbar.MENU_ITEMS.keys(), ["terminal", "reboot", "shut_down"], "сохранения и выхода из игры в «Пуске» нет")
+	assert_eq(Taskbar.MENU_ITEMS.keys(), ["terminal", "files", "reboot", "shut_down"], "сохранения и выхода из игры в «Пуске» нет")
+
+
+# --- Файлы и рабочий стол (папка /home/desktop) ---------------------------------------
+
+func test_desktop_is_a_folder_with_shortcuts() -> void:
+	var on_desk: Dictionary = Desktop.shortcut_apps()
+	assert_true(on_desk.has("terminal"), "ярлык терминала лежит в /home/desktop")
+	assert_true(desktop.terminal.home_fs().is_system(str(on_desk["terminal"])), "ярлык удаляется только с вопросом")
+	assert_not_null(desktop.find_child("Icon_terminal", true, false))
+
+
+func test_hidden_app_gets_shortcut_when_gate_opens() -> void:
+	assert_false(Desktop.shortcut_apps().has("news"), "новости за воротами — ярлыка нет")
+	GameState.set_flag(Gates.NEWS)
+	assert_true(Desktop.shortcut_apps().has("news"), "ворота открылись — ярлык появился")
+
+
+func test_removed_shortcut_stays_removed() -> void:
+	var path: String = str(Desktop.shortcut_apps()["mail"])
+	var fs: Filesystem = desktop.terminal.home_fs()
+	fs.erase_file(path)
+	GameState.set_filesystem_state(Network.HOME_ID, fs.to_dict())
+	Desktop.ensure_shortcuts()
+	assert_false(Desktop.shortcut_apps().has("mail"), "удалённый игроком ярлык сам не возвращается")
+
+
+func test_file_on_desktop_gets_an_icon() -> void:
+	var fs: Filesystem = desktop.terminal.home_fs()
+	fs.put_file(Terminal.DESKTOP_DIR + "/zametka.txt", {"text": "x"})
+	GameState.set_filesystem_state(Network.HOME_ID, fs.to_dict())
+	desktop._fill_icons()
+	assert_not_null(desktop.find_child("File_zametka_txt", true, false))
+
+
+func test_files_window_acts_on_own_pc() -> void:
+	var fs: Filesystem = desktop.terminal.home_fs()
+	fs.put_file(Terminal.DESKTOP_DIR + "/lishnee.txt", {"text": "x"})
+	GameState.set_filesystem_state(Network.HOME_ID, fs.to_dict())
+	var window: DesktopWindow = desktop.open_app("files")
+	var files: HomeFiles = window.body.get_child(0) as HomeFiles
+	assert_eq(files.browser.path, Terminal.DESKTOP_DIR, "«Файлы» открываются на рабочем столе")
+	files.run_local("rm %s/lishnee.txt" % Terminal.DESKTOP_DIR)
+	assert_false(desktop.terminal.home_fs().has_file(Terminal.DESKTOP_DIR + "/lishnee.txt"))
 
 
 func test_leave_button_is_on_the_taskbar() -> void:

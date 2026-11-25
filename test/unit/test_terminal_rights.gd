@@ -185,7 +185,7 @@ func test_cp_on_a_node_downloads_to_dump_by_default() -> void:
 	run("cd photos")
 	var before: int = minute()
 	run("cp hotel.jpg")
-	assert_true(t.home_fs().has_file("/home/dump/hotel.jpg"))
+	assert_true(t.home_fs().has_file("/home/downloads/hotel.jpg"))
 	assert_eq(minute(), before + 5, "2400 КБ по 500 КБ в минуту")
 	assert_signal_emitted(EventBus, "file_copied")
 
@@ -200,7 +200,7 @@ func test_downloaded_copy_keeps_its_file_id() -> void:
 func test_download_to_a_chosen_folder() -> void:
 	_enter_husband()
 	run("cp photos/semya.jpg komprot/")
-	assert_true(t.home_fs().has_file("/home/dump/komprot/semya.jpg"))
+	assert_true(t.home_fs().has_file("/home/downloads/komprot/semya.jpg"))
 
 
 func test_second_download_asks_before_replacing() -> void:
@@ -236,7 +236,7 @@ func test_download_that_does_not_fit_the_trace_is_cut() -> void:
 	var text: String = run("cp photos/hotel.jpg")
 	assert_string_contains(text, "файл не успел скачаться")
 	assert_string_contains(text, "трейс дошёл до конца")
-	assert_false(t.home_fs().has_file("/home/dump/hotel.jpg"))
+	assert_false(t.home_fs().has_file("/home/downloads/hotel.jpg"))
 	assert_eq(t.prompt(), "home:/home$ ")
 
 
@@ -250,7 +250,7 @@ func test_small_download_fits_the_trace() -> void:
 	solve_puzzle()
 	run("connect 92.44.18.3")
 	run("cp photos/hotel.jpg")
-	assert_true(t.home_fs().has_file("/home/dump/hotel.jpg"), "5 минут при 41 остававшихся — укладывается")
+	assert_true(t.home_fs().has_file("/home/downloads/hotel.jpg"), "5 минут при 41 остававшихся — укладывается")
 
 
 func test_put_uploads_a_file_and_leaves_a_trace() -> void:
@@ -418,26 +418,26 @@ func test_without_cover_the_session_is_logged() -> void:
 # --- Расшифровка архива (шаг 10, docs/gameplay/hacking-loop.md) --------------------
 
 func test_cat_shows_encrypted_marker() -> void:
-	t.home_fs().put_file("/home/dump/arhiv.enc", {"encrypted": true, "size_kb": 500,
+	t.home_fs().put_file("/home/downloads/arhiv.enc", {"encrypted": true, "size_kb": 500,
 		"locked": {"text": "секрет"}})
-	assert_string_contains(run("cat /home/dump/arhiv.enc"), "зашифрован")
-	assert_false(run("cat /home/dump/arhiv.enc").contains("секрет"), "содержимое скрыто")
+	assert_string_contains(run("cat /home/downloads/arhiv.enc"), "зашифрован")
+	assert_false(run("cat /home/downloads/arhiv.enc").contains("секрет"), "содержимое скрыто")
 
 
 func test_decrypt_auto_starts_bruteforce() -> void:
 	GameState.set_flag(Gates.AUTOCRACK)
-	t.home_fs().put_file("/home/dump/arhiv.enc", {"encrypted": true, "size_kb": 500,
+	t.home_fs().put_file("/home/downloads/arhiv.enc", {"encrypted": true, "size_kb": 500,
 		"locked": {"text": "секрет"}})
-	assert_string_contains(run("decrypt /home/dump/arhiv.enc"), "недоступна", "без -auto — заглушка")
-	assert_string_contains(run("decrypt /home/dump/arhiv.enc -auto"), "подбор")
-	assert_true(BackgroundTasks.is_running("/home/dump/arhiv.enc"))
+	assert_string_contains(run("decrypt /home/downloads/arhiv.enc"), "недоступна", "без -auto — заглушка")
+	assert_string_contains(run("decrypt /home/downloads/arhiv.enc -auto"), "подбор")
+	assert_true(BackgroundTasks.is_running("/home/downloads/arhiv.enc"))
 
 
 func test_reboot_reports_stopped_tasks() -> void:
 	GameState.set_flag(Gates.AUTOCRACK)
-	t.home_fs().put_file("/home/dump/arhiv.enc", {"encrypted": true,
+	t.home_fs().put_file("/home/downloads/arhiv.enc", {"encrypted": true,
 		"locked": {"text": "x"}})
-	run("decrypt /home/dump/arhiv.enc -auto")
+	run("decrypt /home/downloads/arhiv.enc -auto")
 	assert_string_contains(run("reboot"), "прервано")
 
 

@@ -13,7 +13,7 @@ extends RefCounted
 
 ## Шаги по версиям: {N: Callable(state: Dictionary) -> Dictionary}.
 static func steps() -> Dictionary:
-	return {1: v1_to_v2}
+	return {1: v1_to_v2, 2: v2_to_v3}
 
 
 ## v1 → v2 (M3): предмет был флагом `item.<имя>`, еда — счётчиком «запаса» у магазина
@@ -56,3 +56,28 @@ static func migrate(state: Dictionary, target: int = GameState.SAVE_VERSION, by_
 		version += 1
 		data["version"] = version
 	return {"ok": true, "state": data, "error": ""}
+
+
+## v2 → v3 (M3): папка скачанного на ПК героя переименована `/home/dump` → `/home/downloads`
+## («Загрузки», разработчик 25.11.2026). Файлы и подпапки переезжают с теми же именами; у чужих
+## узлов своя `/home/dump` может быть частью данных — их не трогаем.
+static func v2_to_v3(state: Dictionary) -> Dictionary:
+	var all: Dictionary = state.get("filesystems", {}) as Dictionary
+	var home: Dictionary = all.get("node_home_pc", {}) as Dictionary
+	if home.is_empty():
+		return state
+	for key: String in ["files", "dirs"]:
+		var old: Dictionary = home.get(key, {}) as Dictionary
+		var moved: Dictionary = {}
+		for path: String in old.keys():
+			moved[_renamed(path)] = old[path]
+		home[key] = moved
+	return state
+
+
+static func _renamed(path: String) -> String:
+	if path == "/home/dump":
+		return "/home/downloads"
+	if path.begins_with("/home/dump/"):
+		return "/home/downloads/" + path.trim_prefix("/home/dump/")
+	return path

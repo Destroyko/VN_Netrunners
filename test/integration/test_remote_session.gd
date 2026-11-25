@@ -187,7 +187,7 @@ func test_copy_in_the_session_and_paste_on_own_desktop_downloads() -> void:
 	var browser: FileBrowser = setup[1] as FileBrowser
 	browser.act(_row(browser, "spisok_pokupok.txt"), FileBrowser.MENU_COPY)
 	desktop.paste_to_own_desktop()
-	assert_true(desktop.terminal.home_fs().has_file(Terminal.DUMP_DIR + "/spisok_pokupok.txt"), "скачан к себе")
+	assert_true(desktop.terminal.home_fs().has_file(Terminal.DESKTOP_DIR + "/spisok_pokupok.txt"), "вставлен на свой стол — лежит в папке стола")
 
 
 func test_dragging_a_file_onto_own_desktop_downloads_it() -> void:
@@ -198,7 +198,20 @@ func test_dragging_a_file_onto_own_desktop_downloads_it() -> void:
 	var zone: DesktopDropZone = desktop.find_child("Wallpaper", true, false) as DesktopDropZone
 	assert_true(zone._can_drop_data(Vector2.ZERO, data))
 	zone._drop_data(Vector2.ZERO, data)
-	assert_true(desktop.terminal.home_fs().has_file(Terminal.DUMP_DIR + "/spisok_pokupok.txt"))
+	assert_true(desktop.terminal.home_fs().has_file(Terminal.DESKTOP_DIR + "/spisok_pokupok.txt"), "брошен на стол — лёг на стол")
+
+
+func test_files_window_stays_on_own_pc_during_session() -> void:
+	var setup: Array = await _explorer_in_home()
+	var desktop: Desktop = setup[0] as Desktop
+	var own: Filesystem = desktop.terminal.home_fs()
+	own.put_file("/home/spisok_pokupok.txt", {"text": "мой"})
+	GameState.set_filesystem_state(Network.HOME_ID, own.to_dict())
+	var result: TermResult = desktop.terminal.execute_local("rm /home/spisok_pokupok.txt")
+	assert_true(result.lines.size() >= 0)
+	assert_false(desktop.terminal.home_fs().has_file("/home/spisok_pokupok.txt"), "удалён свой файл")
+	assert_true(Filesystem.for_node("node_training_pc").has_file("/home/spisok_pokupok.txt"), "чужой с тем же путём цел")
+	assert_true(desktop.terminal.is_remote(), "сеанс с узлом не прервался")
 
 
 func test_open_shows_the_file_in_a_notepad() -> void:

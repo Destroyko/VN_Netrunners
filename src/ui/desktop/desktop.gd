@@ -61,6 +61,10 @@ var _opened_count: int = 0
 ## Id темы этого стола (`GameTheme`): окна, значки и фон берут цвета из неё.
 var theme_id: String = GameTheme.DEFAULT_ID
 ## Какой значок рисует приложение (`assets/ui/icons/<тема>/glyph/`).
+## Ярлык приложения на столе — файл с этим окончанием и полем `app` (docs/tech/desktop-layout.md).
+const SHORTCUT_EXT: String = ".lnk"
+## Для каких приложений ярлык уже клали (один раз за игру).
+const VAR_SHORTCUTS_MADE: String = "pc.shortcuts_made"
 const APP_ICONS: Dictionary = {
 	"terminal": "terminal", "map": "netmap", "files": "files", "mail": "mail", "bank": "bank", "news": "news",
 	"shop": "shop", "tasks": "tasks", "messenger": "messenger", "work": "work", "group": "group",
@@ -130,9 +134,11 @@ func _build() -> void:
 	_icons.add_theme_constant_override("v_separation", 4)
 	_icons.add_theme_constant_override("h_separation", 4)
 	_area.add_child(_icons)
+	ensure_shortcuts()
 	_fill_icons()
 	EventBus.flag_changed.connect(func(flag: String, _value: bool) -> void:
 		if flag.begins_with("gate."):
+			ensure_shortcuts()
 			_fill_icons())
 
 	# Самочувствие и деньги — в строке свёрнутого телефона (PhoneOverlay), трекер задачи — в
@@ -205,11 +211,78 @@ func _fill_icons() -> void:
 	for child: Node in _icons.get_children():
 		_icons.remove_child(child)
 		child.queue_free()
+	# Стол — папка `/home/desktop`: значок приложения — есть его ярлык, остальное — файлы и папки.
+	var on_desk: Dictionary = shortcut_apps()
 	for app: Dictionary in APPS:
-		if is_shown(app):
+		if on_desk.has(str(app["id"])) and is_shown(app):
 			_icons.add_child(_make_icon(app))
+	for entry: Dictionary in Filesystem.for_node(Network.HOME_ID).list(Terminal.DESKTOP_DIR, true):
+		if not str(entry["name"]).ends_with(SHORTCUT_EXT):
+			_icons.add_child(_make_file_icon(entry))
 	_refresh_news_icon()
 	_refresh_mail_icon()
+
+
+## Ярлыки приложений на столе: {id приложения: путь ярлыка}.
+static func shortcut_apps() -> Dictionary:
+	var result: Dictionary = {}
+	var fs: Filesystem = Filesystem.for_node(Network.HOME_ID)
+	for entry: Dictionary in fs.list(Terminal.DESKTOP_DIR, true):
+		var path: String = str(entry["path"])
+		if path.ends_with(SHORTCUT_EXT):
+			var app: String = str(fs.file_data(path).get("app", ""))
+			if not app.is_empty():
+				result[app] = path
+	return result
+
+
+## Положить на стол ярлык каждого приложения — один раз за игру: удалённый игроком ярлык не
+## возвращается сам, а приложение, появившееся в новой версии игры, получает ярлык. Спрятанное
+## воротами получает ярлык, когда ворота откроются: иначе папка стола выдаёт скрытое.
+static func ensure_shortcuts() -> void:
+	var made: Array = (GameState.get_var_or(VAR_SHORTCUTS_MADE, []) as Array).duplicate()
+	var fs: Filesystem = Filesystem.for_node(Network.HOME_ID)
+	var changed: bool = false
+	for app: Dictionary in APPS:
+		var id: String = str(app["id"])
+		if made.has(id) or not is_shown(app):
+			continue
+		# Ярлык — системный файл: удалить можно, но консоль спросит.
+		fs.put_file("%s/%s%s" % [Terminal.DESKTOP_DIR, str(app["title"]), SHORTCUT_EXT], {"app": id, "system": true, "size_kb": 1})
+		made.append(id)
+		changed = true
+	if changed:
+		GameState.set_filesystem_state(Network.HOME_ID, fs.to_dict())
+		GameState.set_var(VAR_SHORTCUTS_MADE, made)
+
+
+## Значок файла или папки на столе: двойной смысл не нужен — клик открывает «Файлы» на столе.
+func _make_file_icon(entry: Dictionary) -> Button:
+	var button := Button.new()
+	button.name = "File_" + str(entry["name"]).validate_node_name()
+	button.custom_minimum_size = ICON_SIZE
+	button.text = str(entry["name"])
+	button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	button.theme_type_variation = "FlatButton"
+	button.focus_mode = Control.FOCUS_NONE
+	var icon: Texture2D = GameTheme.icon("files" if bool(entry["is_dir"]) else "file", theme_id)
+	if icon != null:
+		button.icon = icon
+		button.expand_icon = true
+		button.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		button.add_theme_constant_override("icon_max_width", 44)
+		button.add_theme_constant_override("h_separation", 0)
+	var path: String = str(entry["path"]) if bool(entry["is_dir"]) else Terminal.DESKTOP_DIR
+	button.pressed.connect(func() -> void: open_files(path))
+	return button
+
+
+## Открыть «Файлы» на папке `path`.
+func open_files(path: String) -> void:
+	var window: DesktopWindow = open_app("files")
+	if window != null:
+		(window.body.get_child(0) as HomeFiles).open_path(path)
 
 
 ## Непрочитанные новости — числом на иконке.
@@ -311,6 +384,11 @@ func _make_content(app_id: String) -> Control:
 		var map := MapView.new()
 		map.setup(terminal)
 		return map
+	if app_id == "files":
+		var files := HomeFiles.new()
+		files.setup(terminal, Terminal.DESKTOP_DIR)
+		files.changed.connect(_fill_icons)
+		return files
 	if app_id == "bank":
 		return BankApp.new()
 	if app_id == "shop":
@@ -406,6 +484,8 @@ func _on_menu(action: String) -> void:
 	match action:
 		"terminal":
 			open_app("terminal")
+		"files":
+			open_app("files")
 		"reboot":
 			PcPower.reboot()
 		"shut_down":
@@ -568,6 +648,11 @@ func paste_to_own_desktop() -> void:
 func _on_result_shown() -> void:
 	_puzzles.close_stale()
 	_remote.sync()
+	# Команда могла положить файл на стол или убрать ярлык; «Файлы» показывают свежий каталог.
+	_fill_icons()
+	var files: DesktopWindow = window_of("files")
+	if files != null:
+		(files.body.get_child(0) as HomeFiles).refresh()
 	var map: DesktopWindow = window_of("map")
 	if map != null:
 		(map.body.get_child(0) as MapView).refresh()

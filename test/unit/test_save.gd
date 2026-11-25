@@ -195,3 +195,18 @@ func test_v1_items_and_pantry_move_to_containers() -> void:
 	assert_true(Inventory.has("item_flash_backup"))
 	assert_eq(Inventory.count("food_noodles", Inventory.FRIDGE), 2)
 
+
+func test_v2_downloads_folder_renamed() -> void:
+	var old: Dictionary = {"version": 2, "filesystems": {
+		"node_home_pc": {"files": {"/home/dump/a.txt": {"text": "a"}, "/home/x.txt": {"text": "x"}}, "dirs": {"/home/dump": true, "/home/dump/sub": true}},
+		"node_office_backup": {"files": {"/home/dump/b.arc": {}}, "dirs": {}},
+	}}
+	var got: Dictionary = SaveMigrations.migrate(old, 3)
+	assert_true(bool(got["ok"]))
+	var home: Dictionary = (got["state"]["filesystems"] as Dictionary)["node_home_pc"] as Dictionary
+	assert_true((home["files"] as Dictionary).has("/home/downloads/a.txt"), "скачанное переехало в «Загрузки»")
+	assert_true((home["files"] as Dictionary).has("/home/x.txt"))
+	assert_true((home["dirs"] as Dictionary).has("/home/downloads/sub"))
+	var other: Dictionary = (got["state"]["filesystems"] as Dictionary)["node_office_backup"] as Dictionary
+	assert_true((other["files"] as Dictionary).has("/home/dump/b.arc"), "чужие узлы не трогаем")
+
