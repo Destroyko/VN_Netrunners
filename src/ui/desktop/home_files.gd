@@ -8,6 +8,8 @@ extends VBoxContainer
 
 ## Что-то на своём ПК поменялось (удалил, переименовал, переместил): стол перерисует значки.
 signal changed
+## Открыли текстовый файл: стол показывает «Блокнот» (тот же, что у `edit`).
+signal edit_requested(request: Dictionary)
 
 var browser: FileBrowser
 var _terminal: Terminal
@@ -20,6 +22,8 @@ func setup(terminal: Terminal, start_path: String = Terminal.HOME_DIR) -> void:
 	browser = FileBrowser.new()
 	browser.path = start_path
 	browser.run_command = run_local
+	browser.cat_on_open = false
+	browser.file_opened.connect(_open_file)
 	browser.setup(terminal, Network.HOME_ID)
 	add_child(browser)
 
@@ -28,6 +32,13 @@ func setup(terminal: Terminal, start_path: String = Terminal.HOME_DIR) -> void:
 func open_path(path: String) -> void:
 	browser.path = path
 	browser.refresh()
+
+
+## Файл своего ПК открывается в «Блокноте» той же командой `edit`, что и в консоли.
+func _open_file(path: String) -> void:
+	var result: TermResult = _terminal.execute_local("edit \"%s\"" % path)
+	if str(result.request.get("type", "")) == "edit":
+		edit_requested.emit(result.request)
 
 
 func refresh() -> void:

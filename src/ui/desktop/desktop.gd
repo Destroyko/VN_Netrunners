@@ -307,7 +307,14 @@ func toasts() -> MessageToasts:
 
 
 ## «Блокнот» для `edit`: текст файла, «Сохранить» пишет его на тот узел, где файл открыт.
+## «Блокнот» один (ISS-008): новый файл закрывает прошлый, несохранённое пропадает.
 func open_editor(request: Dictionary, view: TerminalView) -> DesktopWindow:
+	var old: DesktopWindow = window_of("editor")
+	if old != null:
+		old.close()
+	var node: String = str(request["node"])
+	var path: String = str(request["path"])
+	terminal.begin_edit(node, path)
 	var window := DesktopWindow.new()
 	window.app_id = "editor"
 	window.title = "Блокнот — %s" % FsPath.name_of(str(request["path"]))
@@ -315,11 +322,17 @@ func open_editor(request: Dictionary, view: TerminalView) -> DesktopWindow:
 	var editor := FileEditor.new()
 	editor.setup(request)
 	editor.saved.connect(func(text: String) -> void:
-		var result: TermResult = terminal.save_edit(str(request["node"]), str(request["path"]), text)
+		var result: TermResult = terminal.save_edit(node, path, text)
 		if view != null and is_instance_valid(view):
 			view.show_result(result)
-		window.close())
+		# Терминал занят программой — окно остаётся, правка цела.
+		if result.text() != Terminal.BUSY_TEXT:
+			window.close())
 	editor.cancelled.connect(window.close)
+	window.closed.connect(func(_w: DesktopWindow) -> void:
+		var now: Dictionary = terminal.editing()
+		if str(now.get("node", "")) == node and str(now.get("path", "")) == path:
+			terminal.end_edit())
 	window.body.add_child(editor)
 	attach_window(window, Vector2(520, 380))
 	return window
@@ -438,6 +451,7 @@ func _make_content(app_id: String) -> Control:
 		var files := HomeFiles.new()
 		files.setup(terminal, Terminal.DESKTOP_DIR)
 		files.changed.connect(_fill_icons)
+		files.edit_requested.connect(func(request: Dictionary) -> void: open_editor(request, null))
 		return files
 	if app_id == "bank":
 		return BankApp.new()

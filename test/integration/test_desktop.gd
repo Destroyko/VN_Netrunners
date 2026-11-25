@@ -490,3 +490,32 @@ func test_edit_opens_a_notepad_and_saves() -> void:
 	editor.set_text("новое")
 	(editor.find_child("Save", true, false) as Button).emit_signal("pressed")
 	assert_eq(str(desktop.terminal.home_fs().file_data("/home/zametka.txt")["text"]), "новое")
+
+
+func test_files_window_opens_a_text_file_in_the_notepad() -> void:
+	var fs: Filesystem = desktop.terminal.home_fs()
+	fs.put_file(Terminal.DESKTOP_DIR + "/plan.txt", {"text": "план"})
+	GameState.set_filesystem_state(Network.HOME_ID, fs.to_dict())
+	var files: HomeFiles = desktop.open_app("files").body.get_child(0) as HomeFiles
+	files.browser.open_item(files.browser.item_names().find("plan.txt"))
+	var window: DesktopWindow = desktop.window_of("editor")
+	assert_not_null(window, "файл открылся в «Блокноте»")
+	assert_eq(str(desktop.terminal.editing().get("path", "")), Terminal.DESKTOP_DIR + "/plan.txt")
+	window.close()
+	assert_true(desktop.terminal.editing().is_empty(), "закрыл «Блокнот» — файл свободен")
+
+
+func test_notepad_is_one_new_file_replaces_the_old() -> void:
+	var fs: Filesystem = desktop.terminal.home_fs()
+	fs.put_file("/home/a.txt", {"text": "a"})
+	fs.put_file("/home/b.txt", {"text": "b"})
+	GameState.set_filesystem_state(Network.HOME_ID, fs.to_dict())
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	view.submit("edit /home/a.txt")
+	var first: DesktopWindow = desktop.window_of("editor")
+	(first.body.get_child(0) as FileEditor).set_text("несохранённое")
+	view.submit("edit /home/b.txt")
+	await wait_frames(1)
+	assert_false(is_instance_valid(first), "прошлый «Блокнот» закрыт")
+	assert_eq(str(desktop.terminal.editing().get("path", "")), "/home/b.txt")
+	assert_eq(str(desktop.terminal.home_fs().file_data("/home/a.txt")["text"]), "a", "несохранённое пропало")

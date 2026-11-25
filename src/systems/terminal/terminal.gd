@@ -50,6 +50,8 @@ var _cwd_home: String = HOME_DIR
 var _cwd_remote: String = HOME_DIR
 ## Команда идёт на своём ПК при открытом сеансе (`execute_local`).
 var _local: bool = false
+## Файл, открытый в «Блокноте»: {node, path}. «Блокнот» один, файл в нём занят (ISS-008).
+var _editing: Dictionary = {}
 ## Программа, чьи минуты сейчас идут под полоской: {then} — что сделать, когда дойдёт до конца.
 var _job: Dictionary = {}
 ## Вопрос, на который ждём ответ: {"line": исходная команда}.
@@ -147,9 +149,24 @@ func home_fs() -> Filesystem:
 	return _with_locks(Filesystem.for_node(Network.HOME_ID))
 
 
-## Файлы узла, занятые программами: архив под фоновым подбором (ISS-018).
+## «Блокнот» открыл файл (стол вызывает, когда показал окно); закрыл — `end_edit`.
+func begin_edit(node: String, path: String) -> void:
+	_editing = {"node": node, "path": path}
+
+
+func end_edit() -> void:
+	_editing = {}
+
+
+func editing() -> Dictionary:
+	return _editing
+
+
+## Файлы узла, занятые программами: архив под фоновым подбором (ISS-018), файл в «Блокноте».
 func busy_paths(node: String) -> PackedStringArray:
 	var paths: PackedStringArray = []
+	if str(_editing.get("node", "")) == node:
+		paths.append(str(_editing["path"]))
 	if node == Network.HOME_ID:
 		for task: Dictionary in BackgroundTasks.tasks():
 			paths.append(str(task["path"]))
@@ -261,6 +278,10 @@ func execute(line: String) -> TermResult:
 func save_edit(node: String, path: String, text: String) -> TermResult:
 	_sync()
 	var result := TermResult.new()
+	# Минуты сохранения не лезут в минуты идущей программы: «Блокнот» ждёт, правка цела.
+	if has_job():
+		result.add(BUSY_TEXT)
+		return result
 	_files.save_edit(node, path, text, result)
 	return result
 

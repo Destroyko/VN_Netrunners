@@ -28,6 +28,9 @@ var node_id: String = ""
 var path: String = FsPath.ROOT
 ## Выполнить строку как команду консоли и вернуть итог. Не задано — проводник только смотрит.
 var run_command: Callable
+## Открыть файл — ещё и `cat` в консоли (трансляция: чтение чужого файла — та же команда).
+## «Файлы» своего ПК открывают файл в «Блокноте» командой `edit` и `cat` не нужен.
+var cat_on_open: bool = true
 
 var _path_label: Label
 var _list: FileList
@@ -101,7 +104,8 @@ func open_item(index: int) -> void:
 	if entry.is_empty() or bool(entry.get("locked", false)):
 		return
 	if not bool(entry.get("is_dir", false)):
-		_run("cat " + _quoted(str(entry["path"])))
+		if cat_on_open:
+			_run("cat " + _quoted(str(entry["path"])))
 		file_opened.emit(str(entry["path"]))
 		return
 	if bool(entry.get("up", false)):

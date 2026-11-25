@@ -315,15 +315,17 @@ func edit(args: PackedStringArray, result: TermResult) -> void:
 	result.request = {"type": "edit", "node": _t.node_id(), "path": path, "text": str(data["text"])}
 
 
-## Сохранить правку из «Блокнота». Соединение могло оборваться или смениться, пока игрок
-## печатал: тогда файл не трогаем. На чужом узле правка пишется в его лог.
+## Сохранить правку из «Блокнота» на узел, где файл открыт (ISS-008): свой ПК — всегда, что бы
+## ни делала консоль; чужой узел — только при живом соединении с ним, иначе файл не трогаем. На
+## чужом узле правка пишется в его лог.
 func save_edit(node: String, path: String, text: String, result: TermResult) -> void:
-	if node != _t.node_id():
+	var own: bool = node == Network.HOME_ID
+	if not own and (not _t.is_remote() or _t.node_id() != node):
 		result.add("соединение потеряно: изменения не сохранены")
 		return
-	if _guest_on_node(result):
+	if not own and _guest_on_node(result):
 		return
-	var fs: Filesystem = _t.fs()
+	var fs: Filesystem = Filesystem.for_node(node)
 	if not fs.has_file(path):
 		result.add("файл исчез: изменения не сохранены")
 		return
@@ -333,7 +335,7 @@ func save_edit(node: String, path: String, text: String, result: TermResult) -> 
 	GameState.set_filesystem_state(node, fs.to_dict())
 	result.add("сохранено: %s" % FsPath.name_of(path))
 	# Правка — та же запись на диск: категория «запись», потолок заметности за взлом не растёт.
-	if not _in_logs(path):
+	if not own and not _in_logs(path):
 		_t.note(Logbook.CATEGORY_FILE_CREATED, "изменён файл %s" % FsPath.name_of(path))
 	EventBus.file_edited.emit(node, path)
 	_t.spend(_t.minutes_of("terminal_command"), result)

@@ -49,8 +49,6 @@ func test_local_question_answered_in_console_stays_on_own_pc() -> void:
 # --- ISS-008: «Блокнот» своего ПК при открытом сеансе ---------------------------------------
 
 func test_notepad_on_own_pc_saves_while_connected_elsewhere() -> void:
-	if OpenIssue.skip(self, "ISS-008: «Блокнот» своего файла не сохраняется, пока открыт сеанс с узлом"):
-		return
 	run("edit /home/readme.txt")
 	assert_eq(str(last.request.get("node", "")), Network.HOME_ID)
 	enter("node_training_pc")
@@ -68,3 +66,27 @@ func test_notepad_of_remote_file_refuses_after_dc() -> void:
 	var saved: TermResult = t.save_edit("node_training_pc", "/home/zametka.txt", "чужое")
 	assert_string_contains(saved.text(), "не сохранены")
 	assert_eq(str(Filesystem.for_node("node_training_pc").file_data("/home/zametka.txt").get("text", "")), before)
+
+
+# --- ISS-008: «Блокнот» один и знает свой файл ----------------------------------------------
+
+func test_file_open_in_notepad_is_busy() -> void:
+	t.begin_edit(Network.HOME_ID, "/home/readme.txt")
+	assert_string_contains(run("rm /home/readme.txt"), "занят: readme.txt")
+	assert_true(t.home_fs().has_file("/home/readme.txt"))
+	t.end_edit()
+	run("rm /home/readme.txt")
+	assert_false(t.home_fs().has_file("/home/readme.txt"), "закрыл «Блокнот» — файл свободен")
+
+
+func test_notepad_waits_while_a_program_runs() -> void:
+	learn_programs()
+	enter("node_training_pc")
+	Clock.configure({"real_seconds_per_minute": 4, "program_speedup": 3, "program_min_minutes": 2})
+	Clock.start()
+	run("rootstep")
+	var saved: TermResult = t.save_edit(Network.HOME_ID, "/home/readme.txt", "новый текст")
+	Clock.stop()
+	Clock.reload_config()
+	assert_eq(saved.text(), Terminal.BUSY_TEXT)
+	assert_ne(str(t.home_fs().file_data("/home/readme.txt").get("text", "")), "новый текст")
