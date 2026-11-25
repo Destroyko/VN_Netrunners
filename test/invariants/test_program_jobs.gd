@@ -39,8 +39,6 @@ func _now() -> int:
 # --- ISS-001: перезагрузка посреди программы ------------------------------------------
 
 func test_reboot_mid_program_frees_the_console() -> void:
-	if OpenIssue.skip(self, "ISS-001: перезагрузка посреди программы не останавливает полоску"):
-		return
 	learn_programs()
 	enter("node_training_pc")
 	_running_clock()

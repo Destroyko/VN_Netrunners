@@ -26,6 +26,8 @@ static func shut_down() -> Dictionary:
 	if not is_on():
 		return report
 	report["node"] = _drop_connection()
+	# Программа под полоской гаснет вместе с ПК: остальные минуты не идут (ISS-001, И-11).
+	Clock.cancel_fast_forward()
 	report["stopped"] = BackgroundTasks.cancel_all()
 	GameState.set_var(VAR_POWER, OFF)
 	Clock.advance(_minutes("shutdown_minutes", 1))

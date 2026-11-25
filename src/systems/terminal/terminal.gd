@@ -396,6 +396,9 @@ func spend_then(minutes: int, result: TermResult, then: Callable) -> void:
 		_job = {"then": then}
 		if not Clock.fast_forward_finished.is_connected(_on_job_done):
 			Clock.fast_forward_finished.connect(_on_job_done)
+		# Отрезок бросили снаружи (выключение ПК): программа доигрывает итог «не успела».
+		if not Clock.fast_forward_dropped.is_connected(_on_job_done):
+			Clock.fast_forward_dropped.connect(_on_job_done)
 		spend(minutes, result)
 		return
 	var spent: int = minutes

@@ -34,6 +34,8 @@ var _fast_total: int = 0
 
 ## Ускоренный отрезок программы закончился: терминал снова принимает ввод.
 signal fast_forward_finished
+## Ускоренный отрезок брошен раньше конца (Ctrl+C, обрыв, выключение ПК): программа не успела.
+signal fast_forward_dropped
 
 
 func _ready() -> void:
@@ -108,9 +110,12 @@ func will_fast_forward(minutes: int) -> bool:
 
 ## Бросить оставшиеся минуты программы (Ctrl+C, обрыв соединения): прошедшие остаются.
 func cancel_fast_forward() -> void:
+	var was: bool = _fast_left > 0
 	_fast_left = 0
 	_fast_total = 0
 	_carry = 0.0
+	if was:
+		fast_forward_dropped.emit()
 
 
 func is_fast_forwarding() -> bool:
