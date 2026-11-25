@@ -22,6 +22,8 @@ const BLINK_SECONDS: float = 0.53
 const PROGRESS_CELLS: int = 24
 ## Программа идёт: полоска вместо строки ввода.
 var _busy: bool = false
+## Под полоской — как прервать (разработчик: подсказка у любой шкалы прогресса).
+const CANCEL_HINT: String = "прервать: ctrl+c"
 var terminal: Terminal
 
 var _scroll: ScrollContainer
@@ -46,6 +48,8 @@ func setup(shared_terminal: Terminal) -> void:
 	terminal = shared_terminal
 	_build()
 	terminal.ticked.connect(_on_ticked)
+	# Программа доработала под полоской — её итог печатается как обычный ответ команды.
+	terminal.job_finished.connect(show_result)
 	print_lines(terminal.banner())
 	_refresh()
 
@@ -181,7 +185,8 @@ func _process(delta: float) -> void:
 	if Clock.is_fast_forwarding():
 		_busy = true
 		_entry.editable = false
-		_line.text = progress_text(Clock.fast_progress())
+		_line.text = progress_text(Clock.fast_progress()) + "
+" + _paint.dim(CANCEL_HINT)
 		return
 	if _busy:
 		_busy = false
@@ -204,6 +209,24 @@ func _process(delta: float) -> void:
 static func progress_text(progress: float) -> String:
 	var filled: int = clampi(int(round(progress * PROGRESS_CELLS)), 0, PROGRESS_CELLS)
 	return "[lb]%s%s[rb] %3d%%" % ["#".repeat(filled), ".".repeat(PROGRESS_CELLS - filled), int(round(progress * 100.0))]
+
+
+## Ctrl+C во время полоски — прервать программу (решено 25.11.2026). Перехват до поля ввода:
+## оно закрыто, а Ctrl+C в нём было бы «копировать».
+func _input(event: InputEvent) -> void:
+	if not _busy or not is_visible_in_tree():
+		return
+	var key: InputEventKey = event as InputEventKey
+	if key != null and key.pressed and not key.echo and key.ctrl_pressed and key.keycode == KEY_C:
+		get_viewport().set_input_as_handled()
+		interrupt()
+
+
+## Прервать программу: потраченное время остаётся, итога нет.
+func interrupt() -> void:
+	if not terminal.has_job():
+		return
+	show_result(terminal.cancel_job())
 
 
 ## Идёт ли программа (ввод закрыт, на месте строки ввода — полоска).

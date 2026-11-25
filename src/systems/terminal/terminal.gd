@@ -37,6 +37,8 @@ const OS_NORMAL: String = "normal"
 ## перевалил за половину, дошёл до конца, узел ушёл из сети. Окно печатает строки и
 ## перечитывает состояние; игрок при этом мог ничего не набирать.
 signal ticked(result: TermResult)
+## Программа доработала (или прервана): её итог, напечатать как обычный ответ команды.
+signal job_finished(result: TermResult)
 
 var net: Network
 var session: HackSession
@@ -46,6 +48,8 @@ var _cwd_home: String = HOME_DIR
 var _cwd_remote: String = HOME_DIR
 ## Команда идёт на своём ПК при открытом сеансе (`execute_local`).
 var _local: bool = false
+## Программа, чьи минуты сейчас идут под полоской: {then} — что сделать, когда дойдёт до конца.
+var _job: Dictionary = {}
 ## Вопрос, на который ждём ответ: {"line": исходная команда}.
 var _pending: Dictionary = {}
 ## Головоломка, которую открыли программой: {"service", "kind", "difficulty", "node"}.
@@ -341,6 +345,54 @@ func minutes_of(key: String, fallback: int = 1) -> int:
 	return int(costs.get(key, fallback))
 
 
+## Потратить минуты программы и только потом получить её итог (`then`). В игре минуты идут
+## ускоренно под полоской, итог — когда полоска дошла до конца; `Ctrl+C` (`cancel_job`) его
+## отменяет, обрыв соединения — тоже: программа «не успела». Когда часы стоят (тесты), всё сразу;
+## трейс, кончающийся раньше программы, отнимает ровно оставшиеся минуты.
+func spend_then(minutes: int, result: TermResult, then: Callable) -> void:
+	if Clock.will_fast_forward(minutes):
+		_job = {"then": then}
+		if not Clock.fast_forward_finished.is_connected(_on_job_done):
+			Clock.fast_forward_finished.connect(_on_job_done)
+		spend(minutes, result)
+		return
+	var spent: int = minutes
+	if session.is_tracing() and minutes >= session.trace_left():
+		spent = session.trace_left()
+	spend(spent, result)
+	then.call(result)
+
+
+func has_job() -> bool:
+	return not _job.is_empty()
+
+
+## Ctrl+C: бросить программу. Потраченное время не возвращается, итога нет.
+func cancel_job() -> TermResult:
+	var result := TermResult.new()
+	if _job.is_empty():
+		return result
+	_job = {}
+	Clock.cancel_fast_forward()
+	result.add("^C")
+	result.add("прервано")
+	return result
+
+
+func _on_job_done() -> void:
+	_finish_job()
+
+
+func _finish_job() -> void:
+	if _job.is_empty():
+		return
+	var then: Callable = _job["then"] as Callable
+	_job = {}
+	var result := TermResult.new()
+	then.call(result)
+	job_finished.emit(result)
+
+
 ## Потратить игровые минуты: сдвинуть часы и спросить у сеанса, что случилось за это время.
 func spend(minutes: int, result: TermResult) -> void:
 	if minutes <= 0:
@@ -387,6 +439,10 @@ func _forget_session() -> void:
 	_puzzle = {}
 	_login = {}
 	_cwd_remote = HOME_DIR
+	# Соединение оборвалось посреди программы: остальные минуты не идут, программа «не успела».
+	if not _job.is_empty():
+		Clock.cancel_fast_forward()
+		_finish_job.call_deferred()
 
 
 ## Игрок сам закрыл сеанс (`dc`, переход на другой узел): забыть своё и записать выход.

@@ -102,20 +102,27 @@ func _download(args: PackedStringArray, result: TermResult, confirmed: bool) -> 
 		result.add("передача заблокирована: фаервол узла")
 		return
 	var remote: Filesystem = _t.fs()
-	var plan: Array = _plan(remote, _t.cwd(), args, Terminal.DUMP_DIR, "")
-
-	# Не влез в трейс — файла нет. Большая добыча требует подготовки (hacking-loop.md).
+	var cwd: String = _t.cwd()
+	var node: String = _t.node_id()
+	var plan: Array = _plan(remote, cwd, args, Terminal.DUMP_DIR, "")
 	var readable: Array = plan.filter(func(step: Dictionary) -> bool:
 		return remote.has_file(str(step["from"])) and (_t.admin() or not FsPath.requires_admin(str(step["from"]))))
-	var minutes: int = _plan_minutes(remote, readable)
-	if not readable.is_empty() and _cut_by_trace(minutes, result):
+	# Нечего передавать (нет файлов, закрыто правами) — ответ сразу, без полоски.
+	if readable.is_empty():
+		_run_plan(remote, _t.home_fs(), cwd, plan, _t.admin(), confirmed, result)
 		return
-
-	var done: Array = _run_plan(remote, _t.home_fs(), _t.cwd(), plan, _t.admin(), confirmed, result)
-	for step: Dictionary in done:
-		EventBus.file_copied.emit(_t.node_id(), str(step["from"]))
-	if not done.is_empty():
-		_t.spend(minutes, result)
+	# «Заменить?» — до передачи, а не после потраченного времени.
+	if not confirmed and _ask_clashes(_t.home_fs(), cwd, plan, result):
+		return
+	# Файлы ложатся, когда передача дошла до конца; трейс оборвал раньше — файла нет
+	# (большая добыча требует подготовки, hacking-loop.md).
+	_t.spend_then(_plan_minutes(remote, readable), result, func(finished: TermResult) -> void:
+		if _t.node_id() != node:
+			finished.add("соединение прервано: файл не успел скачаться")
+			return
+		var done: Array = _run_plan(remote, _t.home_fs(), cwd, plan, _t.admin(), true, finished)
+		for step: Dictionary in done:
+			EventBus.file_copied.emit(node, str(step["from"])))
 
 
 ## `put`: положить файл со своего ПК на узел (маска — все подходящие). Запись на цели оставляет
@@ -131,22 +138,27 @@ func put(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 	if _guest_on_node(result):
 		return
 	var home: Filesystem = _t.home_fs()
-	var plan: Array = _plan(home, _t.home_cwd(), args, _t.cwd(), "")
+	var home_cwd: String = _t.home_cwd()
+	var node: String = _t.node_id()
+	var plan: Array = _plan(home, home_cwd, args, _t.cwd(), "")
 	var existing: Array = plan.filter(func(step: Dictionary) -> bool: return home.has_file(str(step["from"])))
-	var minutes: int = _plan_minutes(home, existing)
-	if not existing.is_empty() and _cut_by_trace(minutes, result):
+	if existing.is_empty():
+		_run_plan(home, _t.fs(), home_cwd, plan, _t.admin(), confirmed, result)
 		return
-
+	if not confirmed and _ask_clashes(_t.fs(), home_cwd, plan, result):
+		return
 	# Права на запись у узла: берём права на узле. Следствие: файл из закрытого каталога
 	# своего ПК гость на чужой не положит — крайний случай, ради него не усложняем.
-	var done: Array = _run_plan(home, _t.fs(), _t.home_cwd(), plan, _t.admin(), confirmed, result)
-	for step: Dictionary in done:
-		var written: String = str(step["to"])
-		EventBus.file_copied.emit(_t.node_id(), written)
-		if not _in_logs(written):
-			_t.note(Logbook.CATEGORY_FILE_CREATED, "записан файл %s" % FsPath.name_of(written))
-	if not done.is_empty():
-		_t.spend(minutes, result)
+	_t.spend_then(_plan_minutes(home, existing), result, func(finished: TermResult) -> void:
+		if _t.node_id() != node:
+			finished.add("соединение прервано: файл не успел передаться")
+			return
+		var done: Array = _run_plan(home, _t.fs(), home_cwd, plan, _t.admin(), true, finished)
+		for step: Dictionary in done:
+			var written: String = str(step["to"])
+			EventBus.file_copied.emit(node, written)
+			if not _in_logs(written):
+				_t.note(Logbook.CATEGORY_FILE_CREATED, "записан файл %s" % FsPath.name_of(written)))
 
 
 # --- Передача файлов: один путь для cp и put -------------------------------------
@@ -210,6 +222,20 @@ func _plan_minutes(fs: Filesystem, plan: Array) -> int:
 ## Выполнить план. Замена — один вопрос на всю пачку (на повтор с «y» заменяет всё). Каждый
 ## переданный файл — строкой отчёта, как у настоящей утилиты копирования; ошибки — своей строкой.
 ## Возвращает переданные шаги [{from, to}].
+## Спросить «заменить?», если на месте уже есть файлы. true — вопрос задан, ждём ответа.
+func _ask_clashes(to_fs: Filesystem, from_cwd: String, plan: Array, result: TermResult) -> bool:
+	var clashes: Array = plan.filter(func(step: Dictionary) -> bool:
+		return to_fs.has_file(to_fs._destination_for(from_cwd, str(step["from"]), str(step["to_arg"]))))
+	if clashes.is_empty():
+		return false
+	if clashes.size() == 1 and plan.size() == 1:
+		var target: String = to_fs._destination_for(from_cwd, str(clashes[0]["from"]), str(clashes[0]["to_arg"]))
+		_t.ask(result, FsResult.fail(FsResult.Code.NEEDS_CONFIRM_REPLACE, target).message())
+	else:
+		_t.ask(result, "файлов с такими именами уже есть: %d. заменить? (y/n)" % clashes.size())
+	return true
+
+
 func _run_plan(
 	from_fs: Filesystem, to_fs: Filesystem, from_cwd: String, plan: Array,
 	is_admin: bool, confirmed: bool, result: TermResult
@@ -385,16 +411,6 @@ func _destination(args: PackedStringArray, source: String, base: String, index: 
 func _transfer_minutes(data: Dictionary) -> int:
 	var per_minute: int = int((DataLoader.balance().get("channel", {}) as Dictionary).get("kb_per_minute", 500))
 	return maxi(_t.minutes_of("terminal_command"), ceili(float(int(data.get("size_kb", 1))) / float(maxi(per_minute, 1))))
-
-
-## Передача не уложилась в трейс: соединение оборвётся раньше, чем файл дойдёт.
-## Время потрачено, файла нет.
-func _cut_by_trace(minutes: int, result: TermResult) -> bool:
-	if not _t.session.is_tracing() or minutes < _t.session.trace_left():
-		return false
-	result.add("соединение прервано: файл не успел скачаться")
-	_t.spend(_t.session.trace_left(), result)
-	return true
 
 
 func _finish_copy(copied: FsResult, result: TermResult) -> void:

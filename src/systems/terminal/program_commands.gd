@@ -76,12 +76,11 @@ func _crack(program: String, args: PackedStringArray, result: TermResult) -> voi
 		EventBus.trace_started.emit(target)
 
 	result.add("%s: запущен, порт %d" % [program, _t.net.port_of(target, service)])
-	_t.spend(Programs.minutes_for(program), result)
-	# За время запуска трейс или конец прайм-тайма мог оборвать взлом: тогда головоломки не будет.
-	if _t.session.target_id() != target:
-		return
-
-	_open_puzzle(target, service, program, result)
+	_t.spend_then(Programs.minutes_for(program), result, func(done: TermResult) -> void:
+		# За время запуска трейс или конец прайм-тайма мог оборвать взлом: тогда головоломки не будет.
+		if _t.session.target_id() != target:
+			return
+		_open_puzzle(target, service, program, done))
 
 
 ## Собрать головоломку и попросить интерфейс её открыть. Ступень задаёт сложность сервиса
@@ -185,12 +184,15 @@ func _deepscan(program: String, _args: PackedStringArray, result: TermResult) ->
 		result.add("%s: на этом устройстве нет таблиц маршрутов" % program)
 		return
 	result.add("%s: обход сети от %s .........." % [program, _t.net.definition(here).get("address", here)])
-	var found: Array[Dictionary] = _t.net.deep_scan(here)
-	if found.is_empty():
-		result.add("других узлов не найдено")
-	for entry: Dictionary in found:
-		result.add("  %s  через %d" % [NetCommands.book_line(entry), int(entry["depth"])])
-	_t.spend(Programs.minutes_for(program), result)
+	_t.spend_then(Programs.minutes_for(program), result, func(done: TermResult) -> void:
+		if _t.node_id() != here:
+			done.add("%s: соединение прервано" % program)
+			return
+		var found: Array[Dictionary] = _t.net.deep_scan(here)
+		if found.is_empty():
+			done.add("других узлов не найдено")
+		for entry: Dictionary in found:
+			done.add("  %s  через %d" % [NetCommands.book_line(entry), int(entry["depth"])]))
 
 
 # --- Автоматические программы ------------------------------------------------
@@ -204,14 +206,15 @@ func _rootstep(result: TermResult) -> void:
 		return
 	result.add_all(PackedStringArray(ROOTSTEP_LOG))
 	var node: String = _t.node_id()
-	_t.spend(Programs.minutes_for("rootstep"), result)
-	# Трейс мог оборвать соединение раньше, чем права поднялись.
-	if not _t.session.has_connection():
-		return
-	_t.session.grant_admin()
-	_t.net.access.grant_root(node, _t.now())
-	_t.note(Logbook.CATEGORY_ROOT, "смена уровня доступа", "root")
-	result.add("права администратора получены на %s" % node)
+	_t.spend_then(Programs.minutes_for("rootstep"), result, func(done: TermResult) -> void:
+		# Трейс мог оборвать соединение раньше, чем права поднялись.
+		if not _t.session.has_connection():
+			done.add("rootstep: соединение прервано, права не получены")
+			return
+		_t.session.grant_admin()
+		_t.net.access.grant_root(node, _t.now())
+		_t.note(Logbook.CATEGORY_ROOT, "смена уровня доступа", "root")
+		done.add("права администратора получены на %s" % node))
 
 
 func _logwipe(result: TermResult) -> void:
@@ -223,8 +226,9 @@ func _logwipe(result: TermResult) -> void:
 		return
 	result.add_all(PackedStringArray(LOGWIPE_LOG))
 	var node: String = _t.node_id()
-	_t.spend(Programs.minutes_for("logwipe"), result)
-	if not _t.session.has_connection():
-		return
-	var removed: int = Logbook.for_node(node).clear()
-	result.add("очищено записей: %d" % removed)
+	_t.spend_then(Programs.minutes_for("logwipe"), result, func(done: TermResult) -> void:
+		if not _t.session.has_connection():
+			done.add("logwipe: соединение прервано, логи не очищены")
+			return
+		var removed: int = Logbook.for_node(node).clear()
+		done.add("очищено записей: %d" % removed))

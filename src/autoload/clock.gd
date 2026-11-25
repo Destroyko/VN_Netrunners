@@ -25,9 +25,9 @@ var _carry: float = 0.0
 ## Границы времени суток в минутах от начала дня: ночь → утро → день → вечер.
 var _bounds: Dictionary = {"morning": 360, "day": 660, "evening": 1080, "night": 1320}
 ## Во сколько раз быстрее идут минуты программы (balance.json, clock.program_speedup).
-var program_speedup: float = 10.0
+var program_speedup: float = 3.0
 ## Короче этого — минуты тратятся сразу: секунда полоски ради `cat` только раздражает.
-var program_min_minutes: int = 3
+var program_min_minutes: int = 2
 ## Сколько минут программы ещё пройти ускоренно и сколько было всего (для полоски).
 var _fast_left: int = 0
 var _fast_total: int = 0
@@ -50,8 +50,8 @@ func configure(cfg: Dictionary) -> void:
 	minutes_per_day = int(cfg.get("minutes_per_day", DEFAULT_MINUTES_PER_DAY))
 	start_date = str(cfg.get("start_date", DEFAULT_START_DATE))
 	real_seconds_per_minute = maxf(0.1, float(cfg.get("real_seconds_per_minute", 4.0)))
-	program_speedup = maxf(1.0, float(cfg.get("program_speedup", 10.0)))
-	program_min_minutes = int(cfg.get("program_min_minutes", 3))
+	program_speedup = maxf(1.0, float(cfg.get("program_speedup", 3.0)))
+	program_min_minutes = int(cfg.get("program_min_minutes", 2))
 	var bounds: Dictionary = cfg.get("time_of_day_bounds", {}) as Dictionary
 	for key: String in _bounds.keys():
 		if bounds.has(key):
@@ -99,6 +99,18 @@ func fast_forward(minutes: int) -> void:
 		return
 	_fast_left += minutes
 	_fast_total += minutes
+
+
+## Пойдут ли эти минуты ускоренно под полоску (иначе — сразу).
+func will_fast_forward(minutes: int) -> bool:
+	return running and minutes >= program_min_minutes
+
+
+## Бросить оставшиеся минуты программы (Ctrl+C, обрыв соединения): прошедшие остаются.
+func cancel_fast_forward() -> void:
+	_fast_left = 0
+	_fast_total = 0
+	_carry = 0.0
 
 
 func is_fast_forwarding() -> bool:

@@ -497,3 +497,47 @@ func test_edit_file_objective_checks_the_text() -> void:
 	enter_as_admin("node_training_pc")
 	t.save_edit("node_training_pc", "/home/spisok_pokupok.txt", "Хлеб и кофе.")
 	assert_true(QuestObjectives.satisfied(objective), "в файле нужный текст — цель выполнена")
+
+
+# --- Программа под полоской: итог в конце, Ctrl+C (шаг 7 M3) -----------------------
+
+func _running_clock() -> void:
+	Clock.configure({"real_seconds_per_minute": 4, "program_speedup": 3, "program_min_minutes": 2})
+	Clock.start()
+
+
+func _stop_clock() -> void:
+	Clock.stop()
+	Clock.reload_config()
+
+
+func test_rootstep_rights_come_when_the_bar_ends() -> void:
+	learn_programs()
+	enter("node_training_pc")
+	_running_clock()
+	var got: Array = []
+	t.job_finished.connect(func(r: TermResult) -> void: got.append(r.text()))
+	run("rootstep")
+	assert_true(t.has_job(), "программа идёт под полоской")
+	assert_false(t.admin(), "прав ещё нет — полоска не дошла")
+	Clock.tick(30.0)
+	assert_false(t.has_job())
+	assert_true(t.admin(), "полоска дошла — права есть")
+	assert_string_contains(str(got), "права администратора получены")
+	_stop_clock()
+
+
+func test_ctrl_c_cancels_the_program() -> void:
+	learn_programs()
+	enter("node_training_pc")
+	_running_clock()
+	var before: int = minute()
+	run("rootstep")
+	Clock.tick(1.5)
+	var cancelled: TermResult = t.cancel_job()
+	assert_string_contains(cancelled.text(), "прервано")
+	Clock.tick(30.0)
+	assert_false(t.admin(), "прервал — прав нет")
+	assert_gt(minute(), before, "потраченное время не возвращается")
+	assert_true(t.is_remote(), "соединение осталось")
+	_stop_clock()

@@ -128,6 +128,11 @@ static func _word_role(word: String, first: bool) -> String:
 
 
 ## Цветной кусок текста; квадратные скобки экранируются — вывод терминала не превратится в теги.
+## Приглушённая строка (подсказка под полоской программы).
+func dim(text: String) -> String:
+	return _paint(text, "dim")
+
+
 func _paint(text: String, role: String) -> String:
 	if text.is_empty():
 		return ""
