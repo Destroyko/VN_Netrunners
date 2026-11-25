@@ -45,8 +45,11 @@ func test_reboot_mid_program_frees_the_console() -> void:
 	run("rootstep")
 	assert_true(t.has_job())
 	PcPower.reboot()
-	assert_false(Clock.is_fast_forwarding(), "ПК перезагружен: полоски нет, ввод открыт (И-11)")
-	assert_false(t.has_job(), "программа на выключенном ПК не идёт")
+	assert_false(t.has_job(), "программа на выключенном ПК не идёт (И-11)")
+	assert_true(PcPower.is_booting(), "идут минуты загрузки, а не программы")
+	Clock.tick(60.0)
+	assert_true(PcPower.is_on(), "минуты загрузки прошли — ПК включён")
+	assert_false(PcPower.is_booting())
 
 
 func test_reboot_mid_program_gives_no_result() -> void:

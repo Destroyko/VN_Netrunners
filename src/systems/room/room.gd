@@ -32,11 +32,9 @@ static func hardware() -> PackedStringArray:
 	])
 
 
-## Подключить предмет-носитель к системному блоку. Возвращает {ok, lines, restored, os_changed}.
-## Флешка не расходуется: она остаётся резервной копией навсегда. ОС она только поднимает
-## (old → normal) и никогда не понижает: с хакерской ОС ничего не меняется.
 ## Вставить носитель в системный блок (перетащил из инвентаря или «Вставить»): он переезжает в
-## гнездо ПК (одно на ПК) и срабатывает — `use_item`. Гнездо занято — сначала вынуть.
+## гнездо ПК (одно на ПК). Сам ничего не делает: резервная флешка ставит систему при включении
+## (`PcPower.power_on`, шаг 7.5). Гнездо занято — сначала вынуть. Возвращает {ok, lines}.
 static func insert(uid: String, home: Filesystem) -> Dictionary:
 	var found: Dictionary = Inventory.find(uid)
 	var kind: String = str((found.get("entry", {}) as Dictionary).get("kind", ""))
@@ -49,7 +47,7 @@ static func insert(uid: String, home: Filesystem) -> Dictionary:
 	var error: String = Inventory.move(uid, Inventory.PC)
 	if not error.is_empty():
 		return {"ok": false, "lines": PackedStringArray([error])}
-	return use_item(kind, home)
+	return {"ok": true, "lines": PackedStringArray(["вставлено: %s" % Inventory.name_of(kind)])}
 
 
 ## Вынуть носитель из системного блока обратно в инвентарь. "" — вынул, иначе причина.
@@ -65,6 +63,9 @@ static func inserted() -> Dictionary:
 	return slot[0] as Dictionary if not slot.is_empty() else {}
 
 
+## Установка системы с носителя (`PcPower.finish_power_on`). Возвращает {ok, lines, restored,
+## os_changed}. Флешка не расходуется: она остаётся резервной копией навсегда. ОС она только
+## поднимает (old → normal) и никогда не понижает: с хакерской ОС ничего не меняется.
 static func use_item(item_id: String, home: Filesystem) -> Dictionary:
 	var result: Dictionary = {"ok": false, "lines": PackedStringArray(), "restored": PackedStringArray(), "os_changed": false}
 	var lines: PackedStringArray = result["lines"]

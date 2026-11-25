@@ -53,7 +53,9 @@
   "pc": {
     "_note": "Питание своего ПК (src/systems/room/pc_power.gd): сколько игровых минут занимает выключение и загрузка. Перезагрузка — оба подряд.",
     "shutdown_minutes": 1,
-    "boot_minutes": 2
+    "boot_minutes": 2,
+    "_note_install": "Установка системы с резервной флешки при включении (шаг 7.5, 25.11.2026).",
+    "install_minutes": 30
   },
 
   "background": {
