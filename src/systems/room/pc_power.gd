@@ -41,9 +41,9 @@ static func shut_down() -> Dictionary:
 	Clock.cancel_fast_forward()
 	report["stopped"] = BackgroundTasks.cancel_all()
 	GameState.set_var(VAR_POWER, OFF)
-	EventBus.pc_power_changed.emit(false)
-	# «Завершение работы» — минута под полоской (экран выключения).
+	# «Завершение работы» — минута под полоской (экран выключения видит её по сигналу ниже).
 	Clock.fast_forward(_minutes("shutdown_minutes", 1), true)
+	EventBus.pc_power_changed.emit(false)
 	return report
 
 
@@ -119,6 +119,8 @@ static func abort_boot() -> void:
 		return
 	Clock.cancel_fast_forward()
 	_on_boot_dropped()
+	# ПК так и остался выключенным: стол (если перезагружались с него) уходит в комнату.
+	EventBus.pc_power_changed.emit(false)
 
 
 static func is_booting() -> bool:

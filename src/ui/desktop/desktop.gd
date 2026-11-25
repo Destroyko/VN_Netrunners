@@ -88,7 +88,9 @@ func _ready() -> void:
 	# после настоящей перезагрузки закрыты.
 	EventBus.pc_power_changed.connect(func(on: bool) -> void:
 		if on and is_inside_tree() and is_visible_in_tree():
-			call_deferred("_restart"))
+			call_deferred("_restart")
+		elif not on and is_inside_tree() and is_visible_in_tree():
+			call_deferred("_leave_if_off"))
 	EventBus.mail_received.connect(func(_uid: String, _id: String) -> void: _refresh_mail_icon())
 	EventBus.mail_read.connect(func(_uid: String, _id: String) -> void: _refresh_mail_icon())
 	_refresh_mail_icon()
@@ -596,6 +598,16 @@ func save_game() -> String:
 ## Выключить ПК из меню: стол не прячется, а закрывается насовсем, герой — в комнате.
 func shut_down() -> void:
 	PcPower.shut_down()
+	if _kept == self:
+		_kept = null
+	get_tree().change_scene_to_file(Screens.ROOM)
+
+
+## ПК выключился и не грузится (перезагрузку прервали посреди установки): за столом сидеть не за
+## чем — герой в комнате. Перезагрузка, которая идёт дальше, сюда не попадает: ПК уже грузится.
+func _leave_if_off() -> void:
+	if not is_inside_tree() or PcPower.is_on() or PcPower.is_booting():
+		return
 	if _kept == self:
 		_kept = null
 	get_tree().change_scene_to_file(Screens.ROOM)
