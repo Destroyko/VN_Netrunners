@@ -130,7 +130,7 @@ func test_program_minutes_run_faster_under_a_bar() -> void:
 	assert_eq(GameState.minute, 0, "минуты ещё не прошли")
 	Clock.tick(3.0)
 	assert_eq(GameState.minute, 7, "×10: за 3 секунды — 7 минут")
-	assert_almost_eq(Clock.fast_progress(), 7.0 / 15.0, 0.01)
+	assert_almost_eq(Clock.fast_progress(), 7.5 / 15.0, 0.01, "с долей текущей минуты — плавно")
 	Clock.tick(3.0)
 	assert_eq(GameState.minute, 15, "отрезок программы не перескакивает дальше своих минут")
 	assert_false(Clock.is_fast_forwarding())

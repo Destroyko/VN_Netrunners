@@ -25,9 +25,21 @@ const LAYER_FULL: int = 70
 ## Загрузка как у настоящего железа (разработчик, 26.11.2026): сначала проверка комплектующих
 ## по-английски (доля пройденного → строка), потом заставка — название ОС по центру и бегущая
 ## полоска, как у Windows XP. Установка с флешки — те же проверки и строки установщика.
+## Сведения BIOS в начале — как у настоящей платы (образец разработчика, 26.11.2026); производитель
+## вымышленный.
 const POST_LINES: Array = [
-	[0.0, "CORVID BIOS v2.14   (C) 2019"],
-	[0.04, "CPU: 4 cores @ 3.20 GHz ................ ok"],
+	[0.0, "KBIOS (C) 2019 Kestrel Systems, Inc."],
+	[0.0, "KX-B450 ACPI BIOS Revision 0412"],
+	[0.0, "CPU : 4-Core Processor @ 3.20GHz"],
+	[0.0, " Speed : 3.20 GHz    Count : 4"],
+	[0.0, ""],
+	[0.01, "Press DEL to run Setup"],
+	[0.01, "Press F8 for Boot Menu"],
+	[0.02, "DDR4-2666 in Dual-Channel Mode"],
+	[0.03, "Initializing USB Controllers .. Done."],
+	[0.035, "16384MB OK"],
+	[0.04, ""],
+	[0.05, "CPU .................................... ok"],
 	[0.10, "Memory test: 16384 MB .................. ok"],
 	[0.18, "GPU .................................... ok"],
 	[0.24, "SSD 512 GB ............................. ok"],
@@ -49,6 +61,10 @@ const INSTALL_LINES: Array = [
 const SHUTDOWN_FADE_FROM: float = 0.55
 ## Название ОС на заставке (заглушка — как в заставке терминала, open-questions.md).
 const OS_TITLE: String = "Corvid Linux"
+## Логотип хакерской ОС на заставке (разработчик, 26.11.2026: HiddenFox).
+const HACKER_LOGO: String = "res://assets/ui/icons/hacker/HiddenFix_OS_logo.png"
+## Строки внизу экрана сведений BIOS.
+const FOOTER_TEXT: String = "(C) Kestrel Systems, Inc.\n64-0412-000001-00101111-031519-Kx450-B0820000-K2PC"
 
 var _mode: String = ""
 var _buffer: SubViewport
@@ -58,6 +74,9 @@ var _bar: Label
 var _console: Control
 var _splash: Control
 var _runner: Control
+var _title: Label
+var _logo: TextureRect
+var _footer: Label
 var _time: float = 0.0
 ## Доля общего отрезка, которую ещё занимает выключение (перезагрузка); 0 — сразу загрузка.
 var _boot_from: float = 0.0
@@ -167,6 +186,7 @@ func _redraw() -> void:
 		# Сначала стол закрывает окна, потом экран гаснет.
 		_console.visible = false
 		_splash.visible = false
+		_footer.visible = false
 		_off.visible = false
 		_display.modulate.a = clampf((progress - SHUTDOWN_FADE_FROM) / (1.0 - SHUTDOWN_FADE_FROM), 0.0, 1.0)
 		return
@@ -175,7 +195,12 @@ func _redraw() -> void:
 	var install: bool = _mode == INSTALL
 	var splash: bool = not install and progress >= POST_SHARE
 	_console.visible = not splash
+	_footer.visible = not splash
 	_splash.visible = splash
+	# Заставка: у хакерской ОС — логотип, у обычной — название.
+	var hacker: bool = str(GameState.get_var_or("pc.os", "normal")) == "hacker"
+	_logo.visible = hacker
+	_title.visible = not hacker
 	if splash:
 		return
 	var post: float = progress / POST_SHARE if not install else minf(1.0, progress * 6.0)
@@ -236,14 +261,29 @@ func _build() -> void:
 	var splash_column := VBoxContainer.new()
 	splash_column.add_theme_constant_override("separation", 24)
 	_splash.add_child(splash_column)
-	var title := Label.new()
-	title.name = "OsTitle"
-	title.text = OS_TITLE
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_override("font", GameTheme.font("heading"))
-	title.add_theme_font_size_override("font_size", 40)
-	title.add_theme_color_override("font_color", Color(0.85, 0.88, 0.92))
-	splash_column.add_child(title)
+	_logo = TextureRect.new()
+	_logo.name = "OsLogo"
+	_logo.texture = load(HACKER_LOGO) as Texture2D
+	_logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_logo.custom_minimum_size = Vector2(320, 180)
+	splash_column.add_child(_logo)
+	_title = Label.new()
+	_title.name = "OsTitle"
+	_title.text = OS_TITLE
+	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title.add_theme_font_override("font", GameTheme.font("heading"))
+	_title.add_theme_font_size_override("font_size", 40)
+	_title.add_theme_color_override("font_color", Color(0.85, 0.88, 0.92))
+	splash_column.add_child(_title)
+	_footer = Label.new()
+	_footer.name = "Footer"
+	_footer.text = FOOTER_TEXT
+	_footer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, 48)
+	_footer.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_footer.add_theme_font_override("font", GameTheme.font("mono"))
+	_footer.add_theme_color_override("font_color", Color(0.78, 0.8, 0.82))
+	screen.add_child(_footer)
 	_runner = Control.new()
 	_runner.name = "Runner"
 	_runner.custom_minimum_size = Vector2(180, 18)

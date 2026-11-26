@@ -137,7 +137,9 @@ func is_fast_forwarding() -> bool:
 func fast_progress() -> float:
 	if _fast_total <= 0:
 		return 1.0
-	return 1.0 - float(_fast_left) / float(_fast_total)
+	# С долей текущей минуты: полоска и экран загрузки идут плавно, а не скачками по минуте.
+	var left: float = float(_fast_left) - clampf(_carry / real_seconds_per_minute, 0.0, 1.0)
+	return clampf(1.0 - left / float(_fast_total), 0.0, 1.0)
 
 
 func start() -> void:
