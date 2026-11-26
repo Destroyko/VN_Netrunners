@@ -1,10 +1,11 @@
 {
   "_note": "Имена — в одном месте (рабочие, пока разработчик не выбрал). В текстах — подстановки {name_*}.",
   "name_hero": "Герой",
-  "name_roommate": "Соседка",
+  "name_roommate": "Джейн",
   "name_landlord": "Хозяин",
   "name_mother": "Мама",
   "name_city": "Город",
   "name_company_1": "Компания",
-  "name_curator": "Куратор"
+  "name_curator": "Куратор",
+  "name_nick_roommate": "pudding42"
 }
