@@ -254,7 +254,8 @@ func test_reboot_applies_the_theme_and_takes_time() -> void:
 	t.home_fs().put_file("/sys/theme.sys", {"system": true, "file_id": "theme_corp"})
 	var before: int = minute()
 	var text: String = run("reboot")
-	assert_string_contains(text, "применена тема: theme_corp")
+	assert_false(text.contains("тема"), "тему показывает экран загрузки, не консоль (вычитка 26.11.2026)")
+	assert_eq(str(GameState.get_var_or("pc.applied_theme", "")), "theme_corp", "тема применена")
 	var pc: Dictionary = DataLoader.balance().get("pc", {}) as Dictionary
 	assert_eq(minute(), before + int(pc["shutdown_minutes"]) + int(pc["boot_minutes"]), "выключение + загрузка")
 
@@ -265,11 +266,16 @@ func test_reboot_with_broken_desktop_reports_errors() -> void:
 	assert_string_contains(run("reboot"), "x-server.sys")
 
 
-func test_reboot_is_refused_on_a_remote_machine() -> void:
-	enter("node_husband_pc")
+## Вычитка 26.11.2026: reboot на чужом узле — узел перезагружается (минуту вне сети), герой
+## отключён, как после dc.
+func test_reboot_on_a_remote_machine_disconnects_and_takes_it_offline() -> void:
 	Clock.set_time(1, 19 * 60)
 	enter("node_husband_pc")
-	assert_string_contains(run("reboot"), "только на своём ПК")
+	run("reboot")
+	assert_false(t.is_remote(), "отключён, как после dc")
+	assert_string_contains(run("connect 92.44.18.3"), "узел не в сети", "узел перезагружается")
+	Clock.advance(Network.REBOOT_MINUTES)
+	assert_false(run("connect 92.44.18.3").contains("не в сети"), "через минуту снова в сети")
 
 
 # --- Маски и вопрос о замене (плейтест M2) ----------------------------------------

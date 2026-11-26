@@ -289,7 +289,16 @@ func is_sabotaged(node_id: String, now: int) -> bool:
 func is_online(node_id: String, now: int) -> bool:
 	if node_id == HOME_ID:
 		return true
-	return in_window(node_id, now) and not is_sabotaged(node_id, now)
+	return in_window(node_id, now) and not is_sabotaged(node_id, now) and not is_rebooting(node_id, now)
+
+
+## Узел перезагружается (игрок сделал `reboot` на нём): недоступен минуту (вычитка 26.11.2026).
+func is_rebooting(node_id: String, now: int) -> bool:
+	return int(_peek(node_id).get("rebooting_until", NEVER)) > now
+
+
+func reboot_node(node_id: String, now: int) -> void:
+	_entry(node_id)["rebooting_until"] = now + REBOOT_MINUTES
 
 
 ## Когда узел вернётся после саботажа: абсолютная минута или -1.
@@ -372,6 +381,10 @@ func set_probe_layers(node_id: String, layers: int) -> void:
 ## Внешний адрес своего ПК — им подписаны следы героя в логах чужих узлов (вычитка 25.11.2026).
 static func external_address() -> String:
 	return str((DataLoader.nodes().get(HOME_ID, {}) as Dictionary).get("external_address", "0.0.0.0"))
+
+
+## Сколько минут чужой узел перезагружается после `reboot`.
+const REBOOT_MINUTES: int = 1
 
 
 func alert_level(node_id: String) -> int:

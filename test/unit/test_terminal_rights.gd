@@ -241,7 +241,7 @@ func test_download_that_does_not_fit_the_trace_is_cut() -> void:
 
 	var text: String = run("cp photos/hotel.jpg")
 	assert_string_contains(text, "ошибка передачи: соединение прервано")
-	assert_string_contains(text, "трейс завершён")
+	assert_string_contains(text, "трейс завершён: соединение с узлом разорвано")
 	assert_false(t.home_fs().has_file("/home/downloads/hotel.jpg"))
 	assert_eq(t.prompt(), "home:/home$ ")
 

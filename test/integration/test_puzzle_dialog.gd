@@ -335,7 +335,7 @@ func test_trace_ending_by_itself_closes_the_puzzle_window() -> void:
 	Clock.advance(desktop.terminal.session.trace_left())
 	await wait_frames(2)
 	assert_false(desktop.has_puzzle_open(), "сеанс оборван — головоломке не на что работать")
-	assert_string_contains(view.output_text(), "трейс завершён")
+	assert_string_contains(view.output_text(), "трейс завершён: соединение с узлом разорвано")
 
 
 # --- Перехват в дампе ------------------------------------------------------------

@@ -27,6 +27,15 @@ const DESKTOP_DIR: String = "/home/desktop"
 const ANSWERS_YES: PackedStringArray = ["y", "yes", "д", "да"]
 const ANSWERS_NO: PackedStringArray = ["n", "no", "н", "нет"]
 ## Команду вызвали неверно (нет аргумента): синтаксис и куда смотреть (вычитка 25.11.2026).
+## «8 ч 15 м» — длительность для игрока (минуты игры).
+static func duration_text(minutes: int) -> String:
+	var hours: int = minutes / 60
+	var rest: int = minutes % 60
+	if hours > 0 and rest > 0:
+		return "%d ч %d м" % [hours, rest]
+	return ("%d ч" % hours) if hours > 0 else ("%d м" % rest)
+
+
 static func usage(result: TermResult, syntax: String) -> void:
 	result.add("команда указана неверно: %s. Подробнее: help %s" % [syntax, syntax.get_slice(" ", 0)])
 
@@ -523,7 +532,7 @@ func _describe(events: Array[Dictionary], result: TermResult) -> void:
 				result.add("соединение разорвано: узел не в сети")
 				_forget_session()
 			"trace_finished":
-				result.add("трейс завершён: соединение разорвано")
+				result.add("трейс завершён: соединение с узлом разорвано")
 				_forget_session()
 
 
@@ -607,7 +616,7 @@ func connect_target(result: TermResult) -> void:
 
 func _show_history(result: TermResult) -> void:
 	if _history.is_empty():
-		result.add("история пуста")
+		result.add("пусто")
 	for index: int in _history.size():
 		result.add("%3d  %s" % [index + 1, _history[index]])
 
@@ -618,7 +627,7 @@ func _show_history(result: TermResult) -> void:
 ## Без ключа ручная расшифровка (мини-игра) пока не готова — см. docs/open-questions.md.
 func _decrypt(args: PackedStringArray, result: TermResult) -> void:
 	if is_remote():
-		result.add("ошибка: расшифровка доступна только на своём ПК")
+		result.add("ошибка: decrypt на удалённом узле запрещён")
 		return
 	if args.is_empty():
 		var running: Array = BackgroundTasks.tasks()
@@ -637,22 +646,25 @@ func _decrypt(args: PackedStringArray, result: TermResult) -> void:
 	if not bool(report["ok"]):
 		result.add(str(report["reason"]))
 		return
-	result.add("подбор пароля запущен: около %d ч" % maxi(1, roundi(int(report["minutes"]) / 60.0)))
+	result.add("подбор пароля запущен: оставшееся время %s" % Terminal.duration_text(int(report["minutes"])))
 
 
 func _reboot(result: TermResult) -> void:
+	# На чужом узле: узел перезагружается (минуту вне сети), игрока отключает как после `dc`.
 	if is_remote():
-		result.add("ошибка: перезагрузка доступна только на своём ПК")
+		var node: String = node_id()
+		result.add("перезагрузка...")
+		_dispatch("dc", false, result)
+		net.reboot_node(node, now())
 		return
-	# Одно правило на все кнопки питания (PcPower): сеанс оборван как `dc`, подбор прерван,
-	# тема применена. Стол, увидев загрузку, соберётся заново.
+	# Свой ПК: выключение и загрузка с экраном загрузки — тот же путь, что кнопки питания.
+	# Одно правило на все кнопки (PcPower): сеанс оборван как `dc`, подбор прерван, тема
+	# применена; стол, увидев загрузку, соберётся заново.
 	result.add("перезагрузка...")
 	var report: Dictionary = PcPower.reboot()
 	_forget_session()
 	if int(report.get("stopped", 0)) > 0:
 		result.add("прервано фоновых задач: %d" % int(report["stopped"]))
-	if bool(report.get("theme_changed", false)):
-		result.add("применена тема: %s" % str(report["theme"]))
 	for error: String in report.get("errors", PackedStringArray()) as PackedStringArray:
 		result.add(error)
 

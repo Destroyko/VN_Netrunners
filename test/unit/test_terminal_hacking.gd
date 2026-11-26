@@ -161,7 +161,7 @@ func test_trace_warns_and_then_breaks_the_connection() -> void:
 
 	var end := TermResult.new()
 	t.spend(total, end)
-	assert_string_contains(end.text(), "трейс завершён")
+	assert_string_contains(end.text(), "трейс завершён: соединение с узлом разорвано")
 	assert_signal_emitted(EventBus, "trace_finished")
 	assert_eq(t.prompt(), "home:/home$ ", "обрыв: терминал снова дома")
 
