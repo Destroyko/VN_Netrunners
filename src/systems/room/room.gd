@@ -19,8 +19,11 @@ static func monitor(home: Filesystem) -> Dictionary:
 	if not desktop:
 		lines.append("fatal error")
 		lines.append_array(SystemFiles.boot_errors(home))
+		# Старая ОС: система не стартует, потому что устарела (разработчик, 26.11.2026) — сухие
+		# строки системы, без подсказки, где взять новую. Текст — data/terminal.json.
 		if os_level() == Terminal.OS_OLD:
-			lines.append("операционная система не найдена")
+			for line: Variant in DataLoader.terminal().get("old_os_errors", []) as Array:
+				lines.append(str(line))
 	return {"desktop": desktop, "lines": lines}
 
 

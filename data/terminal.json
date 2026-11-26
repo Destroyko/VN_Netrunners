@@ -1,5 +1,12 @@
 {
   "_note": "Оформление терминала (docs/tech/terminal-spec.md, «Тон вывода»). banner — строки при открытии окна, по уровню ОС (pc.os). Название ОС — заглушка, решается в open-questions.md.",
+  "old_os_errors": [
+    "ERROR 0x0000C1F: OS security certificate expired (valid until 2018-03-31)",
+    "ERROR 0x00004E2: update service unreachable: kernel 2.6.32 is no longer supported",
+    "ERROR 0x0000A07: intrusion detection module failed to load: signature database outdated",
+    "CRITICAL: system integrity check failed",
+    "Boot aborted. The operating system must be reinstalled."
+  ],
   "banner": {
     "old": [
       "Corvid Linux 2.6.32 (tty1)",
