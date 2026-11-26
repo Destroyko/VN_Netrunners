@@ -27,7 +27,7 @@ func _init(terminal: Terminal) -> void:
 func list_installed(result: TermResult) -> void:
 	var installed: PackedStringArray = Programs.installed()
 	if installed.is_empty():
-		result.add("программы не установлены")
+		result.add("программ не найдено")
 		return
 	# Таблицей, как узлы и порты (вычитка 26.11.2026).
 	result.add_as(TermTable.row(["ПРОГРАММА", "ОПИСАНИЕ"], PROGS_WIDTHS), "dim")
@@ -81,7 +81,7 @@ func _crack(program: String, args: PackedStringArray, result: TermResult) -> voi
 		result.add("трейс запущен: %d мин" % left)
 		EventBus.trace_started.emit(target)
 
-	result.add("%s: запущен, порт %d" % [program, _t.net.port_of(target, service)])
+	result.add("%s запущен: порт %d" % [program, _t.net.port_of(target, service)])
 	_t.spend_then(Programs.minutes_for(program), result, func(done: TermResult) -> void:
 		# За время запуска трейс или конец прайм-тайма мог оборвать взлом: тогда головоломки не будет.
 		if _t.session.target_id() != target:
@@ -178,7 +178,7 @@ func _deepscan(program: String, _args: PackedStringArray, result: TermResult) ->
 	if not Network.DEEPSCAN_DEVICES.has(_t.net.device_of(here)):
 		result.add("ошибка: на узле нет таблицы маршрутизации")
 		return
-	result.add("запущен обход сети от узла %s .........." % _t.net.definition(here).get("address", here))
+	result.add("запущено сканирование сети ..........")
 	_t.spend_then(Programs.minutes_for(program), result, func(done: TermResult) -> void:
 		if _t.node_id() != here:
 			done.add("ошибка: соединение прервано")

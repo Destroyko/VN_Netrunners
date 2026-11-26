@@ -627,3 +627,18 @@ func test_click_on_the_console_screen_raises_its_window() -> void:
 	click.pressed = true
 	(console.body.get_child(0) as TerminalView).call("_on_screen_input", click)
 	assert_gt(console.get_index(), files.get_index(), "клик по экрану консоли поднял её окно")
+
+
+## Вычитка 26.11.2026: пока открыта головоломка, в консоли бегут строки по паре случайных символов.
+func test_console_shows_noise_while_a_puzzle_is_open() -> void:
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	await wait_frames(1)
+	var before: int = view.output_text().split("\n").size()
+	view.terminal.set_puzzle({"puzzle": RefCounted.new()})
+	view.call("_tick_noise", 1.0)
+	view.call("_tick_noise", 1.0)
+	var during: int = view.output_text().split("\n").size()
+	assert_eq(during, before + 2, "две строки шума")
+	view.terminal.set_puzzle({})
+	view.call("_tick_noise", 1.0)
+	assert_eq(view.output_text().split("\n").size(), during, "головоломка закрыта — шума нет")

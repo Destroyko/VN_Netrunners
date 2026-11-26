@@ -40,7 +40,7 @@ func test_catching_the_hash_opens_the_service() -> void:
 	assert_eq(catch_all(puzzle)["result"], DumpPuzzle.PICK_DONE)
 	var word: String = str(last.request["password"])
 	var text: String = t.finish_puzzle(1).text()
-	assert_string_contains(text, "доступ получен")
+	assert_string_contains(text, "открыт")
 	assert_string_contains(text, "пароль: " + word.to_upper(), "пароль показан игроку")
 	assert_string_contains(run(word), "вход выполнен", "игрок вводит его сам")
 	assert_true(t.session.has_connection())
@@ -102,14 +102,14 @@ func test_finishing_the_remaining_layers_opens_the_service() -> void:
 	t.finish_puzzle(1)
 	run("gridrunner 443")
 	var text: String = t.finish_puzzle(1).text()
-	assert_string_contains(text, "доступ получен")
+	assert_string_contains(text, "открыт")
 	assert_true(t.session.has_connection(), "вскрыто всё нужное — вошли без лишнего connect")
 
 
 func test_solving_every_layer_at_once_opens_the_service() -> void:
 	_start_husband()
 	run("gridrunner 443")
-	assert_string_contains(solve_puzzle().text(), "доступ получен")
+	assert_string_contains(solve_puzzle().text(), "открыт")
 
 
 func test_opened_service_forgets_its_progress() -> void:

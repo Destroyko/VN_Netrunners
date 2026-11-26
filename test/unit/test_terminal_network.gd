@@ -194,7 +194,7 @@ func test_cwd_resets_between_nodes() -> void:
 
 func test_no_programs_at_the_start() -> void:
 	# Решено 15.11.2026: у героя обычная ОС, первые задания — прямой доступ без взлома.
-	assert_eq(run("progs"), "программы не установлены")
+	assert_eq(run("progs"), "программ не найдено")
 	assert_eq(Programs.installed().size(), 0)
 
 

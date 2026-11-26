@@ -48,7 +48,7 @@ func test_cracked_password_is_shown_and_the_server_asks_for_it() -> void:
 	var word: String = str(last.request["password"])
 	assert_false(word.is_empty(), "взломщик знает, какое слово достанет")
 	var result: TermResult = solve_puzzle()
-	assert_string_contains(result.text(), "порт 22: доступ получен")
+	assert_string_contains(result.text(), "порт 22: открыт")
 	assert_string_contains(result.text(), "пароль: " + word.to_upper())
 	assert_string_contains(result.text(), "соединение с 10.0.0.7 установлено")
 	assert_eq(result.request.get("type"), "remote", "интерфейс открывает трансляцию с экраном блокировки")

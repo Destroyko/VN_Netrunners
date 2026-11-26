@@ -260,7 +260,7 @@ func test_full_hack_through_the_desktop() -> void:
 	button.pressed.emit()
 	await wait_frames(2)
 	assert_false(desktop.has_puzzle_open())
-	assert_string_contains(view.output_text(), "доступ получен")
+	assert_string_contains(view.output_text(), "открыт")
 
 
 func _open_puzzle_on_desktop() -> Array:

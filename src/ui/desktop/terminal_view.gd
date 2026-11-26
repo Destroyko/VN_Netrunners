@@ -188,6 +188,7 @@ func _host_theme() -> String:
 func _process(delta: float) -> void:
 	if _entry == null:
 		return
+	_tick_noise(delta)
 	if Clock.is_fast_forwarding():
 		_busy = true
 		_entry.editable = false
@@ -209,6 +210,27 @@ func _process(delta: float) -> void:
 		_blink_left = BLINK_SECONDS
 		_cursor_on = not _cursor_on
 		_redraw_line()
+
+
+## Пока открыта головоломка, взломщик «работает» и в консоли: строки по паре случайных символов
+## (вычитка 26.11.2026) — видно, что процесс идёт. Случайность — свой поток `Rng`, только вид.
+const NOISE_SECONDS: float = 0.45
+const NOISE_CHARS: String = "0123456789ABCDEF#$%&*+=<>/\\|"
+var _noise_left: float = 0.0
+
+
+func _tick_noise(delta: float) -> void:
+	if terminal == null or terminal.current_puzzle() == null or not is_visible_in_tree():
+		return
+	_noise_left -= delta
+	if _noise_left > 0.0:
+		return
+	_noise_left = NOISE_SECONDS
+	var rng: RandomNumberGenerator = Rng.stream("terminal_noise")
+	var line: String = ""
+	for i: int in 2:
+		line += NOISE_CHARS[rng.randi_range(0, NOISE_CHARS.length() - 1)]
+	_print_bbcode(_paint.output(line, "dim"))
 
 
 ## Полоска программы, как у настоящих консольных утилит: `[#########.........]  45%`.

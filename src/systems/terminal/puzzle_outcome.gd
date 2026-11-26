@@ -48,7 +48,7 @@ func apply(data: Dictionary, gained: int, result: TermResult) -> void:
 		var done: NetResult = _t.session.crack(service, now_minute)
 		progress.clear_service(node, service)
 		EventBus.puzzle_solved.emit(kind, level, node, service)
-		result.add("порт %d: доступ получен" % port)
+		result.add_as("порт %d: открыт" % port, "ok")
 		# Вскрытая часть защиты больше не поднимает шум: трейс отступает (разработчик, 16.11.2026).
 		var eased: int = _t.session.ease_trace(int((DataLoader.balance().get("nodes", {}) as Dictionary).get("trace_ease_percent", 25)))
 		if eased > 0:
