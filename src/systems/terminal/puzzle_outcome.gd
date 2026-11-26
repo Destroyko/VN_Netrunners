@@ -65,7 +65,7 @@ func apply(data: Dictionary, gained: int, result: TermResult) -> void:
 	elif layers_gained > 0:
 		# Частичный успех: слои остались, добить можно позже (даже после `dc`).
 		EventBus.puzzle_solved.emit(kind, level, node, service)
-		result.add("порт %d: вскрыт слой %d из %d" % [port, layers_now, layers_total])
+		result.add("порт %d: вскрыто слоёв %d из %d" % [port, layers_now, layers_total])
 	else:
 		EventBus.puzzle_failed.emit(kind, level, node, service, attempt)
 		result.add("ошибка: доступ к порту %d не получен" % port)

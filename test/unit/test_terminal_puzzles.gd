@@ -79,7 +79,7 @@ func test_cautious_target_plays_harder() -> void:
 func test_partial_success_keeps_the_layers() -> void:
 	_start_husband()
 	run("gridrunner 443")
-	assert_string_contains(t.finish_puzzle(1).text(), "вскрыт слой 1 из 2")
+	assert_string_contains(t.finish_puzzle(1).text(), "вскрыто слоёв 1 из 2")
 	assert_signal_emitted(EventBus, "puzzle_solved")
 	assert_string_contains(run("connect 92.44.18.3"), "вход отклонён", "один слой — ещё не сервис")
 
