@@ -20,6 +20,11 @@ const KNOWN_TYPES: PackedStringArray = [
 	"skill_at_least",
 	"has_item",
 	"has_file",
+	"heat_at_least",
+	"at_location",
+	"weekday",
+	"time_between",
+	"var_at_least",
 ]
 
 ## Типы из документации, которым нужны системы следующих этапов.
@@ -98,6 +103,32 @@ static func _check_one(type: String, value: Variant) -> bool:
 		"has_file":
 			# По file_id, где бы файл ни лежал на ПК героя (quest-format.md).
 			return Filesystem.for_node(Network.HOME_ID).has_file_id(str(value))
+		"heat_at_least":
+			return GameState.heat >= int(value)
+		"at_location":
+			# Формат: {"at_location": "loc_park"} — герой сейчас в этой локации.
+			return str(GameState.get_var_or(Locations.VAR_LOCATION, "")) == str(value)
+		"weekday":
+			# Формат: {"weekday": "сб"} или {"weekday": ["сб", "вс"]} — как в дате у игрока.
+			var today: String = Clock.WEEKDAYS[int(Clock.date_of(GameState.day)["weekday"])]
+			return (value as Array).has(today) if value is Array else today == str(value)
+		"time_between":
+			# Формат: {"time_between": ["12:00", "16:00"]} — с 12:00 включительно до 16:00.
+			var span: Array = value as Array
+			if span == null or span.size() != 2:
+				push_error("Conditions: time_between ожидает [\"чч:мм\", \"чч:мм\"], получено: %s" % [value])
+				return false
+			var from: int = Rest.parse_clock(str(span[0]))
+			var to: int = Rest.parse_clock(str(span[1]))
+			var now: int = GameState.minute
+			return now >= from and now < to if from <= to else (now >= from or now < to)
+		"var_at_least":
+			# Формат: {"var_at_least": ["stats.jogs", 4]} — числовая переменная состояния (счётчик).
+			var pair2: Array = value as Array
+			if pair2 == null or pair2.size() != 2:
+				push_error("Conditions: var_at_least ожидает [переменная, значение], получено: %s" % [value])
+				return false
+			return float(GameState.get_var_or(str(pair2[0]), 0)) >= float(pair2[1])
 		_:
 			if DEFERRED_TYPES.has(type):
 				push_warning("Conditions: условие '%s' ещё не реализовано (нужна система следующего этапа)" % type)

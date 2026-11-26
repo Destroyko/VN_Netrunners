@@ -153,7 +153,11 @@ static func _apply_one(type: String, value: Variant) -> bool:
 			EventBus.needs_changed.emit()
 			return true
 		"unlock_quest":
-			# Формат: {"unlock_quest": "side_x"} — начать квест (если выполнены его requires).
+			# Формат: {"unlock_quest": "side_x"} — начать квест (если выполнены его requires);
+			# шаблон с параметрами — {"unlock_quest": {"quest": "tpl_x", "params": {"node": "node_y"}}}.
+			if value is Dictionary:
+				var spec: Dictionary = value as Dictionary
+				return not Quests.start_instance(str(spec.get("quest", "")), spec.get("params", {}) as Dictionary).is_empty()
 			return Quests.start(str(value))
 		"quest_choice":
 			# Формат: {"quest_choice": ["side_x", "choice_id"]} — выбор на текущем этапе квеста;

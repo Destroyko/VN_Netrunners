@@ -17,8 +17,16 @@ const OUTCOME_DONE: String = "done"
 const OUTCOME_EXPIRED: String = "expired"
 
 
+## Определение квеста. У экземпляра шаблона (`<шаблон>#<номер>`) — данные шаблона с подставленными
+## параметрами экземпляра (`QuestTemplates`).
 static func definition(id: String) -> Dictionary:
-	return DataLoader.quests().get(id, {}) as Dictionary
+	if not QuestTemplates.is_instance(id):
+		return DataLoader.quests().get(id, {}) as Dictionary
+	var raw: Dictionary = DataLoader.quests().get(QuestTemplates.template_of(id), {}) as Dictionary
+	var params: Dictionary = {}
+	if GameState.is_quest_started(id):
+		params = GameState.quest_entry(id).get("params", {}) as Dictionary
+	return QuestTemplates.substitute(raw, params) as Dictionary
 
 
 static func is_active(id: String) -> bool:
@@ -29,14 +37,39 @@ static func active() -> Array:
 	return GameState.quest_ids().filter(func(id: String) -> bool: return is_active(id))
 
 
-## Начать квест. Нет в данных, уже начат или не выполнены `requires` — false.
+## Начать квест. Нет в данных, уже начат или не выполнены `requires` — false. Шаблон начинается
+## новым экземпляром (параметры — из `from` / `sample`; передать свои — `start_instance`).
 static func start(id: String) -> bool:
 	var def: Dictionary = definition(id)
 	if def.is_empty():
 		push_error("Quests: нет квеста в data/quests: %s" % id)
 		return false
+	if QuestTemplates.is_template(def):
+		return not start_instance(id, {}).is_empty()
 	if GameState.is_quest_started(id) or not Conditions.check_all(def.get("requires", []) as Array):
 		return false
+	return _begin(id, def)
+
+
+## Новый экземпляр шаблона с параметрами (`{"node": "node_x"}`); недостающие — из `from`.
+## Возвращает id экземпляра или "", если не начался (не шаблон, не выполнены `requires`).
+static func start_instance(template: String, given: Dictionary) -> String:
+	var raw: Dictionary = DataLoader.quests().get(template, {}) as Dictionary
+	if not QuestTemplates.is_template(raw):
+		push_error("Quests: %s — не шаблон квеста" % template)
+		return ""
+	var params: Dictionary = QuestTemplates.pick_params(raw, given)
+	var def: Dictionary = QuestTemplates.substitute(raw, params) as Dictionary
+	if not Conditions.check_all(def.get("requires", []) as Array):
+		return ""
+	var id: String = QuestTemplates.next_id(template)
+	var entry: Dictionary = GameState.quest_entry(id)
+	entry["template"] = template
+	entry["params"] = params
+	return id if _begin(id, def) else ""
+
+
+static func _begin(id: String, def: Dictionary) -> bool:
 	var stages: Array = def.get("stages", []) as Array
 	if stages.is_empty():
 		return false

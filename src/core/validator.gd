@@ -127,7 +127,19 @@ func validate_data(
 	for id: String in news.keys():
 		_validate_news(id, news[id] as Dictionary)
 	for id: String in quests.keys():
-		_validate_quest(id, quests[id] as Dictionary, nodes, news, quests)
+		var quest: Dictionary = quests[id] as Dictionary
+		# Шаблон проверяется с образцами параметров: узлы и файлы должны существовать и у них
+		# (docs/tech/story-engine.md, «Шаблоны»). Неописанный {параметр} — ошибка.
+		if QuestTemplates.is_template(quest):
+			var params: Dictionary = QuestTemplates.sample_params(quest)
+			for key: String in params.keys():
+				if str(params[key]).is_empty():
+					errors.append("квест %s: у параметра '%s' нет ни from, ни sample" % [id, key])
+			quest = QuestTemplates.substitute(quest, params) as Dictionary
+			var left: PackedStringArray = _placeholders(JSON.stringify(quest))
+			if not left.is_empty():
+				errors.append("квест %s: параметры не описаны в params: %s" % [id, ", ".join(left)])
+		_validate_quest(id, quest, nodes, news, quests)
 	for id: String in triggers.keys():
 		_validate_trigger(id, triggers[id] as Dictionary, news, quests)
 	for id: String in mail.keys():
@@ -231,6 +243,16 @@ func _validate_quest(
 		var outcome_where: String = "%s, исход %s" % [where, outcome_id]
 		_validate_effects(outcome_where, outcome.get("effects", []) as Array, quests)
 		_validate_news_refs(outcome_where, outcome.get("news", []) as Array, news)
+
+
+## Оставшиеся подстановки вида {name} в тексте шаблона.
+static func _placeholders(text: String) -> PackedStringArray:
+	var found: PackedStringArray = []
+	var regex := RegEx.create_from_string("[{]([a-z_]+)[}]")
+	for m: RegExMatch in regex.search_all(text):
+		if not found.has(m.get_string(1)):
+			found.append(m.get_string(1))
+	return found
 
 
 ## Действия, которые код спрашивает у двигателя сюжета перед выполнением (`StoryEngine.check`).

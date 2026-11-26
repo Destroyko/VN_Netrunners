@@ -74,7 +74,7 @@ data/
   "abandon": true,
   "stages": [
     {"id": "hack", "effects": [{"send_message": "msg_jane_practice"}, {"reveal_node": {"node": "node_jane_laptop"}}],
-     "objectives": [{"type": "read_file", "node": "node_jane_laptop", "path": "/home/notes.txt",
+     "objectives": [{"type": "read_file", "node": "node_jane_laptop", "file": "/home/notes.txt",
                      "title": "Найти что-нибудь, чтобы доказать, что справился"}]},
     {"id": "report", "effects": [{"send_message": "msg_jane_done_prompt"}],
      "objectives": [{"type": "talk", "dialogue": "dlg_jane_olives", "title": "Сообщить Джейн"}]}
@@ -233,25 +233,52 @@ data/
   на `heat.gain_logs_left`. Наказание не добавляется: оно и есть сама заметность.
 - Размер бонуса — в данных квеста, а не в коде: разные заказчики платят по-разному.
 
-## Шаблон тривиального квеста (radiant)
+## Шаблон квеста с подстановками (сделано 26.11.2026)
 
-Те же поля + параметры, которые подставляются случайно, и кулдаун:
+Один квест, где узел, файл, заказчик, оплата подставляются при старте (`story-engine.md`,
+«Шаблоны»; как aliases в Skyrim). Нужен доске группы, оплате школы и всему повторяемому.
 
 ```json
 {
-  "id": "radiant_stolen_phone",
-  "type": "radiant",
-  "channel": "group_site",
-  "cooldown_days": 2,
-  "params": { "owner": "random_name", "phone": "random_phone_node", "reward": [80, 150] },
-  "stages": [
-    { "id": "locate", "objectives": [
-      { "type": "hack_node", "node": "{phone}" },
-      { "type": "deliver", "what": "geo_location", "to": "{owner}" } ] }
-  ],
-  "outcomes": { "done": { "effects": [{ "money": "{reward}" }] } }
+  "id": "side_tpl_fetch", "type": "side", "template": true,
+  "title": "Скачать {file} с {node}",
+  "params": {
+    "node": { "from": ["node_office_backup", "node_husband_pc"] },
+    "file": { "sample": "/home/report.txt" },
+    "pay":  { "from": [80, 120, 150] }
+  },
+  "stages": [ { "id": "get", "objectives": [ { "type": "copy_file", "node": "{node}", "file": "{file}" } ] } ],
+  "outcomes": { "done": { "effects": [ { "money": "{pay}" } ] } }
 }
 ```
+
+- `"template": true` — квест запускается **экземплярами** `<шаблон>#<номер>` (номер из счётчика,
+  не повторяется); сколько угодно раз, каждый со своими параметрами и состоянием.
+- `params`: `from` — из чего выбрать, если при старте не передали (поток случайности `quests`, с
+  сидом); `sample` — образец для валидатора, когда значение всегда передаётся при старте.
+- `{имя}` подставляется в любые строки квеста; строка ровно `"{pay}"` получает значение как есть
+  (число остаётся числом).
+- Запуск: `{"unlock_quest": {"quest": "side_tpl_fetch", "params": {"file": "/home/x.txt"}}}`;
+  `{"unlock_quest": "side_tpl_fetch"}` — все параметры из `from`.
+- Валидатор проверяет шаблон с образцами (первое из `from` или `sample`): узлы и файлы должны
+  существовать; `{имя}`, не описанное в `params`, — ошибка.
+- Кулдаун и пулы (доска группы, письма дня) — шаг 11.
+
+## Условия: время, место, счётчики (26.11.2026)
+
+| Условие | Формат | Пример |
+| --- | --- | --- |
+| `at_location` | id локации | `{"at_location": "loc_park"}` — герой сейчас там |
+| `weekday` | день или список, как в дате у игрока | `{"weekday": ["сб", "вс"]}` |
+| `time_between` | `["чч:мм", "чч:мм"]`, начало включительно; через полночь — тоже | `{"time_between": ["12:00", "16:00"]}` |
+| `var_at_least` | `[переменная, число]` — счётчики | `{"var_at_least": ["stats.jogs", 4]}` |
+| `heat_at_least` | число | `{"heat_at_least": 50}` |
+
+Примеры, которые теперь собираются данными: «будь в парке в субботу с 12 до 16» — цель по
+состоянию `wait_until` с `until: [at_location, weekday, time_between]` (перепроверяется при входе
+в локацию и каждый час); «подними репутацию до 1» — `rank_at_least` (уже есть уровень 2 — этап
+проходится сам); скрытый запуск «сходил на пробежку 4 раза» — триггер на `var_changed` с
+`"match": {"key": "stats.jogs"}` и `var_at_least`.
 
 ## Защита от ошибок
 
