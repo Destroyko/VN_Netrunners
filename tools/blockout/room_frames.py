@@ -76,7 +76,7 @@ PHASES = {
 def extra(p):
     p.add_argument("--res", default="2560,1440", help="размер кадра: ширина,высота")
     p.add_argument("--samples", type=int, default=256)
-    p.add_argument("--grain", type=float, default=0.009, help="зерно плёнки: сигма шума в долях яркости, 0 — без зерна")
+    p.add_argument("--grain", type=float, default=0.004, help="зерно плёнки: сигма шума в долях яркости, 0 — без зерна")
     p.add_argument("--pc", default="both", help="on, off или both: состояние ПК (экран и его свет)")
 
 
