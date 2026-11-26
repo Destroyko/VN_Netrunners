@@ -87,7 +87,9 @@ func test_old_os_does_not_boot_even_with_files() -> void:
 	GameState.set_var(Terminal.VAR_OS, Terminal.OS_OLD)
 	var report: Dictionary = Room.monitor(home)
 	assert_false(bool(report["desktop"]))
-	assert_string_contains("\n".join(report["lines"] as PackedStringArray), "операционная система")
+	var text: String = "\n".join(report["lines"] as PackedStringArray)
+	assert_string_contains(text, "must be reinstalled", "ОС устарела — переустановить")
+	assert_false(text.contains("Джейн") or text.contains("флешк"), "без подсказки, где взять новую")
 
 
 func test_hardware_lists_the_os() -> void:
