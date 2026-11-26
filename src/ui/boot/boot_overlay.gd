@@ -22,30 +22,45 @@ const MONITOR_BUFFER: Vector2i = Vector2i(1280, 800)
 const LAYER_MONITOR: int = 1
 const LAYER_FULL: int = 70
 
-## Строки появляются по ходу полоски: доля пройденного → строка.
-const BOOT_LINES: Array = [
-	[0.0, "CORVID BIOS v2.14"],
-	[0.15, "проверка памяти .......... ок"],
-	[0.35, "диск 0: найден"],
-	[0.55, "загрузка ядра .........."],
-	[0.8, "запуск служб .........."],
+## Загрузка как у настоящего железа (разработчик, 26.11.2026): сначала проверка комплектующих
+## по-английски (доля пройденного → строка), потом заставка — название ОС по центру и бегущая
+## полоска, как у Windows XP. Установка с флешки — те же проверки и строки установщика.
+const POST_LINES: Array = [
+	[0.0, "CORVID BIOS v2.14   (C) 2019"],
+	[0.04, "CPU: 4 cores @ 3.20 GHz ................ ok"],
+	[0.10, "Memory test: 16384 MB .................. ok"],
+	[0.18, "GPU .................................... ok"],
+	[0.24, "SSD 512 GB ............................. ok"],
+	[0.30, "Ethernet ............................... ok"],
+	[0.35, "USB controller ......................... ok"],
+	[0.40, "Audio .................................. ok"],
 ]
+## Доля загрузки, после которой проверки сменяются заставкой.
+const POST_SHARE: float = 0.55
 const INSTALL_LINES: Array = [
-	[0.0, "CORVID BIOS v2.14"],
-	[0.0, "загрузка с USB"],
+	[0.0, "Boot device: USB"],
 	[0.06, "установщик системы"],
 	[0.1, "разметка диска .......... ок"],
 	[0.25, "копирование файлов системы .........."],
 	[0.7, "восстановление /sys .........."],
 	[0.9, "настройка загрузчика .........."],
 ]
-const SHUTDOWN_LINES: Array = [[0.0, "завершение работы .........."]]
+## Выключение: первая часть — окна закрываются по одному (это делает стол), вторая — гаснет экран.
+const SHUTDOWN_FADE_FROM: float = 0.55
+## Название ОС на заставке (заглушка — как в заставке терминала, open-questions.md).
+const OS_TITLE: String = "Corvid Linux"
 
 var _mode: String = ""
 var _buffer: SubViewport
 var _display: TextureRect
 var _text: RichTextLabel
 var _bar: Label
+var _console: Control
+var _splash: Control
+var _runner: Control
+var _time: float = 0.0
+## Доля общего отрезка, которую ещё занимает выключение (перезагрузка); 0 — сразу загрузка.
+var _boot_from: float = 0.0
 var _off: Button
 var _perspective: ShaderMaterial
 
@@ -55,7 +70,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build()
 	_hide()
-	EventBus.pc_boot_started.connect(func(install: bool, _minutes: int) -> void: _show(INSTALL if install else BOOT))
+	EventBus.pc_boot_started.connect(_on_boot_started)
 	EventBus.pc_power_changed.connect(func(on: bool) -> void:
 		if not on and Clock.is_fast_forwarding():
 			_show(SHUTDOWN))
@@ -68,6 +83,21 @@ func mode() -> String:
 ## Экран на мониторе в комнате (true) или на весь экран (false).
 func on_monitor() -> bool:
 	return _display.material != null
+
+
+## Загрузка началась. Сразу после выключения (перезагрузка) минуты идут одним отрезком: первая
+## его часть — ещё выключение, загрузка показывается после неё.
+func _on_boot_started(install: bool, minutes: int) -> void:
+	var shutdown_left: bool = _display.visible and _mode == SHUTDOWN
+	_boot_from = 0.0
+	if shutdown_left:
+		var total: float = float(minutes) + float(_shutdown_minutes())
+		_boot_from = float(_shutdown_minutes()) / total if total > 0.0 else 0.0
+	_show(INSTALL if install else BOOT)
+
+
+static func _shutdown_minutes() -> int:
+	return int((DataLoader.balance().get("pc", {}) as Dictionary).get("shutdown_minutes", 1))
 
 
 func _show(what: String) -> void:
@@ -87,6 +117,8 @@ func _hide() -> void:
 func _process(_delta: float) -> void:
 	if not _display.visible:
 		return
+	_time += _delta
+	_runner.queue_redraw()
 	# Минуты прошли (или их бросили) — экран больше не нужен: дальше стол или комната.
 	if not Clock.is_fast_forwarding() and not PcPower.is_booting():
 		_hide()
@@ -126,17 +158,57 @@ func _monitor_quad() -> PackedVector2Array:
 
 func _redraw() -> void:
 	var progress: float = Clock.fast_progress()
-	var lines: Array = INSTALL_LINES if _mode == INSTALL else (SHUTDOWN_LINES if _mode == SHUTDOWN else BOOT_LINES)
+	var shutting: bool = _mode == SHUTDOWN or progress < _boot_from
+	if _mode != SHUTDOWN and not shutting and _boot_from > 0.0:
+		progress = (progress - _boot_from) / (1.0 - _boot_from)
+	if shutting:
+		if _mode != SHUTDOWN:
+			progress = progress / _boot_from
+		# Сначала стол закрывает окна, потом экран гаснет.
+		_console.visible = false
+		_splash.visible = false
+		_off.visible = false
+		_display.modulate.a = clampf((progress - SHUTDOWN_FADE_FROM) / (1.0 - SHUTDOWN_FADE_FROM), 0.0, 1.0)
+		return
+	_off.visible = true
+	_display.modulate.a = 1.0
+	var install: bool = _mode == INSTALL
+	var splash: bool = not install and progress >= POST_SHARE
+	_console.visible = not splash
+	_splash.visible = splash
+	if splash:
+		return
+	var post: float = progress / POST_SHARE if not install else minf(1.0, progress * 6.0)
 	var shown: PackedStringArray = []
-	for line: Array in lines:
-		if progress >= float(line[0]):
+	for line: Array in POST_LINES:
+		if post >= float(line[0]) / POST_LINES[POST_LINES.size() - 1][0] * 0.9:
 			shown.append(str(line[1]))
-	if _mode == INSTALL:
+	if install:
 		var plugged: Dictionary = Room.inserted()
+		for line: Array in INSTALL_LINES:
+			if progress >= float(line[0]):
+				shown.append(str(line[1]))
 		if not plugged.is_empty():
-			shown.insert(mini(2, shown.size()), "носитель: %s" % Inventory.label_of(plugged))
+			shown.insert(mini(POST_LINES.size() + 1, shown.size()), "носитель: %s" % Inventory.label_of(plugged))
+		_bar.text = TerminalView.progress_text(progress).replace("[lb]", "[").replace("[rb]", "]")
+	else:
+		if post >= 0.95:
+			shown.append("загружена тема: %s" % GameTheme.pc_theme_id())
+		_bar.text = ""
 	_text.text = "\n".join(shown)
-	_bar.text = TerminalView.progress_text(progress).replace("[lb]", "[").replace("[rb]", "]")
+
+
+## Бегущие блоки заставки: три квадрата едут слева направо по дорожке, снова и снова.
+func _draw_runner() -> void:
+	var track: Vector2 = _runner.size
+	var block: float = track.y - 6.0
+	var span: float = track.x + block * 3.0
+	var head: float = fmod(_time * 140.0, span) - block * 3.0
+	_runner.draw_rect(Rect2(Vector2.ZERO, track), Color(0.55, 0.6, 0.7), false, 2.0)
+	for i: int in 3:
+		var x: float = head + i * (block + 4.0)
+		if x > 2.0 and x + block < track.x - 2.0:
+			_runner.draw_rect(Rect2(x, 3.0, block, block), Color(0.35, 0.6, 1.0))
 
 
 func _build() -> void:
@@ -155,6 +227,29 @@ func _build() -> void:
 	for side: String in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 48)
 	screen.add_child(margin)
+	_console = margin
+	_splash = CenterContainer.new()
+	_splash.name = "Splash"
+	_splash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_splash.visible = false
+	screen.add_child(_splash)
+	var splash_column := VBoxContainer.new()
+	splash_column.add_theme_constant_override("separation", 24)
+	_splash.add_child(splash_column)
+	var title := Label.new()
+	title.name = "OsTitle"
+	title.text = OS_TITLE
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_override("font", GameTheme.font("heading"))
+	title.add_theme_font_size_override("font_size", 40)
+	title.add_theme_color_override("font_color", Color(0.85, 0.88, 0.92))
+	splash_column.add_child(title)
+	_runner = Control.new()
+	_runner.name = "Runner"
+	_runner.custom_minimum_size = Vector2(180, 18)
+	_runner.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_runner.draw.connect(_draw_runner)
+	splash_column.add_child(_runner)
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 12)
 	margin.add_child(column)

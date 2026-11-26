@@ -93,7 +93,7 @@ func _ready() -> void:
 		if on and is_inside_tree() and is_visible_in_tree():
 			call_deferred("_restart")
 		elif not on and is_inside_tree() and is_visible_in_tree():
-			call_deferred("_leave_if_off"))
+			_on_power_off.call_deferred())
 	EventBus.mail_received.connect(func(_uid: String, _id: String) -> void: _refresh_mail_icon())
 	EventBus.mail_read.connect(func(_uid: String, _id: String) -> void: _refresh_mail_icon())
 	_refresh_mail_icon()
@@ -600,20 +600,41 @@ func save_game() -> String:
 
 ## Выключить ПК из меню: стол не прячется, а закрывается насовсем, герой — в комнате.
 func shut_down() -> void:
+	# В комнату стол уйдёт сам, когда окна закроются и экран погаснет (`_leave_if_off`).
 	PcPower.shut_down()
-	if _kept == self:
-		_kept = null
-	get_tree().change_scene_to_file(Screens.ROOM)
 
 
 ## ПК выключился и не грузится (перезагрузку прервали посреди установки): за столом сидеть не за
+## Пауза между закрытием окон при выключении.
+const CLOSE_STEP_SECONDS: float = 0.12
+
 ## чем — герой в комнате. Перезагрузка, которая идёт дальше, сюда не попадает: ПК уже грузится.
+func _on_power_off() -> void:
+	# Окна закрываются по одному и при выключении, и при перезагрузке (разработчик, 26.11.2026).
+	await _close_windows_one_by_one()
+	_leave_if_off()
+
+
 func _leave_if_off() -> void:
 	if not is_inside_tree() or PcPower.is_on() or PcPower.is_booting():
 		return
 	if _kept == self:
 		_kept = null
 	get_tree().change_scene_to_file(Screens.ROOM)
+
+
+## Выключение (разработчик, 26.11.2026): окна закрываются по одному, потом экран гаснет
+## (`BootOverlay`). Ждём, пока пройдёт минута выключения; часы стоят (тесты) — сразу.
+func _close_windows_one_by_one() -> void:
+	if not Clock.is_fast_forwarding():
+		return
+	for window: DesktopWindow in _windows.get_children().filter(func(n: Node) -> bool: return n is DesktopWindow):
+		if is_instance_valid(window):
+			window.close()
+		await get_tree().create_timer(CLOSE_STEP_SECONDS).timeout
+	# Выключение без загрузки — ждём, пока погаснет экран; перезагрузка идёт дальше сама.
+	while is_inside_tree() and Clock.is_fast_forwarding() and not PcPower.is_booting():
+		await get_tree().process_frame
 
 
 ## Собрать стол заново после загрузки ПК.
