@@ -30,8 +30,6 @@ func _inject(path: String, quest: Dictionary) -> void:
 ## прихожую закрывает этап изнутри первой цели. Этап 2 («зайти в коридор») не должен считаться
 ## выполненным, пока герой не зашёл в коридор.
 func test_nested_stage_change_does_not_leak_done_into_next_stage() -> void:
-	if OpenIssue.skip(self, "ISS-010: вложенная смена этапа переносит выполненные цели в следующий этап"):
-		return
 	_inject(SLOT_A, {
 		"id": "side_probe_walk", "title": "проба", "type": "side",
 		"stages": [
@@ -56,8 +54,6 @@ func test_nested_stage_change_does_not_leak_done_into_next_stage() -> void:
 ## состоянию» уже верна). Его завершение (`quest_completed`) снова проверяет первый квест, пока тот
 ## ещё не помечен законченным.
 func test_outcome_effects_apply_once() -> void:
-	if OpenIssue.skip(self, "ISS-011: исход квеста применяется дважды при вложенном quest_completed"):
-		return
 	_inject(SLOT_A, {
 		"id": "side_probe_pay", "title": "проба", "type": "side",
 		"stages": [{"id": "s1", "objectives": [{"type": "visit_location", "location": "loc_kitchen"}]}],
@@ -79,8 +75,6 @@ func test_outcome_effects_apply_once() -> void:
 ## снова `finish`, снова `move_to`… Сейчас это бесконечная рекурсия (Stack overflow), поэтому
 ## при RUN_OPEN_ISSUES=1 тест сыплет ошибками движка; после исправления — обычная проверка.
 func test_outcome_with_move_to_finishes_once() -> void:
-	if OpenIssue.skip(self, "ISS-011: исход квеста с move_to — бесконечная рекурсия"):
-		return
 	_inject(SLOT_A, {
 		"id": "side_probe_move", "title": "проба", "type": "side",
 		"stages": [{"id": "s1", "objectives": [{"type": "visit_location", "location": "loc_kitchen"}]}],
@@ -98,8 +92,6 @@ func test_outcome_with_move_to_finishes_once() -> void:
 
 ## `mv` на своём ПК событий не шлёт: цель `file_at` ждёт ближайшего часа игры (И-14).
 func test_file_at_objective_closes_right_after_local_mv() -> void:
-	if OpenIssue.skip(self, "ISS-017: цель file_at не перепроверяется после mv / cp на своём ПК"):
-		return
 	_inject(SLOT_A, {
 		"id": "side_probe_file", "title": "проба", "type": "side",
 		"stages": [{"id": "s1", "objectives": [{"type": "file_at", "path": "/home/notes/readme.txt"}]}],

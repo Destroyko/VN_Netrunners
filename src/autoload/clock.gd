@@ -1,7 +1,7 @@
 extends Node
 ## Игровое время: минуты, дни, время суток.
 ## Clock только двигает время и сообщает об этом. Что происходит в новый день,
-## решают NewsManager и TriggerManager, слушая day_started (docs/tech/architecture.md).
+## решают NewsManager и StoryEngine, слушая day_started (docs/tech/architecture.md).
 ##
 ## Само время хранится в GameState (иначе сейв его забудет), здесь только правила.
 

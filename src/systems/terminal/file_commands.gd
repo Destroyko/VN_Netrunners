@@ -372,6 +372,7 @@ func mv(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 	if not moved.is_ok():
 		return
 	var from: String = str(moved.paths[0])
+	EventBus.file_moved.emit(_t.node_id(), str(moved.paths[1]))
 	# Файл ушёл со своего места — для владельца это то же, что удаление (ISS-015): след в логе,
 	# а `net.sys` не на месте — узел вне сети. Перенос самих записей лога следов не оставляет,
 	# как и их удаление.

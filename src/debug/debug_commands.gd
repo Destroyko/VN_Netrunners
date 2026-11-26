@@ -22,7 +22,7 @@ const HELP: Dictionary = {
 	"seed": "seed [значение] — показать или задать сид случайности",
 	"effect": "effect <json> — применить эффект, например: effect {\"money\": 500}",
 	"cond": "cond <json> — проверить условие, например: cond {\"flag\": \"story.x\"}",
-	"quest": "quest | quest start <id> | quest choose <id> <выбор> | quest <id> <этап> — квесты: список активных, начать, выбрать, перевести на этап",
+	"quest": "quest | quest start <id> | quest choose <id> <выбор> | quest abandon <id> | quest <id> <этап> — квесты: список активных, начать, выбрать, отказаться (начать заново), перевести на этап",
 	"bug": "bug [заметка] — снимок «здесь баг» (то же, что F9): экран, состояние, журнал — в папку bugreports/",
 	"play": "play <password|matrix|dump> [уровень 2-4] [сид] — открыть головоломку окном без взлома (на рабочем столе)",
 	"puzzle": "puzzle <password|matrix> <уровень 2-4> <сид> — сгенерировать головоломку: метрики и эталонное решение",
@@ -238,6 +238,8 @@ static func _quest(args: PackedStringArray) -> String:
 ".join(lines) if not lines.is_empty() else "активных квестов нет"
 	if args[0] == "start" and args.size() == 2:
 		return "%s: начат" % args[1] if Quests.start(args[1]) else "%s: не начат (нет в данных, уже начат или не выполнены requires)" % args[1]
+	if args[0] == "abandon" and args.size() == 2:
+		return "%s: начат заново" % args[1] if Quests.abandon(args[1]) else "%s: отказаться нельзя (не активен или abandon: false)" % args[1]
 	if args[0] == "choose" and args.size() == 3:
 		return "выбрано" if Quests.choose(args[1], args[2]) else "такого выбора на этом этапе нет"
 	if args.size() < 2:

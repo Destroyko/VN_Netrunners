@@ -3,7 +3,9 @@ extends RefCounted
 ## Исполнитель квестов из JSON (docs/tech/quest-format.md): старт, этапы по порядку, цели по
 ## событиям шины, необязательные цели с бонусом, выбор, срок и исходы.
 ##
-## Чистые правила без сцен. События шины передаёт сюда автозагрузка `QuestManager`. Квест
+## Чистые правила без сцен. События приносит двигатель сюжета (`StoryQueue`,
+## docs/tech/story-engine.md): обновление квеста не прерывается — события, посланные эффектами,
+## ждут в очереди. Квест
 ## начинается эффектом `unlock_quest` (триггер, ответ на письмо, другой квест), выбор делается
 ## эффектом `quest_choice` — обычно из ответа на письмо. Так почта и квесты не знают друг о
 ## друге: связывают их данные.
@@ -38,9 +40,27 @@ static func start(id: String) -> bool:
 	var stages: Array = def.get("stages", []) as Array
 	if stages.is_empty():
 		return false
+	StoryQueue.hold()
 	var entry: Dictionary = GameState.quest_entry(id)
 	entry["started_day"] = GameState.day
 	_enter_stage(id, str((stages[0] as Dictionary)["id"]))
+	StoryQueue.release()
+	return true
+
+
+## Отказ от квеста (docs/tech/story-engine.md) — защита от софтлока: прогресс сбрасывается, квест
+## начинается заново с первого этапа. Применённые эффекты не откатываются. `"abandon": false` в
+## данных — отказаться нельзя.
+static func abandon(id: String) -> bool:
+	if not is_active(id) or not bool(definition(id).get("abandon", true)):
+		return false
+	var stages: Array = definition(id).get("stages", []) as Array
+	StoryQueue.hold()
+	var entry: Dictionary = GameState.quest_entry(id)
+	entry["started_day"] = GameState.day
+	_enter_stage(id, str((stages[0] as Dictionary)["id"]))
+	EventBus.quest_abandoned.emit(id)
+	StoryQueue.release()
 	return true
 
 
@@ -107,24 +127,29 @@ static func choose(id: String, choice_id: String) -> bool:
 			continue
 		if not Conditions.check_all(choice.get("requires", []) as Array):
 			return false
+		StoryQueue.hold()
 		Effects.apply_all(choice.get("effects", []) as Array)
 		if choice.has("outcome"):
 			finish(id, str(choice["outcome"]))
 		else:
 			_next_stage(id)
+		StoryQueue.release()
 		return true
 	return false
 
 
-## Закончить квест исходом: его эффекты и новости-последствия.
+## Закончить квест исходом: сначала отметить (повторный `finish` ничего не делает — ISS-011),
+## потом его эффекты и новости-последствия.
 static func finish(id: String, outcome: String) -> void:
 	if not is_active(id):
 		return
+	StoryQueue.hold()
+	GameState.set_quest_completed(id, outcome)
 	var result: Dictionary = (definition(id).get("outcomes", {}) as Dictionary).get(outcome, {}) as Dictionary
 	Effects.apply_all(result.get("effects", []) as Array)
 	for news: Dictionary in result.get("news", []) as Array:
 		Effects.apply({"schedule_news": news})
-	GameState.set_quest_completed(id, outcome)
+	StoryQueue.release()
 
 
 # --- Внутреннее -----------------------------------------------------------------
@@ -145,6 +170,12 @@ static func _progress(id: String, event: Dictionary) -> void:
 	var stage: Dictionary = current_stage(id)
 	if stage.is_empty():
 		return
+	StoryQueue.hold()
+	_progress_stage(id, stage, event)
+	StoryQueue.release()
+
+
+static func _progress_stage(id: String, stage: Dictionary, event: Dictionary) -> void:
 	var stage_id: String = str(stage["id"])
 	var done: Dictionary = GameState.quest_entry(id).get("done", {}) as Dictionary
 	_mark(id, stage.get("optional", []) as Array, "p", event, done, true)

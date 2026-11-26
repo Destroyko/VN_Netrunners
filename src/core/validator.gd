@@ -233,13 +233,25 @@ func _validate_quest(
 		_validate_news_refs(outcome_where, outcome.get("news", []) as Array, news)
 
 
+## Действия, которые код спрашивает у двигателя сюжета перед выполнением (`StoryEngine.check`).
+## Новое — вместе с местом в коде, которое спрашивает (docs/tech/quest-format.md).
+const ATTEMPTS: PackedStringArray = ["attempt.pc_power_on"]
+
+
 func _validate_trigger(
 	id: String, trigger: Dictionary, news: Dictionary, quests: Dictionary
 ) -> void:
 	var where: String = "триггер " + id
+	var event_name: String = str(trigger.get("on", ""))
+	# Перехват действия (docs/tech/story-engine.md): вместо эффектов — текст запрета.
+	if trigger.has("block"):
+		_require_fields(where, trigger, ["id", "on", "block"])
+		if not ATTEMPTS.has(event_name):
+			errors.append("%s: действие нельзя перехватить: '%s' (можно: %s)" % [where, event_name, ", ".join(ATTEMPTS)])
+		_validate_conditions(where, trigger.get("requires", []) as Array)
+		return
 	_require_fields(where, trigger, ["id", "on", "effects"])
 
-	var event_name: String = str(trigger.get("on", ""))
 	if not event_name.is_empty() and not _event_exists(event_name):
 		errors.append("%s: нет такого события в EventBus: '%s'" % [where, event_name])
 

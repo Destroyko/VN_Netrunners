@@ -44,7 +44,7 @@ signal time_advanced(minute: int, minutes_passed: int)
 ## Часы сдвинулись — сеанс взлома тикнул (HackManager). `events` — что случилось: трейс перевалил
 ## за половину, дошёл до конца, узел ушёл из сети. Пусто — просто прошло время под трейсом.
 signal session_advanced(events: Array)
-## Начался новый день: NewsManager публикует новости, TriggerManager проверяет триггеры.
+## Начался новый день: NewsManager публикует новости, StoryEngine разбирает триггеры и сроки квестов.
 signal day_started(day: int)
 ## Опубликована новость (NewsManager): лента и иконка обновляются (gameplay/news.md).
 signal news_published(news_id: String)
@@ -90,10 +90,12 @@ signal pc_power_changed(on: bool)
 ## экран загрузки показывает её и в конце зовёт `PcPower.finish_power_on`.
 signal pc_boot_started(install: bool, minutes: int)
 
-# --- Квесты (шлёт Quests через QuestManager, M2) -----------------------------
+# --- Квесты (шлёт Quests, разбор — StoryEngine) -----------------------------
 
 signal quest_stage_changed(quest_id: String, stage_id: String)
 signal quest_completed(quest_id: String, outcome: String)
+## Игрок отказался от квеста: прогресс сброшен, квест начат заново (docs/tech/story-engine.md).
+signal quest_abandoned(quest_id: String)
 ## Игрок выбрал задачу для трекера (Planner.track).
 signal task_tracked(quest_id: String)
 ## Цель этапа выполнена: `key` — "o<номер>" (обязательная) или "p<номер>" (необязательная).
@@ -114,6 +116,8 @@ signal file_copied(node_id: String, path: String)
 signal file_deleted(node_id: String, path: String)
 ## Файл изменён командой `edit` (цель квеста «исправить файл» перепроверяется).
 signal file_edited(node_id: String, path: String)
+## Файл перенесён или переименован (`mv`): цели «файл на месте» перепроверяются сразу (ISS-017).
+signal file_moved(node_id: String, path: String)
 
 # --- Головоломки (M1) --------------------------------------------------------
 

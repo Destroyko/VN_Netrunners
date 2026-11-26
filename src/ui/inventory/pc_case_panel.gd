@@ -136,6 +136,12 @@ func _on_power() -> void:
 		Desktop.discard_kept()
 		said.emit("Компьютер выключен.")
 		return
+	# Сценарная реакция (docs/tech/story-engine.md): сюжет может попросить не включать ПК.
+	var allowed: Dictionary = StoryEngine.check("attempt.pc_power_on")
+	if not bool(allowed["ok"]):
+		EventBus.hero_thought.emit(str(allowed["text"]))
+		said.emit(str(allowed["text"]))
+		return
 	var report: Dictionary = PcPower.power_on()
 	if bool(report.get("pending", false)):
 		close_requested.emit()

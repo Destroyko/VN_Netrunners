@@ -176,3 +176,47 @@ func test_validator_refuses_hidden_mandatory_objective() -> void:
 		{"id": "a", "objectives": [{"type": "read_file", "hidden": true}]}]}}, {})
 	assert_string_contains("\n".join(v.errors), "только необязательная")
 
+
+# --- Двигатель сюжета (docs/tech/story-engine.md) --------------------------------------
+
+func test_trigger_matches_event_arguments() -> void:
+	var list: Dictionary = {
+		"trigger_log": {"id": "trigger_log", "on": "file_read", "match": {"path": "/log/auth/x.txt"}, "effects": [{"money": 7}]},
+	}
+	GameState.set_money(0)
+	assert_eq(Triggers.fire({"event": "file_read", "path": "/home/other.txt"}, list).size(), 0, "чужой файл — мимо")
+	assert_eq(Triggers.fire({"event": "file_read", "path": "/log/auth/x.txt"}, list), PackedStringArray(["trigger_log"]))
+	assert_eq(GameState.money, 7)
+
+
+func test_attempt_can_be_blocked_by_a_rule() -> void:
+	var list: Dictionary = {
+		"trigger_no_pc": {"id": "trigger_no_pc", "on": "attempt.pc_power_on", "requires": [{"flag": "story.test_hold"}],
+			"block": "Меня просили его не включать."},
+	}
+	assert_true(bool(Triggers.check_attempt("attempt.pc_power_on", list)["ok"]), "условие не выполнено — можно")
+	GameState.set_flag("story.test_hold")
+	var answer: Dictionary = Triggers.check_attempt("attempt.pc_power_on", list)
+	assert_false(bool(answer["ok"]))
+	assert_eq(str(answer["text"]), "Меня просили его не включать.")
+	assert_eq(Triggers.fire("attempt.pc_power_on", list).size(), 0, "запрет не срабатывает как обычный триггер")
+
+
+func test_abandon_restarts_the_quest() -> void:
+	assert_true(Quests.start(QUEST))
+	var first: String = GameState.get_quest_stage(QUEST)
+	GameState.set_quest_stage(QUEST, "stage_that_hangs")
+	assert_true(Quests.abandon(QUEST), "отказ — защита от зависшего этапа")
+	assert_eq(GameState.get_quest_stage(QUEST), first, "квест начат заново с первого этапа")
+	assert_true(Quests.is_active(QUEST))
+
+
+func test_rule_loop_is_cut_off() -> void:
+	# Правило, которое шлёт своё же событие: разбор останавливается на лимите, игра не виснет.
+	StoryQueue.reset()
+	StoryQueue.hold()
+	for i: int in 500:
+		StoryQueue.post({"event": "noise"})
+	StoryQueue.release()
+	assert_false(StoryQueue.is_busy(), "очередь разобрана и отпущена")
+
