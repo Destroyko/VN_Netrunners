@@ -62,7 +62,7 @@ const SHUTDOWN_FADE_FROM: float = 0.55
 ## Название ОС на заставке (заглушка — как в заставке терминала, open-questions.md).
 const OS_TITLE: String = "Corvid Linux"
 ## Логотип хакерской ОС на заставке (разработчик, 26.11.2026: HiddenFox).
-const HACKER_LOGO: String = "res://assets/ui/icons/hacker/HiddenFix_OS_logo.png"
+const HACKER_LOGO: String = "res://assets/ui/icons/hacker/HiddenFox_OS_logo.png"
 ## Строки внизу экрана сведений BIOS.
 const FOOTER_TEXT: String = "(C) Kestrel Systems, Inc.\n64-0412-000001-00101111-031519-Kx450-B0820000-K2PC"
 
@@ -223,17 +223,26 @@ func _redraw() -> void:
 	_text.text = "\n".join(shown)
 
 
+## Цвет бегущей строки — как у логотипа ОС (разработчик, 26.11.2026); у обычной ОС — синий.
+const HACKER_COLOR: Color = Color8(70, 107, 108)
+const NORMAL_COLOR: Color = Color(0.35, 0.6, 1.0)
+
+
+func _runner_color() -> Color:
+	return HACKER_COLOR if str(GameState.get_var_or("pc.os", "normal")) == "hacker" else NORMAL_COLOR
+
+
 ## Бегущие блоки заставки: три квадрата едут слева направо по дорожке, снова и снова.
 func _draw_runner() -> void:
 	var track: Vector2 = _runner.size
 	var block: float = track.y - 6.0
 	var span: float = track.x + block * 3.0
 	var head: float = fmod(_time * 140.0, span) - block * 3.0
-	_runner.draw_rect(Rect2(Vector2.ZERO, track), Color(0.55, 0.6, 0.7), false, 2.0)
+	_runner.draw_rect(Rect2(Vector2.ZERO, track), _runner_color().lightened(0.2), false, 2.0)
 	for i: int in 3:
 		var x: float = head + i * (block + 4.0)
 		if x > 2.0 and x + block < track.x - 2.0:
-			_runner.draw_rect(Rect2(x, 3.0, block, block), Color(0.35, 0.6, 1.0))
+			_runner.draw_rect(Rect2(x, 3.0, block, block), _runner_color())
 
 
 func _build() -> void:
