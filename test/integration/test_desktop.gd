@@ -544,3 +544,86 @@ func test_files_window_names_a_system_file_and_deletes_it_on_one_yes() -> void:
 	dialog.confirmed.emit()
 	assert_false(desktop.terminal.home_fs().has_file("/sys/net.sys"), "второго вопроса нет")
 	assert_false(desktop.terminal.has_question(), "консоль ни о чём не спрашивает")
+
+
+## Баг разработчика 25.11.2026: после первой команды строка ввода прыгала вниз — пустая строка в
+## конце заставки не занимала места, пока за ней не появлялась следующая.
+func test_prompt_does_not_jump_after_the_first_command() -> void:
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	await wait_frames(3)
+	var line: Control = view.find_child("Line", true, false) as Control
+	var banner_lines: int = desktop.terminal.banner().size()
+	var row: float = line.position.y / banner_lines
+	view.submit("pwd")
+	await wait_frames(3)
+	assert_almost_eq(line.position.y, row * (banner_lines + 2), 1.0, "эхо команды встало на место строки ввода, ответ — ниже")
+
+
+# --- Виджеты взлома рядом с консолью (шаг 7, часть 6) -----------------------------------
+
+func test_connect_opens_the_map_beside_the_console() -> void:
+	Effects.apply({"reveal_node": {"node": "node_training_pc"}})
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	assert_null(desktop.window_of("map"))
+	view.submit("connect 10.0.0.7")
+	await wait_frames(2)
+	var map: DesktopWindow = desktop.window_of("map")
+	assert_not_null(map, "connect — карта сети рядом")
+
+
+
+func test_widgets_stand_in_a_column_beside_the_console() -> void:
+	var area := Vector2(1280, 672)
+	var plan: Dictionary = HackWidgets.layout(area, Rect2(120, 40, 860, 520), [Rect2(0, 0, 560, 380), Rect2(0, 0, 420, 210)] as Array[Rect2])
+	assert_eq(float(plan["console_x"]), HackWidgets.GAP, "справа не помещается — консоль к левому краю")
+	var map: Rect2 = (plan["column"] as Array)[0] as Rect2
+	var defense: Rect2 = (plan["column"] as Array)[1] as Rect2
+	assert_eq(map.position.x, HackWidgets.GAP + 860 + HackWidgets.GAP, "карта справа от консоли")
+	assert_lte(map.end.x, area.x, "в пределах экрана")
+	assert_eq(defense.position.y, map.end.y + HackWidgets.GAP, "защита под картой")
+	assert_lte(defense.end.y, area.y)
+	var roomy: Dictionary = HackWidgets.layout(Vector2(1920, 1040), Rect2(120, 40, 860, 520), [Rect2(0, 0, 560, 380)] as Array[Rect2])
+	assert_eq(float(roomy["console_x"]), 120.0, "место есть — консоль не двигается")
+
+
+func test_probe_opens_defense_blocks_layer_by_layer() -> void:
+	Effects.apply({"reveal_node": {"node": "node_office_server"}})
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	view.submit("probe 77.61.204.12")
+	await wait_frames(2)
+	var window: DesktopWindow = desktop.window_of(HackWidgets.DEFENSE_APP)
+	assert_not_null(window, "probe — виджет «Защита узла»")
+	var defense: DefenseView = window.body.get_child(0) as DefenseView
+	assert_eq(defense.block_count(), Network.for_game().probe_layers("node_office_server"), "блок на каждый раскрытый слой")
+	assert_gt(defense.block_count(), 0)
+
+
+func test_defense_blocks_follow_the_scan() -> void:
+	var info: Dictionary = Network.for_game().describe("node_office_server", 0)
+	assert_eq(DefenseView.blocks_of(info, 0).size(), 0, "ничего не раскрыто — блоков нет")
+	assert_eq(DefenseView.blocks_of(info, 1).size(), 1)
+	var all: int = (info["services"] as Array).size() + 2
+	assert_eq(DefenseView.blocks_of(info, 99).size(), all, "порты, мониторинг, анализ действий")
+
+
+## Баг разработчика 25.11.2026: консоль у двери узла (`10.0.0.7>`), а карта отмечала «вы здесь» дома.
+func test_map_marks_the_node_at_the_door_as_here() -> void:
+	Effects.apply({"reveal_node": {"node": "node_training_pc"}})
+	var view: TerminalView = desktop.open_app("terminal").body.get_child(0) as TerminalView
+	view.submit("connect 10.0.0.7")
+	await wait_frames(2)
+	var map: MapView = desktop.window_of("map").body.get_child(0) as MapView
+	assert_eq(map.here(), "node_training_pc")
+	assert_eq(map.state_of("node_training_pc"), "вы здесь")
+
+
+## Баг разработчика 25.11.2026: окно консоли поднималось только кликом по шапке.
+func test_click_on_the_console_screen_raises_its_window() -> void:
+	var console: DesktopWindow = desktop.open_app("terminal")
+	var files: DesktopWindow = desktop.open_app("files")
+	assert_gt(files.get_index(), console.get_index(), "«Файлы» сверху")
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	(console.body.get_child(0) as TerminalView).call("_on_screen_input", click)
+	assert_gt(console.get_index(), files.get_index(), "клик по экрану консоли поднял её окно")

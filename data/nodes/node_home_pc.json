@@ -3,6 +3,7 @@
   "id": "node_home_pc",
   "title": "Мой ПК",
   "address": "localhost",
+  "external_address": "192.166.35.45",
   "device": "pc",
   "difficulty": 1,
   "trace_minutes": 0,

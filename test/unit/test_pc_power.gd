@@ -69,3 +69,66 @@ func test_terminal_reboot_goes_through_pc_power() -> void:
 	run("reboot")
 	assert_true(PcPower.is_on(), "перезагрузка — снова включён")
 	assert_eq(_changes, [false, true] as Array[bool])
+
+
+# --- Установка с резервной флешки (шаг 7.5) --------------------------------------------
+
+const FLASH: String = "item_flash_backup"
+
+
+func _home() -> Filesystem:
+	return Filesystem.for_node(Network.HOME_ID)
+
+
+func _old_os_with_flash_inserted() -> void:
+	GameState.set_var(Terminal.VAR_OS, Terminal.OS_OLD)
+	Inventory.give(FLASH)
+	assert_true(bool(Room.insert(Inventory.first_uid(FLASH), _home())["ok"]))
+
+
+func test_inserting_the_flash_installs_nothing() -> void:
+	_old_os_with_flash_inserted()
+	assert_eq(Room.os_level(), Terminal.OS_OLD, "вставка сама ничего не ставит")
+
+
+func test_power_on_with_the_flash_installs_the_system() -> void:
+	_old_os_with_flash_inserted()
+	PcPower.shut_down()
+	var before: int = Clock.total_minutes()
+	var report: Dictionary = PcPower.power_on()
+	assert_true(bool(report.get("installed", false)))
+	assert_eq(Room.os_level(), Terminal.OS_NORMAL)
+	assert_eq(Clock.total_minutes() - before, PcPower.install_minutes(), "установка — 30 минут")
+	assert_true(PcPower.is_on())
+
+
+func test_forgotten_flash_installs_again_on_every_boot() -> void:
+	_old_os_with_flash_inserted()
+	PcPower.reboot()
+	var report: Dictionary = PcPower.reboot()
+	assert_true(bool(report.get("installed", false)), "флешку не вынули — снова установка")
+	Room.eject()
+	assert_false(bool(PcPower.reboot().get("installed", false)), "вынул — обычная загрузка")
+
+
+func test_power_off_mid_install_changes_nothing() -> void:
+	_old_os_with_flash_inserted()
+	PcPower.shut_down()
+	Clock.configure({"real_seconds_per_minute": 4, "program_speedup": 3, "program_min_minutes": 2})
+	Clock.start()
+	Clock.tick(10.0)
+	var report: Dictionary = PcPower.power_on()
+	assert_true(bool(report.get("pending", false)))
+	assert_true(PcPower.is_booting())
+	Clock.tick(5.0)
+	PcPower.abort_boot()
+	assert_false(PcPower.is_booting())
+	assert_false(PcPower.is_on(), "выключили посреди установки")
+	assert_eq(Room.os_level(), Terminal.OS_OLD, "ничего не поставлено")
+	Room.eject()
+	PcPower.power_on()
+	Clock.tick(60.0)
+	Clock.stop()
+	Clock.reload_config()
+	assert_true(PcPower.is_on(), "вынул флешку — ПК загрузился как был")
+	assert_eq(Room.os_level(), Terminal.OS_OLD)

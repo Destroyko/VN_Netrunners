@@ -41,7 +41,7 @@ func test_login_window_opens_and_lets_in_with_the_password() -> void:
 	form.try_login()
 	await wait_frames(2)
 	assert_true(desktop.terminal.session.has_connection(), "вошли через окно")
-	assert_string_contains(view.output_text(), "подключено", "консоль тоже вошла")
+	assert_string_contains(view.output_text(), "вход выполнен", "консоль тоже вошла")
 	assert_false(view.output_text().contains(word), "пароль, набранный в окне, не печатается в консоли")
 	var remote: DesktopWindow = desktop.window_of("remote")
 	assert_not_null(remote, "трансляция осталась")
@@ -158,7 +158,7 @@ func test_guest_cannot_delete_from_the_explorer() -> void:
 	var setup: Array = await _explorer_in_home()
 	var browser: FileBrowser = setup[1] as FileBrowser
 	browser.act(_row(browser, "spisok_pokupok.txt"), FileBrowser.MENU_DELETE)
-	assert_string_contains(browser.status_text(), "недостаточно прав")
+	assert_string_contains(browser.status_text(), "доступ запрещён")
 	assert_true(Filesystem.for_node("node_training_pc").has_file("/home/spisok_pokupok.txt"))
 
 

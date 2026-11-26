@@ -28,8 +28,11 @@ func _on_size_changed() -> void:
 		return
 
 	var wanted: Vector2i = WindowAspect.clamp_size(window.size, AppSettings.MIN_WINDOW_SIZE)
-	if wanted == window.size:
-		return
 	_applying = true
-	window.size = wanted
+	if wanted != window.size:
+		window.size = wanted
+	# Окно сжали — масштаб интерфейса не должен оставить рабочую область меньше минимума.
+	var settings := AppSettings.new()
+	settings.load_from()
+	window.content_scale_factor = AppSettings.fit_ui_scale(settings.resolved_ui_scale(DisplayServer.screen_get_size().y), window.size)
 	_applying = false

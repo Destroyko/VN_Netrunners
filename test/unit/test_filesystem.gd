@@ -36,7 +36,7 @@ func test_cat_missing_file() -> void:
 	var result: FsResult = fs.read("/home/net-takogo.txt")
 	assert_false(result.is_ok())
 	assert_eq(result.code, FsResult.Code.NOT_FOUND)
-	assert_string_contains(result.message(), "нет такого файла")
+	assert_string_contains(result.message(), "файл не найден")
 
 
 func test_cat_of_directory_is_not_found_but_explains() -> void:
@@ -47,7 +47,7 @@ func test_cat_of_directory_is_not_found_but_explains() -> void:
 func test_guest_cannot_read_system_files() -> void:
 	var denied: FsResult = fs.read("/sys/x-server.sys", false)
 	assert_eq(denied.code, FsResult.Code.NO_PERMISSION)
-	assert_string_contains(denied.message(), "администратора")
+	assert_string_contains(denied.message(), "доступ запрещён")
 	assert_true(fs.read("/sys/x-server.sys", true).is_ok(), "администратору можно")
 
 

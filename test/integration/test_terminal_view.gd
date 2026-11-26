@@ -20,7 +20,7 @@ func before_each() -> void:
 func test_terminal_opens_with_the_os_banner() -> void:
 	assert_not_null(view)
 	assert_string_contains(view.output_text(), "ядро", "заставка с версией ОС, как у настоящей консоли")
-	assert_false(view.output_text().contains("help"), "без подсказок")
+	assert_string_contains(view.output_text(), "help <команда>", "заставка подсказывает справку (вычитка 25.11.2026)")
 
 
 func test_command_is_echoed_and_answered() -> void:

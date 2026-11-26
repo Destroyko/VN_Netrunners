@@ -232,6 +232,12 @@ static func _make(id: String) -> Theme:
 	theme.set_color("guide_color", "ItemList", Color(0, 0, 0, 0))
 	theme.set_color("font_color", "ItemList", text)
 	theme.set_color("font_selected_color", "ItemList", text)
+	# Выбранная строка под курсором: у Godot свой цвет и плашка, по умолчанию белый текст —
+	# на светлой теме название пропадало (баг разработчика 25.11.2026).
+	theme.set_color("font_hovered_color", "ItemList", text)
+	theme.set_color("font_hovered_selected_color", "ItemList", text)
+	theme.set_stylebox("hovered_selected", "ItemList", _control_box(raised, raised, id, 6))
+	theme.set_stylebox("hovered_selected_focus", "ItemList", _control_box(raised, raised, id, 6))
 	theme.set_color("font_hovered_color", "ItemList", text)
 	theme.set_constant("v_separation", "ItemList", 6)
 	theme.set_stylebox("normal", "TextEdit", inset)

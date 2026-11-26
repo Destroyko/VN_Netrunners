@@ -63,8 +63,14 @@ func test_own_pc_writes_nothing_to_its_logs() -> void:
 
 func test_guest_cannot_open_sys() -> void:
 	enter("node_training_pc")
-	assert_string_contains(run("cd /sys"), "недостаточно прав")
-	assert_string_contains(run("ls /"), "[закрыт]")
+	assert_string_contains(run("cd /sys"), "доступ запрещён")
+	run("ls /")
+	var closed: int = -1
+	for i: int in last.lines.size():
+		if last.lines[i].contains("  sys/"):
+			closed = i
+	assert_gt(closed, -1, "закрытая папка в списке")
+	assert_eq(last.role_at(closed), "error", "закрытая папка — красным, без метки")
 	assert_eq(t.prompt(), "10.0.0.7:/home$ ", "гость: доллар")
 
 
@@ -121,7 +127,7 @@ func test_logwipe_needs_admin_rights() -> void:
 	# Баг со снимка F9 16.11: logwipe чистил логи гостю, хотя rm ему отказывал.
 	learn_programs()
 	enter("node_training_pc")
-	assert_string_contains(run("logwipe"), "недостаточно прав")
+	assert_string_contains(run("logwipe"), "доступ запрещён")
 	assert_gt(logbook("node_training_pc").count(), 0, "логи на месте")
 
 
@@ -169,7 +175,7 @@ func test_deepscan_on_the_router_lists_the_network_with_depth() -> void:
 	var before: int = minute()
 	var text: String = run("deepscan")
 	assert_string_contains(text, "10.0.0.7")
-	assert_string_contains(text, "через 1")
+	assert_string_contains(text, "СТАТУС", "таблица узлов")
 	assert_true(Network.for_game().is_known("node_training_pc"), "найденное — в адресной книге")
 	assert_eq(minute(), before + Programs.minutes_for("deepscan"), "работает дольше scan")
 	assert_false(t.session.is_tracing(), "разведка трейс не запускает")
@@ -218,7 +224,7 @@ func test_download_is_not_logged_as_a_write() -> void:
 
 func test_guest_cannot_download_from_sys() -> void:
 	enter("node_office_server")
-	assert_string_contains(run("cp /sys/backup/klienty.db"), "недостаточно прав")
+	assert_string_contains(run("cp /sys/backup/klienty.db"), "доступ запрещён")
 
 
 func test_download_that_does_not_fit_the_trace_is_cut() -> void:
@@ -234,7 +240,7 @@ func test_download_that_does_not_fit_the_trace_is_cut() -> void:
 	t.spend(t.session.trace_left() - 3, TermResult.new())
 
 	var text: String = run("cp photos/hotel.jpg")
-	assert_string_contains(text, "файл не успел скачаться")
+	assert_string_contains(text, "ошибка передачи: соединение прервано")
 	assert_string_contains(text, "трейс дошёл до конца")
 	assert_false(t.home_fs().has_file("/home/downloads/hotel.jpg"))
 	assert_eq(t.prompt(), "home:/home$ ")
@@ -285,7 +291,7 @@ func test_put_over_existing_file_asks() -> void:
 
 func test_guest_cannot_put_into_sys() -> void:
 	enter("node_training_pc")
-	assert_string_contains(run("put readme.txt /sys/"), "недостаточно прав")
+	assert_string_contains(run("put readme.txt /sys/"), "доступ запрещён")
 
 
 func test_deleting_net_sys_on_a_node_is_sabotage() -> void:
@@ -343,7 +349,7 @@ func test_firewall_blocks_downloads_after_entry() -> void:
 	_inside_office_past_the_login_only()
 	assert_true(t.session.has_connection(), "внутрь пустили")
 	var before: int = minute()
-	assert_string_contains(run("cp /home/users/list.txt"), "заблокирована: фаервол")
+	assert_string_contains(run("cp /home/users/list.txt"), "заблокирована фаерволом")
 	assert_eq(minute(), before, "за отказ время не берём")
 	assert_false(t.home_fs().has_file(Terminal.DUMP_DIR + "/list.txt"))
 	assert_string_contains(run("cat /home/users/list.txt"), "Сотрудники", "смотреть можно")
@@ -358,9 +364,9 @@ func test_cracked_firewall_lets_files_out() -> void:
 
 func test_probe_shows_action_analysis() -> void:
 	reveal("node_office_server")
-	assert_string_contains(run("probe 77.61.204.12"), "обнаружен анализ действий: да")
+	assert_string_contains(run("probe 77.61.204.12"), "анализ подозрительных действий: да")
 	reach_training_pc()
-	assert_string_contains(run("probe 10.0.0.7"), "обнаружен анализ действий: нет")
+	assert_string_contains(run("probe 10.0.0.7"), "анализ подозрительных действий: нет")
 
 
 func test_action_analysis_makes_loud_actions_eat_the_trace() -> void:
@@ -385,19 +391,19 @@ func test_guest_on_a_node_only_reads() -> void:
 	enter("node_training_pc")
 	assert_false(t.admin())
 	for line: String in ["rm spisok_pokupok.txt", "mv spisok_pokupok.txt drugoe.txt", "mkdir novaya", "put readme.txt"]:
-		assert_string_contains(run(line), "недостаточно прав", line)
+		assert_string_contains(run(line), "доступ запрещён", line)
 	assert_true(Filesystem.for_node("node_training_pc").has_file("/home/spisok_pokupok.txt"), "ничего не тронуто")
-	assert_false(run("cat spisok_pokupok.txt").contains("недостаточно прав"), "читать можно")
+	assert_false(run("cat spisok_pokupok.txt").contains("доступ запрещён"), "читать можно")
 
 
 func test_admin_can_change_files() -> void:
 	enter_as_admin("node_training_pc")
-	assert_false(run("mv spisok_pokupok.txt drugoe.txt").contains("недостаточно прав"))
+	assert_false(run("mv spisok_pokupok.txt drugoe.txt").contains("доступ запрещён"))
 	assert_true(Filesystem.for_node("node_training_pc").has_file("/home/drugoe.txt"))
 
 
 func test_own_pc_needs_no_rights() -> void:
-	assert_false(run("mkdir proekty").contains("недостаточно прав"), "на своём ПК игрок хозяин")
+	assert_false(run("mkdir proekty").contains("доступ запрещён"), "на своём ПК игрок хозяин")
 
 
 # --- Ранняя игра: логин администратора и подчищенные следы --------------------------
@@ -407,7 +413,7 @@ func test_client_admin_login_gives_rights_on_entry() -> void:
 	Effects.apply({"reveal_node": {"node": "node_training_pc", "open": ["svc_login"], "admin": true}})
 	run("connect 10.0.0.7")
 	assert_true(t.admin(), "логин администратора")
-	assert_false(run("rm spisok_pokupok.txt").contains("недостаточно прав"))
+	assert_false(run("rm spisok_pokupok.txt").contains("доступ запрещён"))
 
 
 func test_plain_client_login_is_a_guest() -> void:
@@ -493,7 +499,7 @@ func test_edit_asks_the_desktop_to_open_a_notepad() -> void:
 
 func test_guest_cannot_edit_on_a_node() -> void:
 	enter("node_training_pc")
-	assert_string_contains(run("edit /home/spisok_pokupok.txt"), "недостаточно прав")
+	assert_string_contains(run("edit /home/spisok_pokupok.txt"), "доступ запрещён")
 
 
 func test_saving_an_edit_changes_the_file_and_leaves_a_trace() -> void:

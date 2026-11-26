@@ -40,13 +40,35 @@ func ls(args: PackedStringArray, result: TermResult) -> void:
 	var entries: Array[Dictionary] = files.list(path, _t.admin())
 	if entries.is_empty():
 		result.add("пусто")
+		return
+	# Таблица, как `ls -l` (вычитка 25.11.2026): права, размер, имя; закрытое правами — красным.
+	result.add_as(TermTable.row(["ПРАВА", "РАЗМЕР".lpad(LS_SIZE), "  ИМЯ"], LS_WIDTHS), "dim")
 	for entry: Dictionary in entries:
-		var line: String = str(entry["name"]) + ("/" if bool(entry["is_dir"]) else "")
+		var name: String = str(entry["name"]) + ("/" if bool(entry["is_dir"]) else "")
+		var size: String = "-" if bool(entry["is_dir"]) else "%d КБ" % _size_kb(files.file_data(str(entry["path"])))
+		var rights: String = rights_of(entry, FsPath.requires_admin(str(entry["path"])))
+		var line: String = TermTable.row([rights, size.lpad(LS_SIZE), "  " + name], LS_WIDTHS)
 		if bool(entry["system"]):
 			line += "  [sys]"
 		if bool(entry["locked"]):
-			line += "  [закрыт]"
-		result.add(line)
+			result.add_as(line, "error")
+		elif bool(entry["is_dir"]):
+			result.add_as(line, "path")
+		else:
+			result.add(line)
+
+
+## Столбцы `ls`: права, размер (по правому краю), имя.
+const LS_WIDTHS: Array[int] = [12, 10]
+const LS_SIZE: int = 8
+
+
+## Права в стиле Unix: хозяин — администратор узла, гость — «остальные» (terminal-spec.md).
+## Обычное — гость читает (755 / 644), только для администратора — 700 / 600.
+static func rights_of(entry: Dictionary, admin_only: bool) -> String:
+	if bool(entry["is_dir"]):
+		return "drwx------" if admin_only else "drwxr-xr-x"
+	return "-rw-------" if admin_only else "-rw-r--r--"
 
 
 func cd(args: PackedStringArray, result: TermResult) -> void:
@@ -60,7 +82,7 @@ func cd(args: PackedStringArray, result: TermResult) -> void:
 
 func cat(args: PackedStringArray, result: TermResult) -> void:
 	if args.is_empty():
-		result.add("использование: cat <файл>")
+		Terminal.usage(result, "cat <файл>")
 		return
 	var path: String = FsPath.resolve(_t.cwd(), args[0])
 	if _t.fs().has_file(path) and bool(_t.fs().file_data(path).get("encrypted", false)):
@@ -86,7 +108,7 @@ func cp(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 		_download(args, result, confirmed)
 		return
 	if args.size() < 2:
-		result.add("использование: cp <файл> <куда>")
+		Terminal.usage(result, "cp <файл> <путь>")
 		return
 	var plan: Array = _plan(_t.fs(), _t.cwd(), args, _t.cwd(), args[1])
 	if _run_plan(_t.fs(), _t.fs(), _t.cwd(), plan, true, confirmed, result).size() > 0:
@@ -95,11 +117,11 @@ func cp(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 
 func _download(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 	if args.is_empty():
-		result.add("использование: cp <файл> [куда у себя]  (по умолчанию в %s)" % Terminal.DUMP_DIR)
+		Terminal.usage(result, "cp <файл> <путь>")
 		return
 	# Фаервол узла режет исходящее: смотреть можно, вынести нельзя (hacking.md, «Стены»).
 	if _t.net.firewall_up(_t.node_id(), _t.now()):
-		result.add("передача заблокирована: фаервол узла")
+		result.add("передача заблокирована фаерволом узла")
 		return
 	var remote: Filesystem = _t.fs()
 	var cwd: String = _t.cwd()
@@ -118,7 +140,7 @@ func _download(args: PackedStringArray, result: TermResult, confirmed: bool) -> 
 	# (большая добыча требует подготовки, hacking-loop.md).
 	_t.spend_then(_plan_minutes(remote, readable), result, func(finished: TermResult) -> void:
 		if _t.node_id() != node:
-			finished.add("соединение прервано: файл не успел скачаться")
+			finished.add("ошибка передачи: соединение прервано")
 			return
 		var done: Array = _run_plan(remote, _t.home_fs(), cwd, plan, _t.admin(), true, finished)
 		for step: Dictionary in done:
@@ -133,7 +155,7 @@ func put(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 		result.add("нет подключения к узлу")
 		return
 	if args.is_empty():
-		result.add("использование: put <файл у себя> [куда на узле]")
+		Terminal.usage(result, "put <файл> <путь>")
 		return
 	if _guest_on_node(result):
 		return
@@ -151,14 +173,14 @@ func put(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 	# своего ПК гость на чужой не положит — крайний случай, ради него не усложняем.
 	_t.spend_then(_plan_minutes(home, existing), result, func(finished: TermResult) -> void:
 		if _t.node_id() != node:
-			finished.add("соединение прервано: файл не успел передаться")
+			finished.add("ошибка передачи: соединение прервано")
 			return
 		var done: Array = _run_plan(home, _t.fs(), home_cwd, plan, _t.admin(), true, finished)
 		for step: Dictionary in done:
 			var written: String = str(step["to"])
 			EventBus.file_copied.emit(node, written)
 			if not _in_logs(written):
-				_t.note(Logbook.CATEGORY_FILE_CREATED, "записан файл %s" % FsPath.name_of(written)))
+				_t.note(Logbook.CATEGORY_FILE_CREATED, "создан файл %s" % FsPath.name_of(written)))
 
 
 # --- Передача файлов: один путь для cp и put -------------------------------------
@@ -242,7 +264,7 @@ func _run_plan(
 	is_admin: bool, confirmed: bool, result: TermResult
 ) -> Array:
 	if plan.is_empty():
-		result.add("нет таких файлов")
+		result.add("файлы не найдены")
 		return []
 	# Занятый файл на месте назначения не заменяется — и вопроса о замене про него нет.
 	var free: Array = []
@@ -299,18 +321,18 @@ func _size_kb(data: Dictionary) -> int:
 ## `mv` и `rm`: на чужом узле гость не правит. Сам файл меняет `save_edit`, когда игрок сохранил.
 func edit(args: PackedStringArray, result: TermResult) -> void:
 	if args.is_empty():
-		result.add("использование: edit <файл>")
+		Terminal.usage(result, "edit <файл>")
 		return
 	if _guest_on_node(result):
 		return
 	var path: String = FsPath.resolve(_t.cwd(), args[0])
 	var fs: Filesystem = _t.fs()
 	if not fs.has_file(path):
-		result.add("нет такого файла: %s" % args[0])
+		result.add("файл не найден: %s" % args[0])
 		return
 	var data: Dictionary = fs.file_data(path)
 	if bool(data.get("encrypted", false)) or not data.has("text"):
-		result.add("%s: это не текстовый файл" % FsPath.name_of(path))
+		result.add("неверный формат файла. Подробнее: help edit")
 		return
 	result.request = {"type": "edit", "node": _t.node_id(), "path": path, "text": str(data["text"])}
 
@@ -321,15 +343,13 @@ func edit(args: PackedStringArray, result: TermResult) -> void:
 func save_edit(node: String, path: String, text: String, result: TermResult) -> void:
 	var own: bool = node == Network.HOME_ID
 	if not own and (not _t.is_remote() or _t.node_id() != node):
-		result.add("соединение потеряно: изменения не сохранены")
+		result.add("соединение прервано: изменения не сохранены")
 		return
 	if not own and _guest_on_node(result):
 		return
 	var fs: Filesystem = Filesystem.for_node(node)
-	if not fs.has_file(path):
-		result.add("файл исчез: изменения не сохранены")
-		return
-	var data: Dictionary = fs.file_data(path).duplicate()
+	# Файл за это время удалили — «Блокнот» сохраняет его заново по тому же пути, как настоящий.
+	var data: Dictionary = fs.file_data(path).duplicate() if fs.has_file(path) else {}
 	data["text"] = text
 	fs.put_file(path, data)
 	GameState.set_filesystem_state(node, fs.to_dict())
@@ -343,7 +363,7 @@ func save_edit(node: String, path: String, text: String, result: TermResult) -> 
 
 func mv(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 	if args.size() < 2:
-		result.add("использование: mv <файл> <куда>")
+		Terminal.usage(result, "mv <файл> <путь>")
 		return
 	if _guest_on_node(result):
 		return
@@ -364,7 +384,7 @@ func mv(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 
 func rm(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 	if args.is_empty():
-		result.add("использование: rm <файл или маска>")
+		Terminal.usage(result, "rm <файл>")
 		return
 	if _guest_on_node(result):
 		return
@@ -397,7 +417,7 @@ func rm(args: PackedStringArray, result: TermResult, confirmed: bool) -> void:
 
 func mkdir(args: PackedStringArray, result: TermResult) -> void:
 	if args.is_empty():
-		result.add("использование: mkdir <путь>")
+		Terminal.usage(result, "mkdir <путь>")
 		return
 	if _guest_on_node(result):
 		return
@@ -415,7 +435,7 @@ func mkdir(args: PackedStringArray, result: TermResult) -> void:
 ## администратора (`rootstep`). На своём ПК игрок хозяин и делает что хочет.
 func _guest_on_node(result: TermResult) -> bool:
 	if _t.is_remote() and not _t.admin():
-		result.add("недостаточно прав. нужен доступ администратора")
+		result.add("доступ запрещён")
 		return true
 	return false
 

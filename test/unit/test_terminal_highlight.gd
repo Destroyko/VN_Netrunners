@@ -38,9 +38,9 @@ func test_command_paints_program_flags_and_paths() -> void:
 
 func test_output_lines_get_a_meaning() -> void:
 	assert_eq(TerminalHighlight.role_of("команда не найдена: test"), "error")
-	assert_eq(TerminalHighlight.role_of("подключено: 10.0.0.5 (сервер)"), "ok")
+	assert_eq(TerminalHighlight.role_of("вход выполнен: 10.0.0.5 (сервер)"), "ok")
 	assert_eq(TerminalHighlight.role_of("трейс запущен: 12 мин"), "warn")
-	assert_eq(TerminalHighlight.role_of("использование: cp <файл> <куда>"), "dim")
+	assert_eq(TerminalHighlight.role_of("команда указана неверно: cp <файл> <путь>. Подробнее: help cp"), "error")
 	assert_eq(TerminalHighlight.role_of("/home"), "text")
 	assert_eq(TerminalHighlight.role_of("photos/"), "path", "каталог в списке ls")
 

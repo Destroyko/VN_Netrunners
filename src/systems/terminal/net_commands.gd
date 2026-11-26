@@ -3,9 +3,11 @@ extends RefCounted
 ## Команды сети: scan, probe, connect, dc, nodes (docs/tech/terminal-spec.md, «Сеть»).
 ## Правила сети — в Network и HackSession; здесь время, события, следы и тексты для игрока.
 
-const NO_NETWORK: String = "сети нет: на этом ПК нет /sys/net.sys"
+const NO_NETWORK: String = "ошибка: отсутствует файл /sys/net.sys"
 
 const PROBE_RULE: String = "----------------------------------------"
+## Таблица портов `probe`: ПОРТ, ТИП, СТАТУС.
+const PORT_WIDTHS: Array[int] = [8, 30]
 
 var _t: Terminal
 
@@ -21,16 +23,15 @@ func scan(result: TermResult) -> void:
 		return
 	var found: Array[Dictionary] = _t.net.scan(_t.node_id())
 	if found.is_empty():
-		result.add("соседей не видно")
-	for entry: Dictionary in found:
-		result.add(book_line(entry))
+		result.add("найдено узлов: 0")
+	else:
+		add_book(found, result)
 	_t.spend(_t.minutes_of("terminal_command"), result)
 
 
 ## `nodes`: всё, что игрок уже знает. Только чтение — сеть для этого не нужна.
 func nodes(result: TermResult) -> void:
-	for entry: Dictionary in _t.net.address_book():
-		result.add(book_line(entry))
+	add_book(_t.net.address_book(), result)
 
 
 ## `probe`: сервисы узла и их состояние, сколько нужно для входа, есть ли мониторинг. Трейс не запускает.
@@ -41,7 +42,7 @@ func probe(args: PackedStringArray, result: TermResult) -> void:
 	# Без адреса — узел, к которому подключались последним (после connect).
 	var address: String = args[0] if not args.is_empty() else _t.session.target_address()
 	if address.is_empty():
-		result.add("использование: probe [адрес]")
+		Terminal.usage(result, "probe <адрес>")
 		return
 	var seen: NetResult = _t.net.probe(address, _t.now())
 	if not seen.is_ok():
@@ -54,13 +55,16 @@ func probe(args: PackedStringArray, result: TermResult) -> void:
 	# слой (решено 25.11.2026, ISS-016). Ctrl+C прерывает; раскрытые слои узел помнит.
 	var node: String = seen.node_id
 	var info: Dictionary = seen.info
-	result.add("сканирование %s .........." % info["address"])
+	# Стол открывает рядом с консолью виджет «Защита узла» (шаг 7, часть 6).
+	result.request = {"type": "probe", "node": node}
+	result.add("запущено сканирование узла %s .........." % info["address"])
 	result.add("узел: %s (%s)" % [info["title"], info["device"]])
 	result.add(PROBE_RULE)
+	result.add_as(TermTable.row(["ПОРТ", "ТИП", "СТАТУС"], PORT_WIDTHS), "dim")
 	var layers: Array[String] = probe_lines(info)
 	var known: int = mini(_t.net.probe_layers(node), layers.size())
 	for i: int in known:
-		result.add(layers[i])
+		result.add_as(layers[i], probe_role(info, i))
 	if known >= layers.size():
 		_probe_footer(info, result)
 		return
@@ -72,12 +76,11 @@ func probe(args: PackedStringArray, result: TermResult) -> void:
 static func probe_lines(info: Dictionary) -> Array[String]:
 	var lines: Array[String] = []
 	for service: Dictionary in info["services"] as Array:
-		lines.append("  порт %-6d %-24s %s" % [
-			int(service["port"]), service["name"], "открыт" if bool(service["cracked"]) else "закрыт"
-		])
+		# Строка таблицы портов; состояние — «[Х]» / «[✓]» и цвет (вычитка 25.11.2026).
+		lines.append(TermTable.row([str(service["port"]), str(service["name"])], PORT_WIDTHS))
 	var trace: int = int(info["trace_minutes"])
-	lines.append("обнаружен мониторинг подключений: %s" % (("да, трейс %d мин" % trace) if trace > 0 else "нет"))
-	lines.append("обнаружен анализ действий: %s" % ("да" if bool(info["ids"]) else "нет"))
+	lines.append("мониторинг подключений: %s" % (("да, трейс %d мин" % trace) if trace > 0 else "нет"))
+	lines.append("анализ подозрительных действий: %s" % ("да" if bool(info["ids"]) else "нет"))
 	return lines
 
 
@@ -89,7 +92,7 @@ func _probe_layer(node: String, address: String, index: int, result: TermResult)
 			done.add(seen.message())
 			return
 		var layers: Array[String] = probe_lines(seen.info)
-		done.add(layers[index])
+		done.add_as(layers[index], probe_role(seen.info, index))
 		_t.net.set_probe_layers(node, index + 1)
 		if index + 1 < layers.size():
 			_probe_layer(node, address, index + 1, done)
@@ -97,9 +100,25 @@ func _probe_layer(node: String, address: String, index: int, result: TermResult)
 			_probe_footer(seen.info, done), true)
 
 
-func _probe_footer(info: Dictionary, result: TermResult) -> void:
+## Конец разведки. Сколько сервисов нужно для входа, не пишем (вычитка 25.11.2026): игрок решил
+## бы, что войдёт, вскрыв любой, а входу нужен свой сервис.
+func _probe_footer(_info: Dictionary, result: TermResult) -> void:
 	result.add(PROBE_RULE)
-	result.add("для входа требуется сервисов: %d" % int(info["required_services"]))
+
+
+## Цвет и замок строки слоя `probe`: порт — закрыт (lock) или вскрыт (unlock); остальное — по тексту.
+static func probe_role(info: Dictionary, index: int) -> String:
+	var services: Array = info["services"] as Array
+	if index < services.size():
+		return "unlock" if bool((services[index] as Dictionary)["cracked"]) else "lock"
+	return ""
+
+
+## Замок у узла в адресной книге: взломан — открытый зелёный, нет — закрытый красный; свой ПК — без.
+static func book_role(entry: Dictionary) -> String:
+	if str(entry.get("device", "")) == "" or str(entry.get("address", "")) == "localhost":
+		return ""
+	return "unlock" if bool(entry["hacked"]) else "lock"
 
 
 func connect_to(args: PackedStringArray, result: TermResult) -> void:
@@ -107,7 +126,7 @@ func connect_to(args: PackedStringArray, result: TermResult) -> void:
 		result.add(NO_NETWORK)
 		return
 	if args.is_empty():
-		result.add("использование: connect <адрес>")
+		Terminal.usage(result, "connect <адрес>")
 		return
 
 	var before_node: String = _t.session.target_id()
@@ -139,18 +158,15 @@ func connect_to(args: PackedStringArray, result: TermResult) -> void:
 		return
 	if not tried.is_ok():
 		result.add(tried.message())
-		if tried.code == NetResult.Code.OFFLINE and tried.back_at >= 0:
-			var days: int = ceili(float(tried.back_at - _t.now()) / float(1440))
-			result.add("вернётся примерно через %d дн." % maxi(days, 1))
 		return
 
 	_t.set_cwd(Terminal.HOME_DIR)
 	var definition: Dictionary = _t.net.definition(tried.node_id)
-	result.add("подключено: %s (%s)" % [definition.get("title", tried.node_id), definition.get("address", "")])
+	result.add("вход выполнен: %s (%s)" % [definition.get("title", tried.node_id), definition.get("address", "")])
 	_tell_trace(result)
 	if _t.net.has_graphical_session(tried.node_id) and result.request.is_empty():
 		result.request = {"type": "remote", "node": tried.node_id, "address": str(definition.get("address", ""))}
-	_t.note(Logbook.CATEGORY_SESSION, "вход с неизвестного адреса", "login")
+	_t.note(Logbook.CATEGORY_SESSION, "выполнен вход с узла %s" % Network.external_address(), "login")
 	EventBus.node_connected.emit(tried.node_id)
 	if tried.first_hack:
 		Effects.apply_all(definition.get("on_hacked", []) as Array)
@@ -165,7 +181,7 @@ func disconnect_now(result: TermResult) -> void:
 		result.add(closed.message())
 		return
 	_t.hung_up(closed.node_id, closed.was_connected)
-	result.add("отключено" if closed.was_connected else "цель сброшена")
+	result.add("соединение разорвано")
 
 
 # --- Общее -------------------------------------------------------------------
@@ -175,13 +191,22 @@ func _tell_trace(result: TermResult) -> void:
 	if _t.session.is_tracing():
 		result.add("трейс: %d мин" % _t.session.trace_left())
 
-## Строка адресной книги: адрес, тип, имя (после probe), пометка о взломе. Её же печатает deepscan.
+## Адресная книга — таблица (вычитка 25.11.2026): IP, тип узла, имя (после probe), статус.
+## Статус — «[Х]» / «[✓]» и цвет строки (роль из `book_role`), у своего ПК пусто.
+const BOOK_WIDTHS: Array[int] = [17, 9, 24]
+
+
+static func book_header() -> String:
+	return TermTable.row(["IP", "УЗЕЛ", "ИМЯ", "СТАТУС"], BOOK_WIDTHS)
+
+
 static func book_line(entry: Dictionary) -> String:
-	var title: String = str(entry["title"])
-	var line: String = "%-16s %s" % [entry["address"], entry["device"]]
-	if not title.is_empty():
-		line += "  " + title
-	if bool(entry["hacked"]):
-		line += "  [взломан]"
-	return line
+	return TermTable.row([entry["address"], entry["device"], str(entry["title"])], BOOK_WIDTHS)
+
+
+## Шапка и строки книги в ответ (scan, nodes).
+static func add_book(entries: Array, result: TermResult) -> void:
+	result.add_as(book_header(), "dim")
+	for entry: Dictionary in entries:
+		result.add_as(book_line(entry), book_role(entry))
 

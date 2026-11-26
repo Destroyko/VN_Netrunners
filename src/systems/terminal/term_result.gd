@@ -19,6 +19,20 @@ var request: Dictionary = {}
 var clear_screen: bool = false
 
 
+## Цвет отдельных строк, когда смысл не виден из текста (закрытая папка в `ls`): номер → роль.
+var roles: Dictionary = {}
+
+
+## Строка с заданной ролью: "error", "ok", "warn", "dim", "path".
+func add_as(text: String, role: String) -> void:
+	add(text)
+	roles[lines.size() - 1] = role
+
+
+func role_at(index: int) -> String:
+	return str(roles.get(index, ""))
+
+
 func add(text: String) -> void:
 	lines.append(text)
 

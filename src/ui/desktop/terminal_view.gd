@@ -11,6 +11,8 @@ signal puzzle_requested(request: Dictionary)
 signal remote_requested(request: Dictionary)
 ## `edit`: открыть «Блокнот» с текстом файла (стол показывает окно, сохранение — `Terminal.save_edit`).
 signal edit_requested(request: Dictionary)
+## `probe`: стол показывает рядом виджет «Защита узла».
+signal probe_requested(request: Dictionary)
 ## Команда выполнена: карта сети и режим стола перечитывают состояние.
 signal result_shown
 
@@ -107,6 +109,10 @@ func _build() -> void:
 
 	_output = _console_label("Output")
 	_output.selection_enabled = true
+	_output.gui_input.connect(func(event: InputEvent) -> void:
+		var click: InputEventMouseButton = event as InputEventMouseButton
+		if click != null and click.pressed:
+			_raise_window())
 	column.add_child(_output)
 	_line = _console_label("Line")
 	_line.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -273,8 +279,21 @@ func focus_entry() -> void:
 ## Клик в любом месте экрана ставит курсор в строку ввода, как в настоящей консоли.
 func _on_screen_input(event: InputEvent) -> void:
 	var click: InputEventMouseButton = event as InputEventMouseButton
+	if click != null and click.pressed:
+		_raise_window()
 	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
 		_entry.grab_focus()
+
+
+## Экран консоли забирает клик себе (курсор, выделение текста), и до окна он не доходит: окно
+## консоли становилось активным только по шапке (баг разработчика 25.11.2026). Поднимаем его сами.
+func _raise_window() -> void:
+	var node: Node = get_parent()
+	while node != null:
+		if node is DesktopWindow:
+			(node as DesktopWindow).focus_requested.emit(node)
+			return
+		node = node.get_parent()
 
 
 # --- Ввод ----------------------------------------------------------------------
@@ -347,8 +366,8 @@ func show_result(result: TermResult) -> void:
 		_output.clear()
 		_has_lines = false
 	# Вопрос («заменить? (y/n)») уже среди строк ответа: второй раз не печатаем.
-	for line: String in result.lines:
-		_print(line)
+	for i: int in result.lines.size():
+		_print_bbcode(_paint.output(result.lines[i], result.role_at(i)))
 	var request: Dictionary = result.request
 	match str(request.get("type", "")):
 		"puzzle":
@@ -357,6 +376,8 @@ func show_result(result: TermResult) -> void:
 			remote_requested.emit(request)
 		"edit":
 			edit_requested.emit(request)
+		"probe":
+			probe_requested.emit(request)
 	_refresh()
 	result_shown.emit()
 
@@ -377,7 +398,9 @@ func _print(text: String) -> void:
 ## Перевод строки ставится перед новой строкой, а не после: под выводом нет пустой строки, и
 ## приглашение стоит сразу под последней строкой (баг F9 24.11.2026: приглашение «съезжало»).
 func _print_bbcode(bbcode: String) -> void:
-	_output.append_text(("\n" if _has_lines else "") + bbcode)
+	# Пустая последняя строка в высоту текста не идёт: строка ввода стояла бы вплотную и прыгала
+	# вниз, как только придёт следующая. Пробел занимает строку сразу — ничего не сдвигается.
+	_output.append_text(("\n" if _has_lines else "") + (bbcode if not bbcode.is_empty() else " "))
 	_has_lines = true
 	_scroll_to_end.call_deferred()
 

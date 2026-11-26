@@ -61,7 +61,7 @@ func test_typing_the_password_lets_in() -> void:
 	var word: String = _password_after_cracking_the_training_pc()
 	assert_string_contains(run("неверно"), "доступ запрещён")
 	assert_eq(t.prompt(), "пароль: ", "сервер спрашивает снова")
-	assert_string_contains(run(word.to_upper()), "подключено", "регистр не важен")
+	assert_string_contains(run(word.to_upper()), "вход выполнен", "регистр не важен")
 	assert_true(t.session.has_connection())
 	assert_false(t.history().has(word.to_upper()), "пароль не попадает в историю команд")
 
@@ -70,7 +70,7 @@ func test_entered_password_is_not_asked_again() -> void:
 	var word: String = _password_after_cracking_the_training_pc()
 	run(word)
 	run("dc")
-	assert_string_contains(run("connect 10.0.0.7"), "подключено", "пароль уже вводили")
+	assert_string_contains(run("connect 10.0.0.7"), "вход выполнен", "пароль уже вводили")
 
 
 func test_empty_line_cancels_the_login() -> void:
@@ -87,7 +87,7 @@ func test_reset_service_needs_a_new_password() -> void:
 	run("dc")
 	Network.for_game().access.reset_services("node_training_pc")
 	assert_eq(Network.for_game().access.password_of("node_training_pc", "svc_login"), "", "старый пароль забыт")
-	assert_false(run("connect 10.0.0.7").contains("подключено"), "сервис снова закрыт")
+	assert_false(run("connect 10.0.0.7").contains("вход выполнен"), "сервис снова закрыт")
 
 
 func test_failed_puzzle_keeps_the_service_closed_and_can_be_retried() -> void:

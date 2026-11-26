@@ -369,6 +369,11 @@ func set_probe_layers(node_id: String, layers: int) -> void:
 	entry["probe_alert"] = alert_level(node_id)
 
 
+## Внешний адрес своего ПК — им подписаны следы героя в логах чужих узлов (вычитка 25.11.2026).
+static func external_address() -> String:
+	return str((DataLoader.nodes().get(HOME_ID, {}) as Dictionary).get("external_address", "0.0.0.0"))
+
+
 func alert_level(node_id: String) -> int:
 	return int(_peek(node_id).get("alert", 0))
 

@@ -86,6 +86,9 @@ signal woke_after_pass_out(minutes: int)
 signal system_restored(paths: PackedStringArray, os_changed: bool)
 ## Свой ПК выключили (false) или он загрузился (true): PcPower. Перезагрузка — оба подряд.
 signal pc_power_changed(on: bool)
+## Начались загрузка своего ПК (или установка системы с флешки), минуты идут под полоской:
+## экран загрузки показывает её и в конце зовёт `PcPower.finish_power_on`.
+signal pc_boot_started(install: bool, minutes: int)
 
 # --- Квесты (шлёт Quests через QuestManager, M2) -----------------------------
 

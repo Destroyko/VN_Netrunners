@@ -17,7 +17,7 @@ extends Control
 ## Арта пока нет: фон — цвет из данных, объект — полупрозрачная плашка с подписью. Появится
 ## картинка по пути из данных — встанет сама, код менять не нужно.
 
-const PANEL_KINDS: PackedStringArray = ["system_block"]
+const PANEL_KINDS: PackedStringArray = []
 
 var _background: ColorRect
 var _background_art: TextureRect
@@ -209,6 +209,14 @@ func click(object_id: String) -> void:
 	if object.is_empty():
 		return
 	var kind: String = str(object.get("kind", ""))
+	# Системный блок: слева инвентарь, справа окно «Системный блок» (шаг 7.5). Второй клик — закрыть.
+	if kind == "system_block":
+		_close_panel()
+		if InventoryOverlay.is_case_open():
+			InventoryOverlay.close()
+		else:
+			InventoryOverlay.open(Inventory.PC)
+		return
 	if PANEL_KINDS.has(kind):
 		if _selected == object_id and _panel.visible:
 			_close_panel()
@@ -251,17 +259,8 @@ func _refresh_panel() -> void:
 		_actions.remove_child(child)
 		child.queue_free()
 	match str(object.get("kind", "")):
-		"system_block":
-			_action("Act_power", "Выключить компьютер" if PcPower.is_on() else "Включить компьютер", _on_power)
-			_action("Act_hardware", "Осмотреть железо", func() -> void: _show(Room.hardware()))
-			var plugged: Dictionary = Room.inserted()
-			if not plugged.is_empty():
-				_action("Act_eject", "Вынуть: " + Inventory.label_of(plugged), func() -> void: _show(PackedStringArray([Room.eject()])))
-			for id: String in Inventory.items():
-				if not Inventory.accepts(Inventory.PC, id):
-					continue
-				var button: Button = _action("Act_item_" + id, "Вставить: " + Inventory.name_of(id), func() -> void: insert(Inventory.first_uid(id)))
-				button.tooltip_text = Inventory.about(id)
+		_:
+			pass
 	_panel.visible = true
 	_place_panel(object)
 
@@ -300,13 +299,11 @@ func _on_background_input(event: InputEvent) -> void:
 
 # --- Действия ----------------------------------------------------------------------------
 
-## Сесть за ПК: рабочий стол или аварийный экран, если система сломана.
+## Сесть за ПК: рабочий стол или аварийная консоль, если система сломана.
+## Система сломана — стол сам покажет аварийную консоль на весь экран с ошибками загрузки
+## (шаг 7, часть 7): у игрока остаётся терминал, чтобы разобраться.
 func _on_sit() -> void:
-	var report: Dictionary = Room.monitor(Filesystem.for_node(Network.HOME_ID))
-	if bool(report["desktop"]):
-		Desktop.enter_pc(get_tree())
-		return
-	_show(report["lines"] as PackedStringArray)
+	Desktop.enter_pc(get_tree())
 
 
 func _on_rested(_mode: String, _minutes: int, interrupted: String) -> void:
@@ -315,20 +312,6 @@ func _on_rested(_mode: String, _minutes: int, interrupted: String) -> void:
 
 func _exit_tree() -> void:
 	PhoneOverlay.detach(self)
-
-
-## Питание ПК. Выключение закрывает и спрятанный стол — это уже не «отошёл», а выключил
-## (docs/gameplay/hacking.md, «Питание ПК»).
-func _on_power() -> void:
-	if PcPower.is_on():
-		PcPower.shut_down()
-		Desktop.discard_kept()
-		_output.text = "Компьютер выключен."
-	else:
-		var report: Dictionary = PcPower.power_on()
-		var errors: PackedStringArray = report.get("errors", PackedStringArray()) as PackedStringArray
-		_output.text = "Компьютер включён." if errors.is_empty() else "Компьютер включён, но при загрузке ошибки."
-	_refresh_panel()
 
 
 ## Вырубился здесь: тот же занавес; просыпается герой у себя, на кровати — в какой бы комнате
@@ -472,6 +455,33 @@ func clock_text() -> String:
 
 func title_text() -> String:
 	return _card.place_text()
+
+
+## Углы экрана монитора на экране игрока (поле `screen` у объекта-монитора, доли картинки
+## фона): туда экран загрузки ПК рисуется в перспективе (`BootOverlay`). Нет монитора — пусто.
+func monitor_screen_quad() -> PackedVector2Array:
+	var quad := PackedVector2Array()
+	for object: Dictionary in Locations.objects(Locations.current()):
+		if str(object.get("kind", "")) != "monitor" or not object.has("screen"):
+			continue
+		var art: Rect2 = _art_rect()
+		for corner: Variant in object["screen"] as Array:
+			var point: Array = corner as Array
+			quad.append(global_position + art.position + Vector2(float(point[0]), float(point[1])) * art.size)
+		break
+	return quad
+
+
+## Где на экране лежит картинка фона: она заполняет экран с сохранением пропорций
+## (`STRETCH_KEEP_ASPECT_COVERED`), лишнее обрезается по краям.
+func _art_rect() -> Rect2:
+	var texture: Texture2D = _background_art.texture if _background_art != null else null
+	if texture == null:
+		return Rect2(Vector2.ZERO, size)
+	var image: Vector2 = texture.get_size()
+	var scale: float = maxf(size.x / image.x, size.y / image.y)
+	var shown: Vector2 = image * scale
+	return Rect2((size - shown) / 2.0, shown)
 
 
 func scene_card() -> SceneCard:

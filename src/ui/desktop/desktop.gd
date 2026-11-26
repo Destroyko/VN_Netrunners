@@ -56,6 +56,8 @@ var _taskbar: Taskbar
 var _open: Dictionary = {}
 var _puzzles: DesktopPuzzles
 var _remote: RemoteWindows
+## Карта и «Защита узла» рядом с консолью (шаг 7, часть 6).
+var _widgets: HackWidgets
 var _rows: VBoxContainer
 var _emergency: Control
 var _opened_count: int = 0
@@ -76,6 +78,7 @@ func _ready() -> void:
 	terminal = Terminal.new()
 	_puzzles = DesktopPuzzles.new(self, terminal, func(gained: int) -> void: practice_finished.emit(gained))
 	_remote = RemoteWindows.new(self, terminal)
+	_widgets = HackWidgets.new(self, terminal)
 	# Трейс может оборвать сеанс сам, пока окно терминала закрыто: окно головоломки и карта
 	# должны узнать об этом и без него.
 	terminal.ticked.connect(func(_result: TermResult) -> void: _on_result_shown())
@@ -88,7 +91,9 @@ func _ready() -> void:
 	# после настоящей перезагрузки закрыты.
 	EventBus.pc_power_changed.connect(func(on: bool) -> void:
 		if on and is_inside_tree() and is_visible_in_tree():
-			call_deferred("_restart"))
+			call_deferred("_restart")
+		elif not on and is_inside_tree() and is_visible_in_tree():
+			call_deferred("_leave_if_off"))
 	EventBus.mail_received.connect(func(_uid: String, _id: String) -> void: _refresh_mail_icon())
 	EventBus.mail_read.connect(func(_uid: String, _id: String) -> void: _refresh_mail_icon())
 	_refresh_mail_icon()
@@ -601,6 +606,16 @@ func shut_down() -> void:
 	get_tree().change_scene_to_file(Screens.ROOM)
 
 
+## ПК выключился и не грузится (перезагрузку прервали посреди установки): за столом сидеть не за
+## чем — герой в комнате. Перезагрузка, которая идёт дальше, сюда не попадает: ПК уже грузится.
+func _leave_if_off() -> void:
+	if not is_inside_tree() or PcPower.is_on() or PcPower.is_booting():
+		return
+	if _kept == self:
+		_kept = null
+	get_tree().change_scene_to_file(Screens.ROOM)
+
+
 ## Собрать стол заново после загрузки ПК.
 func _restart() -> void:
 	if _kept == self:
@@ -684,6 +699,7 @@ static func pc_sound_on() -> bool:
 func _connect_view(view: TerminalView) -> void:
 	view.puzzle_requested.connect(func(request: Dictionary) -> void: _puzzles.show(request, view))
 	view.remote_requested.connect(func(request: Dictionary) -> void: _remote.open(request, view))
+	view.probe_requested.connect(func(request: Dictionary) -> void: _widgets.open_defense(str(request["node"])))
 	view.edit_requested.connect(func(request: Dictionary) -> void: open_editor(request, view))
 	view.result_shown.connect(_on_result_shown)
 	view.ready.connect(view.focus_entry)
@@ -716,6 +732,7 @@ func paste_to_own_desktop() -> void:
 func _on_result_shown() -> void:
 	_puzzles.close_stale()
 	_remote.sync()
+	_widgets.sync()
 	# Команда могла положить файл на стол или убрать ярлык; «Файлы» показывают свежий каталог.
 	_fill_icons()
 	var files: DesktopWindow = window_of("files")

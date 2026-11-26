@@ -46,10 +46,10 @@ static func show(args: PackedStringArray, result: TermResult) -> void:
 	var name: String = args[0].to_lower()
 	if COMMANDS.has(name) and not (name == "decrypt" and not Gates.is_open(Gates.AUTOCRACK)):
 		var entry: Array = COMMANDS[name] as Array
-		result.add("использование: %s" % entry[0])
+		result.add(str(entry[0]))
 		result.add(str(entry[1]))
 	elif Programs.is_program(name):
-		result.add("использование: %s [порт]" % name)
+		result.add("%s <порт>" % name)
 		result.add(Programs.about(name))
 	else:
 		result.add("команда не найдена: %s" % args[0])
