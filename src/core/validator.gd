@@ -67,6 +67,17 @@ func validate_all() -> bool:
 				_validate_conditions("диалог %s, выбор" % id, choice.get("requires", []) as Array)
 				_validate_effects("диалог %s, выбор" % id, choice.get("effects", []) as Array, DataLoader.quests())
 	var characters: Dictionary = DataLoader.characters()
+	# Темы разговора (CharacterTopics): диалог есть, условия известны.
+	for who: String in characters.keys():
+		if not (characters[who] is Dictionary):
+			continue
+		for topic_variant: Variant in (characters[who] as Dictionary).get("topics", []) as Array:
+			var topic: Dictionary = topic_variant as Dictionary
+			var where: String = "персонаж %s, тема %s" % [who, topic.get("id", "?")]
+			_require_fields(where, topic, ["id", "title", "dialogue"])
+			if not _dialogues.has(str(topic.get("dialogue", ""))):
+				errors.append("%s: нет диалога '%s'" % [where, topic.get("dialogue", "")])
+			_validate_conditions(where, topic.get("requires", []) as Array)
 	for id: String in _messages.keys():
 		_validate_text_message(id, _messages[id] as Dictionary, characters)
 	var location_validator := LocationValidator.new()

@@ -8,7 +8,12 @@
   "roommate": {
     "name": "{name_roommate}",
     "portrait": "roommate",
-    "color": "#c98a6b"
+    "color": "#c98a6b",
+    "_note_topics": "Заготовка тем разговора (docs/tech/dialogue-format.md, «Взаимодействие с персонажами»): настоящие темы — вместе с диалогами.",
+    "topics": [
+      {"id": "smalltalk", "title": "Поболтать", "dialogue": "dlg_test"},
+      {"id": "run", "title": "О совместной пробежке", "dialogue": "dlg_test", "requires": [{"flag": "quest.example.ask_run"}], "once": true}
+    ]
   },
   "landlord": {
     "name": "{name_landlord}",

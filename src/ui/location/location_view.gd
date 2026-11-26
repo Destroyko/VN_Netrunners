@@ -17,7 +17,8 @@ extends Control
 ## Арта пока нет: фон — цвет из данных, объект — полупрозрачная плашка с подписью. Появится
 ## картинка по пути из данных — встанет сама, код менять не нужно.
 
-const PANEL_KINDS: PackedStringArray = []
+## Объекты, у которых по клику — панель действий: персонаж показывает темы разговора.
+const PANEL_KINDS: PackedStringArray = ["character"]
 
 var _background: ColorRect
 var _background_art: TextureRect
@@ -259,8 +260,17 @@ func _refresh_panel() -> void:
 		_actions.remove_child(child)
 		child.queue_free()
 	match str(object.get("kind", "")):
-		_:
-			pass
+		"character":
+			# Темы разговора (CharacterTopics): только доступные сейчас.
+			var character: String = str(object.get("character", ""))
+			var topics: Array = CharacterTopics.available(character)
+			for topic: Dictionary in topics:
+				var topic_id: String = str(topic["id"])
+				_action("Topic_" + topic_id, str(topic.get("title", topic_id)), func() -> void:
+					_close_panel()
+					CharacterTopics.choose(character, topic_id))
+			if topics.is_empty():
+				_action("Topic_none", "Сейчас не о чем говорить", _close_panel).disabled = true
 	_panel.visible = true
 	_place_panel(object)
 
