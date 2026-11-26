@@ -113,7 +113,7 @@ func test_progs_and_help_show_programs_unlocked_by_requirements() -> void:
 	var defs: Dictionary = Programs.definitions().duplicate(true)
 	(defs["passhound"] as Dictionary)["requires"] = [{"skill_at_least": ["hacking", 3]}]
 	_use(defs)
-	assert_eq(run("progs"), "установленных программ нет")
+	assert_eq(run("progs"), "программы не установлены")
 	GameState.set_var("skill.hacking", 3)
 	assert_string_contains(run("progs"), "passhound")
 	assert_string_contains(run("help"), "passhound")

@@ -6,7 +6,7 @@ extends "res://test/unit/terminal_fixture.gd"
 
 func test_cracker_needs_a_target() -> void:
 	learn_programs()
-	assert_string_contains(run("passhound"), "цель не выбрана")
+	assert_string_contains(run("passhound"), "нет подключения к узлу")
 
 
 func test_passhound_asks_the_interface_for_a_puzzle() -> void:
@@ -48,7 +48,7 @@ func test_cracked_password_is_shown_and_the_server_asks_for_it() -> void:
 	var word: String = str(last.request["password"])
 	assert_false(word.is_empty(), "взломщик знает, какое слово достанет")
 	var result: TermResult = solve_puzzle()
-	assert_string_contains(result.text(), "порт 22: доступ получен (1 из 1)")
+	assert_string_contains(result.text(), "порт 22: доступ получен")
 	assert_string_contains(result.text(), "пароль: " + word.to_upper())
 	assert_string_contains(result.text(), "соединение с 10.0.0.7 установлено")
 	assert_eq(result.request.get("type"), "remote", "интерфейс открывает трансляцию с экраном блокировки")
@@ -95,7 +95,7 @@ func test_failed_puzzle_keeps_the_service_closed_and_can_be_retried() -> void:
 	reach_training_pc()
 	run("connect 10.0.0.7")
 	run("passhound")
-	assert_string_contains(t.finish_puzzle(0).text(), "провал")
+	assert_string_contains(t.finish_puzzle(0).text(), "не получен")
 	assert_signal_emitted(EventBus, "puzzle_failed")
 	assert_string_contains(run("connect 10.0.0.7"), "вход отклонён")
 	run("passhound")
@@ -110,14 +110,14 @@ func test_wrong_program_for_the_defence() -> void:
 	learn_programs()
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
-	assert_eq(run("passhound 1194"), "passhound не работает против этой защиты")
+	assert_eq(run("passhound 1194"), "ошибка: passhound не подходит к защите этого порта")
 
 
 func test_cracker_picks_the_only_fitting_service() -> void:
 	learn_programs()
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
-	run("gridrunner")
+	run("gridrunner 1194")
 	assert_eq(last.request["service"], "svc_vpn", "под gridrunner подходит один сервис")
 
 
@@ -125,7 +125,7 @@ func test_unknown_service_is_refused() -> void:
 	learn_programs()
 	reach_training_pc()
 	run("connect 10.0.0.7")
-	assert_string_contains(run("passhound 9999"), "порт 9999: нет сервиса")
+	assert_string_contains(run("passhound 9999"), "порт не найден: 9999")
 
 
 func test_no_trace_before_the_group_era() -> void:
@@ -142,7 +142,7 @@ func test_first_cracker_starts_the_trace_in_the_group_era() -> void:
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
 	var total: int = trace_of("node_office_server")
-	assert_string_contains(run("passhound"), "трейс запущен: %d мин" % total)
+	assert_string_contains(run("passhound 8080"), "трейс запущен: %d мин" % total)
 	assert_signal_emitted(EventBus, "trace_started")
 	assert_eq(t.session.trace_left(), total - 3, "программа уже отъела три минуты")
 
@@ -152,7 +152,7 @@ func test_trace_warns_and_then_breaks_the_connection() -> void:
 	GameState.set_flag(Programs.GATE_PRESSURE)
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
-	run("passhound")  # трейс стартует, программа отъедает 3 минуты
+	run("passhound 8080")  # трейс стартует, программа отъедает 3 минуты
 	var total: int = trace_of("node_office_server")
 
 	var half := TermResult.new()
@@ -171,7 +171,7 @@ func test_finished_trace_resets_services_and_makes_target_wary() -> void:
 	GameState.set_flag(Programs.GATE_PRESSURE)
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
-	run("passhound")
+	run("passhound 8080")
 	solve_puzzle()
 	t.spend(trace_of("node_office_server"), TermResult.new())
 	var net: Network = Network.for_game()
@@ -198,7 +198,7 @@ func _start_trace() -> void:
 	GameState.set_flag(Programs.GATE_PRESSURE)
 	reveal("node_office_server")
 	run("connect 77.61.204.12")
-	run("passhound")  # трейс пошёл, программа отъела 3 минуты
+	run("passhound 8080")  # трейс пошёл, программа отъела 3 минуты
 
 
 func test_trace_ticks_with_the_clock_without_commands() -> void:

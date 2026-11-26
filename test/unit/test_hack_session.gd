@@ -190,14 +190,14 @@ func test_cracker_rejects_unknown_service() -> void:
 	session.connect_to("10.0.0.7", _at(1, 9))
 	var result: NetResult = session.begin_cracking("svc_nope", "passhound", _at(1, 9), true)
 	assert_eq(result.code, NetResult.Code.NO_SUCH_SERVICE)
-	assert_string_contains(result.message(), "нет сервиса")
+	assert_string_contains(result.message(), "порт не найден")
 
 
 func test_cracker_must_match_the_defence() -> void:
 	session.connect_to("77.0.0.12", _at(1, 9))
 	var result: NetResult = session.begin_cracking("svc_fw", "passhound", _at(1, 9), true)
 	assert_eq(result.code, NetResult.Code.WRONG_PROGRAM)
-	assert_eq(result.message(), "passhound не работает против этой защиты")
+	assert_eq(result.message(), "ошибка: passhound не подходит к защите этого порта")
 	assert_false(session.is_tracing(), "ошибка ввода трейс не запускает")
 
 

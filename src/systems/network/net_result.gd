@@ -88,10 +88,10 @@ func message() -> String:
 		Code.NO_TARGET:
 			return "цель не выбрана"
 		Code.NO_SUCH_SERVICE:
-			return "порт %d: нет сервиса" % port
+			return "порт не найден: %d" % port
 		Code.ALREADY_CRACKED:
 			return "порт %d: уже открыт" % port
 		Code.WRONG_PROGRAM:
-			return "%s не работает против этой защиты" % program
+			return "ошибка: %s не подходит к защите этого порта" % program
 		_:
 			return "неизвестная ошибка"

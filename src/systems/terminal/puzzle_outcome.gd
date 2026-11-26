@@ -48,7 +48,7 @@ func apply(data: Dictionary, gained: int, result: TermResult) -> void:
 		var done: NetResult = _t.session.crack(service, now_minute)
 		progress.clear_service(node, service)
 		EventBus.puzzle_solved.emit(kind, level, node, service)
-		result.add("порт %d: доступ получен (%d из %d)" % [port, done.cracked, done.required])
+		result.add("порт %d: доступ получен" % port)
 		# Вскрытая часть защиты больше не поднимает шум: трейс отступает (разработчик, 16.11.2026).
 		var eased: int = _t.session.ease_trace(int((DataLoader.balance().get("nodes", {}) as Dictionary).get("trace_ease_percent", 25)))
 		if eased > 0:
@@ -65,7 +65,7 @@ func apply(data: Dictionary, gained: int, result: TermResult) -> void:
 	elif layers_gained > 0:
 		# Частичный успех: слои остались, добить можно позже (даже после `dc`).
 		EventBus.puzzle_solved.emit(kind, level, node, service)
-		result.add("слой вскрыт: %d из %d. порт %d ещё закрыт" % [layers_now, layers_total, port])
+		result.add("порт %d: вскрыт слой %d из %d" % [port, layers_now, layers_total])
 	else:
 		EventBus.puzzle_failed.emit(kind, level, node, service, attempt)
-		result.add("провал: порт %d не поддался" % port)
+		result.add("ошибка: доступ к порту %d не получен" % port)

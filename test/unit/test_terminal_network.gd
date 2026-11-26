@@ -194,7 +194,7 @@ func test_cwd_resets_between_nodes() -> void:
 
 func test_no_programs_at_the_start() -> void:
 	# Решено 15.11.2026: у героя обычная ОС, первые задания — прямой доступ без взлома.
-	assert_eq(run("progs"), "установленных программ нет")
+	assert_eq(run("progs"), "программы не установлены")
 	assert_eq(Programs.installed().size(), 0)
 
 
@@ -290,7 +290,7 @@ func test_program_takes_a_port_number_not_a_service_name() -> void:
 	learn_programs()
 	reach_training_pc()
 	run("connect 10.0.0.7")
-	assert_string_contains(run("passhound svc_login"), "порт — это число")
+	assert_string_contains(run("passhound svc_login"), "порт не найден")
 	run("passhound 22")
 	assert_eq(last.request["port"], 22)
 	assert_eq(last.request["service"], "svc_login", "внутри игра по-прежнему знает сервис по id")
@@ -314,7 +314,7 @@ func test_scan_at_the_door_does_not_run_on_your_own_pc() -> void:
 func test_cracker_with_nothing_left_to_open_says_so() -> void:
 	learn_programs()
 	enter("node_office_server")
-	assert_eq(run("gridrunner"), "gridrunner: закрытых целей нет")
+	assert_eq(run("gridrunner"), "все порты узла уже открыты")
 
 
 func test_ls_ignores_flags() -> void:

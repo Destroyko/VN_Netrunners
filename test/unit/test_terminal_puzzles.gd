@@ -48,7 +48,7 @@ func test_catching_the_hash_opens_the_service() -> void:
 
 func test_matrix_request_is_a_matrix() -> void:
 	_start_husband()
-	run("gridrunner")
+	run("gridrunner 443")
 	assert_eq(last.request["kind"], "matrix")
 	assert_eq(last.request["difficulty"], 3)
 	assert_eq(last.request["layers_total"], 2)
@@ -78,8 +78,8 @@ func test_cautious_target_plays_harder() -> void:
 
 func test_partial_success_keeps_the_layers() -> void:
 	_start_husband()
-	run("gridrunner")
-	assert_string_contains(t.finish_puzzle(1).text(), "слой вскрыт: 1 из 2")
+	run("gridrunner 443")
+	assert_string_contains(t.finish_puzzle(1).text(), "вскрыт слой 1 из 2")
 	assert_signal_emitted(EventBus, "puzzle_solved")
 	assert_string_contains(run("connect 92.44.18.3"), "вход отклонён", "один слой — ещё не сервис")
 
@@ -87,20 +87,20 @@ func test_partial_success_keeps_the_layers() -> void:
 func test_layers_survive_a_voluntary_disconnect() -> void:
 	# Добровольный dc прогресс сохраняет: взлом можно растянуть на несколько дней.
 	_start_husband()
-	run("gridrunner")
+	run("gridrunner 443")
 	t.finish_puzzle(1)
 	run("dc")
 	run("connect 92.44.18.3")
-	run("gridrunner")
+	run("gridrunner 443")
 	assert_eq(last.request["layers_done"], 1)
 	assert_eq((last.request["puzzle"] as MatrixPuzzle).targets.size(), 1, "осталось собрать одну цель")
 
 
 func test_finishing_the_remaining_layers_opens_the_service() -> void:
 	_start_husband()
-	run("gridrunner")
+	run("gridrunner 443")
 	t.finish_puzzle(1)
-	run("gridrunner")
+	run("gridrunner 443")
 	var text: String = t.finish_puzzle(1).text()
 	assert_string_contains(text, "доступ получен")
 	assert_true(t.session.has_connection(), "вскрыто всё нужное — вошли без лишнего connect")
@@ -108,30 +108,30 @@ func test_finishing_the_remaining_layers_opens_the_service() -> void:
 
 func test_solving_every_layer_at_once_opens_the_service() -> void:
 	_start_husband()
-	run("gridrunner")
+	run("gridrunner 443")
 	assert_string_contains(solve_puzzle().text(), "доступ получен")
 
 
 func test_opened_service_forgets_its_progress() -> void:
 	_start_husband()
-	run("gridrunner")
+	run("gridrunner 443")
 	solve_puzzle()
 	assert_eq(PuzzleProgress.for_game().attempts("node_husband_pc", "svc_firewall", t.now()), 0)
 
 
 func test_layers_melt_after_two_days() -> void:
 	_start_husband()
-	run("gridrunner")
+	run("gridrunner 443")
 	t.finish_puzzle(1)
 	Clock.advance(2 * 1440)
-	run("gridrunner")
+	run("gridrunner 443")
 	assert_eq(last.request["layers_done"], 0, "слои растаяли")
 
 
 func test_finished_trace_resets_the_layers() -> void:
 	GameState.set_flag(Programs.GATE_PRESSURE)
 	_start_husband()
-	run("gridrunner")
+	run("gridrunner 443")
 	t.finish_puzzle(1)
 	t.spend(trace_of("node_husband_pc"), TermResult.new())
 	assert_eq(PuzzleProgress.for_game().layers("node_husband_pc", "svc_firewall", t.now()), 0, "цель перенастроила защиту")
@@ -142,7 +142,7 @@ func test_finished_trace_resets_the_layers() -> void:
 func test_failure_counts_the_attempt_and_reports_it() -> void:
 	_start_training()
 	run("passhound")
-	assert_string_contains(t.finish_puzzle(0).text(), "провал")
+	assert_string_contains(t.finish_puzzle(0).text(), "не получен")
 	assert_signal_emitted(EventBus, "puzzle_failed")
 	assert_eq(get_signal_parameters(EventBus, "puzzle_failed")[4], 1, "первая неудача")
 	run("passhound")

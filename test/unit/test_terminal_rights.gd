@@ -105,7 +105,7 @@ func test_rootstep_twice() -> void:
 	learn_programs()
 	enter("node_training_pc")
 	run("rootstep")
-	assert_eq(run("rootstep"), "права уже повышены")
+	assert_eq(run("rootstep"), "права администратора уже получены")
 
 
 func test_rights_survive_reconnect_until_the_target_resets() -> void:
@@ -166,7 +166,7 @@ func test_deepscan_needs_a_router_or_a_server() -> void:
 func test_deepscan_on_a_plain_pc_has_no_routes() -> void:
 	learn_programs()
 	enter("node_training_pc")
-	assert_string_contains(run("deepscan"), "нет таблиц маршрутов")
+	assert_string_contains(run("deepscan"), "нет таблицы маршрутизации")
 
 
 func test_deepscan_on_the_router_lists_the_network_with_depth() -> void:
