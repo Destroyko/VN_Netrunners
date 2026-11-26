@@ -33,11 +33,11 @@ static func brute_minutes() -> int:
 static func start_decrypt(path: String) -> Dictionary:
 	var home: Filesystem = Filesystem.for_node(Network.HOME_ID)
 	if not home.has_file(path):
-		return {"ok": false, "reason": "нет такого файла"}
+		return {"ok": false, "reason": "файл не найден: %s" % FsPath.name_of(path)}
 	if not bool(home.file_data(path).get("encrypted", false)):
-		return {"ok": false, "reason": "файл не зашифрован"}
+		return {"ok": false, "reason": "ошибка: файл не зашифрован"}
 	if is_running(path):
-		return {"ok": false, "reason": "подбор уже идёт"}
+		return {"ok": false, "reason": "подбор пароля уже идёт"}
 	var minutes: int = brute_minutes()
 	var list: Array = tasks().duplicate()
 	list.append({"path": path, "finish_at": Clock.total_minutes() + minutes})

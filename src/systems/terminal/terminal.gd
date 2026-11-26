@@ -520,10 +520,10 @@ func _describe(events: Array[Dictionary], result: TermResult) -> void:
 			"trace_last_quarter":
 				result.add("трейс: осталась последняя четверть (%d мин)" % int(event["left"]))
 			"connection_lost":
-				result.add("соединение потеряно: узел ушёл из сети")
+				result.add("соединение разорвано: узел не в сети")
 				_forget_session()
 			"trace_finished":
-				result.add("трейс дошёл до конца: соединение оборвано")
+				result.add("трейс завершён: соединение разорвано")
 				_forget_session()
 
 
@@ -618,7 +618,7 @@ func _show_history(result: TermResult) -> void:
 ## Без ключа ручная расшифровка (мини-игра) пока не готова — см. docs/open-questions.md.
 func _decrypt(args: PackedStringArray, result: TermResult) -> void:
 	if is_remote():
-		result.add("архивы расшифровываются только на своём ПК")
+		result.add("ошибка: расшифровка доступна только на своём ПК")
 		return
 	if args.is_empty():
 		var running: Array = BackgroundTasks.tasks()
@@ -626,23 +626,23 @@ func _decrypt(args: PackedStringArray, result: TermResult) -> void:
 			Terminal.usage(result, "decrypt <файл> -auto")
 		else:
 			for t: Dictionary in running:
-				result.add("подбор идёт: %s" % str(t["path"]))
+				result.add("идёт подбор пароля: %s" % FsPath.name_of(str(t["path"])))
 		return
 	var path: String = FsPath.resolve(home_cwd(), args[0])
 	var auto: bool = args.has("-auto")
 	if not auto:
-		result.add("ручная расшифровка пока недоступна. Запусти подбор: decrypt %s -auto" % args[0])
+		Terminal.usage(result, "decrypt <файл> -auto")
 		return
 	var report: Dictionary = BackgroundTasks.start_decrypt(path)
 	if not bool(report["ok"]):
-		result.add("decrypt: %s" % str(report["reason"]))
+		result.add(str(report["reason"]))
 		return
-	result.add("подбор пароля запущен, займёт около %d мин. Можно заняться другими делами." % int(report["minutes"]))
+	result.add("подбор пароля запущен: около %d ч" % maxi(1, roundi(int(report["minutes"]) / 60.0)))
 
 
 func _reboot(result: TermResult) -> void:
 	if is_remote():
-		result.add("перезагрузка недоступна на удалённом узле")
+		result.add("ошибка: перезагрузка доступна только на своём ПК")
 		return
 	# Одно правило на все кнопки питания (PcPower): сеанс оборван как `dc`, подбор прерван,
 	# тема применена. Стол, увидев загрузку, соберётся заново.

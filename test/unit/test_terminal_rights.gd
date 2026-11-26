@@ -241,7 +241,7 @@ func test_download_that_does_not_fit_the_trace_is_cut() -> void:
 
 	var text: String = run("cp photos/hotel.jpg")
 	assert_string_contains(text, "ошибка передачи: соединение прервано")
-	assert_string_contains(text, "трейс дошёл до конца")
+	assert_string_contains(text, "трейс завершён")
 	assert_false(t.home_fs().has_file("/home/downloads/hotel.jpg"))
 	assert_eq(t.prompt(), "home:/home$ ")
 
@@ -455,7 +455,7 @@ func test_decrypt_auto_starts_bruteforce() -> void:
 	GameState.set_flag(Gates.AUTOCRACK)
 	t.home_fs().put_file("/home/downloads/arhiv.enc", {"encrypted": true, "size_kb": 500,
 		"locked": {"text": "секрет"}})
-	assert_string_contains(run("decrypt /home/downloads/arhiv.enc"), "недоступна", "без -auto — заглушка")
+	assert_string_contains(run("decrypt /home/downloads/arhiv.enc"), "help decrypt", "без -auto — заглушка")
 	assert_string_contains(run("decrypt /home/downloads/arhiv.enc -auto"), "подбор")
 	assert_true(BackgroundTasks.is_running("/home/downloads/arhiv.enc"))
 

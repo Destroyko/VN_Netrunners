@@ -269,7 +269,7 @@ func test_reboot_is_refused_on_a_remote_machine() -> void:
 	enter("node_husband_pc")
 	Clock.set_time(1, 19 * 60)
 	enter("node_husband_pc")
-	assert_string_contains(run("reboot"), "удалённом узле")
+	assert_string_contains(run("reboot"), "только на своём ПК")
 
 
 # --- Маски и вопрос о замене (плейтест M2) ----------------------------------------

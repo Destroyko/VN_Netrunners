@@ -161,7 +161,7 @@ func test_trace_warns_and_then_breaks_the_connection() -> void:
 
 	var end := TermResult.new()
 	t.spend(total, end)
-	assert_string_contains(end.text(), "трейс дошёл до конца")
+	assert_string_contains(end.text(), "трейс завершён")
 	assert_signal_emitted(EventBus, "trace_finished")
 	assert_eq(t.prompt(), "home:/home$ ", "обрыв: терминал снова дома")
 
@@ -186,7 +186,7 @@ func test_prime_time_ending_cuts_the_session() -> void:
 	assert_eq(t.prompt(), "92.44.18.3:/home$ ")
 	var cut: TermResult = TermResult.new()
 	t.spend(45, cut)
-	assert_string_contains(cut.text(), "соединение потеряно")
+	assert_string_contains(cut.text(), "соединение разорвано")
 	assert_eq(t.prompt(), "home:/home$ ")
 	assert_signal_emitted(EventBus, "node_disconnected")
 
